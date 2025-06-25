@@ -79,7 +79,7 @@ public partial class Interface
 
         public static void DrawCheckRetainersBox()
         {
-            DrawCheckbox("Check Retainer Inventories", "Use Allagan Tools to check retainer inventories when doing inventory calculations",
+            DrawCheckbox("检查雇员物品", "使用Allagan Tools检查雇员物品以进行库存计算",
                 GatherBuddy.Config.AutoGatherConfig.CheckRetainers, b => GatherBuddy.Config.AutoGatherConfig.CheckRetainers = b);
             ImGui.SameLine();
             ImGuiEx.PluginAvailabilityIndicator([new("InventoryTools", "Allagan Tools")]);
@@ -89,7 +89,7 @@ public partial class Interface
         {
             ImGui.SetNextItemWidth(150);
             var volume = GatherBuddy.Config.AutoGatherConfig.SoundPlaybackVolume;
-            if (ImGui.DragInt("Playback Volume", ref volume, 1, 0, 100))
+            if (ImGui.DragInt("播放音量", ref volume, 1, 0, 100))
             {
                 if (volume < 0)
                     volume = 0;
@@ -100,7 +100,7 @@ public partial class Interface
             }
 
             ImGuiUtil.HoverTooltip(
-                "The volume of the sound played when auto-gathering shuts down because your list is complete.\nHold CTRL and click to enter custom value");
+                "完成列表采集后，自动采集停止时播放的声音音量。\n按住CTRL键并单击可输入自定义值");
         }
 
         public static void DrawHonkModeBox()
@@ -108,37 +108,37 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.HonkMode,   b => GatherBuddy.Config.AutoGatherConfig.HonkMode = b);
 
         public static void DrawRepairBox()
-            => DrawCheckbox("Repair gear when needed",        "Repair gear when it is almost broken",
+            => DrawCheckbox("需要时修理装备",        "装备即将损坏时进行修理",
                 GatherBuddy.Config.AutoGatherConfig.DoRepair, b => GatherBuddy.Config.AutoGatherConfig.DoRepair = b);
 
         public static void DrawRepairThreshold()
         {
             var tmp = GatherBuddy.Config.AutoGatherConfig.RepairThreshold;
-            if (ImGui.DragInt("Repair Threshold", ref tmp, 1, 1, 100))
+            if (ImGui.DragInt("修理阈值", ref tmp, 1, 1, 100))
             {
                 GatherBuddy.Config.AutoGatherConfig.RepairThreshold = tmp;
                 GatherBuddy.Config.Save();
             }
 
-            ImGuiUtil.HoverTooltip("The percentage of durability at which you will repair your gear.");
+            ImGuiUtil.HoverTooltip("进行装备修理的耐久度百分比。");
         }
 
         public static void DrawFishingSpotMinutes()
         {
             var tmp = GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes;
-            if (ImGui.DragInt("Max Fishing Spot Minutes", ref tmp, 1, 1, 40))
+            if (ImGui.DragInt("钓鱼点最长停留时间（分钟）", ref tmp, 1, 1, 40))
             {
                 GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes = tmp;
                 GatherBuddy.Config.Save();
             }
 
-            ImGuiUtil.HoverTooltip("The maximum number of minutes you will fish at a fishing spot.");
+            ImGuiUtil.HoverTooltip("在同一个钓鱼点进行钓鱼的最长时间（分钟）。");
         }
 
         public static void DrawLifestreamCommandTextInput()
         {
             var tmp = GatherBuddy.Config.AutoGatherConfig.LifestreamCommand;
-            if (ImGui.InputText("Lifestream Command", ref tmp, 100))
+            if (ImGui.InputText("Lifestream 命令", ref tmp, 100))
             {
                 if (string.IsNullOrEmpty(tmp))
                     tmp = "auto";
@@ -147,15 +147,15 @@ public partial class Interface
             }
 
             ImGuiUtil.HoverTooltip(
-                "The command used when idling or done gathering. DO NOT include '/li'\nBe careful when changing this, GBR does not validate this command!");
+                "在空闲或完成采集时使用的命令。请勿包含“/li”\n谨慎更改，因为GBR不会验证此命令！");
         }
 
         public static void DrawFishCollectionBox()
-            => DrawCheckbox("Opt-in to fishing data collection",
-                "With this enabled, whenever you catch a fish the data for that fish will be uploaded to a remote server\n"
-              + "The purpose of this data collection is to allow for a usable auto-fishing feature to be built\n"
-              + "No personal information about you or your character will be collected, only data relevant to the caught fish\n"
-              + "You can opt-out again at any time by simply disabling this checkbox.", GatherBuddy.Config.AutoGatherConfig.FishDataCollection,
+            => DrawCheckbox("允许捕鱼数据收集",
+                "启用此选项后，每当您钓到鱼时，该鱼的数据将被上传到远程服务器。\n"
+              + "此数据收集的目的是为了能够构建自动钓鱼功能。\n"
+              + "不会收集有关您或您角色的个人信息，仅收集与所获得鱼的相关的资料。\n"
+              + "您可以随时通过禁用此复选框来禁用信息收集。", GatherBuddy.Config.AutoGatherConfig.FishDataCollection,
                 b => GatherBuddy.Config.AutoGatherConfig.FishDataCollection = b);
 
         public static void DrawMaterialExtraction()
@@ -166,7 +166,7 @@ public partial class Interface
 
         public static void DrawAetherialReduction()
             => DrawCheckbox("自动精选",
-                "Automatically perform Aetherial Reduction when idling or the inventory is full",
+                "在空闲或物品栏已满时自动进行精选",
                 GatherBuddy.Config.AutoGatherConfig.DoReduce,
                 b => GatherBuddy.Config.AutoGatherConfig.DoReduce = b);
 
@@ -252,7 +252,7 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.ForceWalking, b => GatherBuddy.Config.AutoGatherConfig.ForceWalking = b);
 
         public static void DrawUseNavigationBox()
-            => DrawCheckbox("Use vnavmesh Navigation",             "Use vnavmesh Navigation to move your character automatically",
+            => DrawCheckbox("使用vnavmesh导航",             "Use vnavmesh Navigation to move your character automatically",
                 GatherBuddy.Config.AutoGatherConfig.UseNavigation, b => GatherBuddy.Config.AutoGatherConfig.UseNavigation = b);
 
         public static void DrawStuckThreshold()
@@ -565,13 +565,13 @@ public partial class Interface
                 GatherBuddy.Config.HideFishSizePopup, b => GatherBuddy.Config.HideFishSizePopup = b);
 
         public static void DrawCollectableHintPopupBox()
-            => DrawCheckbox("Show Collectable Hints",
-                "Show if a fish is collectable in the fish timer window.",
+            => DrawCheckbox("收藏品提示",
+                "在捕鱼计时器窗口中显示鱼是否为收藏品。",
                 GatherBuddy.Config.ShowCollectableHints, b => GatherBuddy.Config.ShowCollectableHints = b);
 
         public static void DrawDoubleHookHintPopupBox()
-            => DrawCheckbox("Show Multi Hook Hints",
-                "Show if a fish can be double or triple hooked in Cosmic Exploration.", // TODO: add ocean fishing when implemented.
+            => DrawCheckbox("多重提钩提示",
+                "在“宇宙探索”中显示鱼是否可以进行双重或三重提钩。", // TODO: add ocean fishing when implemented.
                 GatherBuddy.Config.ShowMultiHookHints, b => GatherBuddy.Config.ShowMultiHookHints = b);
 
 
@@ -766,7 +766,7 @@ public partial class Interface
                 s => GatherBuddy.Config.IdentifiedGatherableFormat = s);
 
         public static void DrawAlwaysMapsBox()
-            => DrawCheckbox("Always gather maps when available",      "GBR will always grab maps first if it sees one in a node",
+            => DrawCheckbox("有藏宝图时总是采集",      "如果GBR在采集点中看到藏宝图，它将始终首先采集藏宝图",
                 GatherBuddy.Config.AutoGatherConfig.AlwaysGatherMaps, b => GatherBuddy.Config.AutoGatherConfig.AlwaysGatherMaps = b);
     }
 
