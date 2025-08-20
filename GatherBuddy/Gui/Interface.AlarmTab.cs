@@ -245,7 +245,7 @@ public partial class Interface
                 out var newDesc, ref _alarmCache.EditGroupDesc, IconButtonSize, 2 * SetInputWidth, 128))
             _plugin.AlarmManager.ChangeGroupDescription(idx, newDesc);
         var enabled = group.Enabled;
-        if (ImGui.Checkbox("Enabled", ref enabled) && enabled != group.Enabled)
+        if (ImGui.Checkbox("启用", ref enabled) && enabled != group.Enabled)
             _plugin.AlarmManager.ToggleGroup(idx);
         ImGuiUtil.HoverTooltip(
             "启用此闹钟组。只有启用自身的组中的那些闹钟才能被视为活动状态。");
@@ -285,7 +285,7 @@ public partial class Interface
 
         using var id = ImRaii.PushId(-1);
         ImGui.TableNextColumn();
-        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Plus.ToIconString(), IconButtonSize, "Add new Alarm...", false, true))
+        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Plus.ToIconString(), IconButtonSize, "添加新闹钟...", false, true))
             _plugin.AlarmManager.AddAlarm(group, _alarmCache.CreateAlarm());
         ImGui.TableNextColumn();
         ImGui.SetNextItemWidth(SetInputWidth);
@@ -335,7 +335,7 @@ public partial class Interface
             }
         }
 
-        if (ImGuiUtil.DrawDisabledButton("创建窗口", Vector2.Zero, "由当前闹钟组新建一个采集窗口。",
+        if (ImGuiUtil.DrawDisabledButton("创建采集窗口", Vector2.Zero, "由当前闹钟组新建一个采集窗口。",
                 _alarmCache.Selector.Current == null))
         {
             var preset = new GatherWindowPreset(_alarmCache.Selector.Current!);

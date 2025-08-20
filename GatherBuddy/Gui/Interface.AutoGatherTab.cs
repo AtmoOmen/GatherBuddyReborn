@@ -244,7 +244,7 @@ public partial class Interface
             }
         }
 
-        if (ImGuiUtil.DrawDisabledButton("Import from TeamCraft", Vector2.Zero, "Populate list from clipboard contents (TeamCraft format)",
+        if (ImGuiUtil.DrawDisabledButton("从 TeamCraft 导入", Vector2.Zero, "用剪贴板内容填充采集列表 (TeamCraft 格式)",
                 _autoGatherListsCache.Selector.Current == null))
         {
             var clipboardText = ImGuiUtil.GetClipboardText();
@@ -285,7 +285,7 @@ public partial class Interface
                 }
                 catch (Exception e)
                 {
-                    Communicator.PrintClipboardMessage("Error importing auto-gather list", e.ToString());
+                    Communicator.PrintClipboardMessage("导入自动采集列表时出错", e.ToString());
                 }
             }
         }
@@ -337,7 +337,7 @@ public partial class Interface
             var       item  = list.Items[i];
             using var id    = ImRaii.PushId((int)item.ItemId);
             using var group = ImRaii.Group();
-            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString(), IconButtonSize, "Delete this item from the list", false,
+            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString(), IconButtonSize, "从列表中删除此物品", false,
                     true))
                 deleteIndex = i;
             ImGui.SameLine();
