@@ -1,4 +1,4 @@
-<Project Sdk="Dalamud.CN.NET.Sdk/13.1.0">
+<Project Sdk="Dalamud.NET.Sdk/14.0.0">
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
     <PlatformTarget>x64</PlatformTarget>

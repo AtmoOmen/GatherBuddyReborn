@@ -1838,7 +1838,7 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            var allPositions = next.Where(n => n.Location.Territory.Id == Player.Territory)
+            var allPositions = next.Where(n => n.Location.Territory.Id == Player.Territory.RowId)
                 .SelectMany(ne => (ne.Node?.WorldPositions ?? ne.FishingSpot?.WorldPositions)
                         ?.ExceptBy(VisitedNodes, n => n.Key)
                         .SelectMany(w => w.Value)

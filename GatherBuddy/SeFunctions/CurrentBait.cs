@@ -1,5 +1,6 @@
 ﻿using Dalamud.Game;
 using Dalamud.Utility.Signatures;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.WKS;
 using GatherBuddy.Plugin;

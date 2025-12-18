@@ -1,4 +1,5 @@
 using Dalamud.Game;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GatherBuddy.Plugin;
 

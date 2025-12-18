@@ -52,7 +52,7 @@ namespace GatherBuddy.AutoGather
 
         private static bool IsItemCordial(Item item)
         {
-            return item.ItemAction.ValueNullable?.Type == 1055;
+            return item.ItemAction.RowId == 1055;
         }
 
         private static bool IsItemDoLFood(Item item)
@@ -78,7 +78,7 @@ namespace GatherBuddy.AutoGather
         {
             if (item.ItemUICategory.RowId != 63)
                 return false;
-            return item.ItemAction.ValueNullable?.Type == 816 && item.ItemAction.ValueNullable?.Data[0] is 302 or 303 or 1752 or 5330;
+            return item.ItemAction.RowId == 816 && item.ItemAction.ValueNullable?.Data[0] is 302 or 303 or 1752 or 5330;
         }
 
         private static bool IsItemDoLSquadronManual(Item item)

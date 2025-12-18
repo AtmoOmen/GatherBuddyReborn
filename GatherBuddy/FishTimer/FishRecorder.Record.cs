@@ -183,7 +183,7 @@ public partial class FishRecorder
         Record.FishingSpot   = spot;
         Record.Position      = Player.Position;
         Record.RotationAngle = new Angle(Player.Rotation);
-        Record.World         = ExcelWorldHelper.Get(Player.CurrentWorld)!.Value;
+        Record.World         = ExcelWorldHelper.Get(Player.CurrentWorld.RowId)!.Value;
         if (Record.HasSpot)
             Step |= CatchSteps.IdentifiedSpot;
 

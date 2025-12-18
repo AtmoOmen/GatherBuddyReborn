@@ -110,9 +110,9 @@ namespace GatherBuddy.AutoGather
                 case AddonRefreshArgs rArgs:
                     ProcessArgs(rArgs.AtkValueSpan);
                     break;
-                case AddonFinalizeArgs:
+                /*case AddonFinalizeArgs:
                     ResetArgs();
-                    break;
+                    break;*/
             }
         }
 
