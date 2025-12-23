@@ -1033,7 +1033,7 @@ public partial class Interface
                     ImGui.SameLine();
                     
                     var quantity = purchaseItem.Quantity;
-                    ImGui.SetNextItemWidth(80);
+                    ImGui.SetNextItemWidth(120); // 增加窗口宽度，原先太窄了
                     if (ImGui.InputInt($"##{purchaseItem.Name}_Quantity", ref quantity, 1, 10))
                     {
                         purchaseItem.Quantity = Math.Max(0, quantity);
