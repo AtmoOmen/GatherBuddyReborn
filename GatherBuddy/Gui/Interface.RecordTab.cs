@@ -61,7 +61,7 @@ public partial class Interface
         private static readonly BiteTypeHeader   _biteTypeHeader   = new() { Label = "咬钩强度" };
         private static readonly HookHeader       _hookHeader       = new() { Label = "提钩" };
         private static readonly DurationHeader   _durationHeader   = new() { Label = "持续时间" };
-        private static readonly GatheringHeader  _gatheringHeader  = new() { Label = "采集力" };
+        private static readonly GatheringHeader  _gatheringHeader  = new() { Label = "获得力" };
         private static readonly PerceptionHeader _perceptionHeader = new() { Label = "鉴别力" };
         private static readonly AmountHeader     _amountHeader     = new() { Label = "数量" };
         private static readonly SizeHeader       _sizeHeader       = new() { Label = "尺寸" };

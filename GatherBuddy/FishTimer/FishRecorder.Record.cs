@@ -121,12 +121,12 @@ public partial class FishRecorder
 
     private static readonly uint GatheringIdx =
         Dalamud.GameData.GetExcelSheet<BaseParam>(ClientLanguage.ChineseSimplified).Cast<BaseParam?>()
-            .FirstOrDefault(r => r!.Value.Name == "Gathering")?.RowId
+            .FirstOrDefault(r => r!.Value.Name == "获得力")?.RowId // 修改为中文
      ?? 72;
 
     private static readonly uint PerceptionIdx =
         Dalamud.GameData.GetExcelSheet<BaseParam>(ClientLanguage.ChineseSimplified).Cast<BaseParam?>()
-            .FirstOrDefault(r => r!.Value.Name == "Perception")?.RowId
+            .FirstOrDefault(r => r!.Value.Name == "鉴别力")?.RowId // 修改为中文
      ?? 73;
 
     private static int GetContentHash(ulong id)
