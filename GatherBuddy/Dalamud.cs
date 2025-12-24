@@ -15,6 +15,7 @@ public class Dalamud
     // @formatter:off
     [PluginService] public static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] public static ICommandManager         Commands        { get; private set; } = null!;
+    [PluginService] public static ISigScanner             SigScanner      { get; private set; } = null!;
     [PluginService] public static IDataManager            GameData        { get; private set; } = null!;
     [PluginService] public static IClientState            ClientState     { get; private set; } = null!;
     [PluginService] public static IObjectTable            Objects         { get; private set; } = null!;

@@ -56,7 +56,7 @@ public partial class Interface
                 _bestSpotColumnWidth         = GatherBuddy.GameData.FishingSpots.Values.Max(a => TextWidth(a.Name)) / Scale;
                 _bestZoneColumnWidth         = GatherBuddy.GameData.Territories.Values.Max(a => TextWidth(a.Name)) / Scale;
                 _itemIdColumnWidth           = Math.Max(TextWidth("999999") / Scale, TextWidth(_itemIdColumn.Label) / Scale + Table.ArrowWidth);
-                _fishIdColumnWidth           = Math.Max(TextWidth("99999") / Scale,  TextWidth(_fishIdColumn.Label) / Scale + Table.ArrowWidth);
+                _fishIdColumnWidth           = Math.Max(TextWidth("99999 (刺鱼)") / Scale,  TextWidth(_fishIdColumn.Label) / Scale + Table.ArrowWidth);
             }
 
             GatherBuddy.FishLog.CheckForChanges();

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using Dalamud.Game;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.System.Memory;
@@ -20,7 +19,7 @@ public static unsafe class Callback
     private static void Initialize()
     {
         if (_fireCallbackPtr != null) return;
-        
+
         _fireCallbackPtr = AtkUnitBase.MemberFunctionPointers.FireCallback;
         GatherBuddy.Log.Debug($"[Callback] Initialized using ClientStructs MemberFunctionPointers");
     }
@@ -67,15 +66,15 @@ public static unsafe class Callback
                         atkValues[i].Byte = (byte)(boolValue ? 1 : 0);
                         break;
                     case string stringValue:
-                    {
-                        atkValues[i].Type = ValueType.String;
-                        var stringBytes = Encoding.UTF8.GetBytes(stringValue);
-                        var stringAlloc = Marshal.AllocHGlobal(stringBytes.Length + 1);
-                        Marshal.Copy(stringBytes, 0, stringAlloc, stringBytes.Length);
-                        Marshal.WriteByte(stringAlloc, stringBytes.Length, 0);
-                        atkValues[i].String = (byte*)stringAlloc;
-                        break;
-                    }
+                        {
+                            atkValues[i].Type = ValueType.String;
+                            var stringBytes = Encoding.UTF8.GetBytes(stringValue);
+                            var stringAlloc = Marshal.AllocHGlobal(stringBytes.Length + 1);
+                            Marshal.Copy(stringBytes, 0, stringAlloc, stringBytes.Length);
+                            Marshal.WriteByte(stringAlloc, stringBytes.Length, 0);
+                            atkValues[i].String = (byte*)stringAlloc;
+                            break;
+                        }
                     case AtkValue rawValue:
                         atkValues[i] = rawValue;
                         break;
@@ -116,7 +115,6 @@ public static unsafe class Chat
     private delegate void ProcessChatBoxDelegate(IntPtr uiModule, IntPtr message, IntPtr unused, byte a4);
     private delegate void SanitizeStringDelegate(Utf8String* stringPtr, int a2, nint a3);
 
-    private static readonly SigScanner _sigScanner = new SigScanner();
     private static ProcessChatBoxDelegate? _processChatBox;
     private static SanitizeStringDelegate? _sanitizeString;
 
@@ -147,8 +145,8 @@ public static unsafe class Chat
     private static void InitializeProcessChatBox()
     {
         if (_processChatBox != null) return;
-        
-        var addr = _sigScanner.ScanText(SendChatSignature);
+
+        var addr = Dalamud.SigScanner.ScanText(SendChatSignature); // 撤回到之前的提交
         _processChatBox = Marshal.GetDelegateForFunctionPointer<ProcessChatBoxDelegate>(addr);
         GatherBuddy.Log.Debug($"[Chat] ProcessChatBox initialized at 0x{addr:X16}");
     }
@@ -156,8 +154,8 @@ public static unsafe class Chat
     private static void InitializeSanitizeString()
     {
         if (_sanitizeString != null) return;
-        
-        var addr = _sigScanner.ScanText(SanitizeStringSignature);
+
+        var addr = Dalamud.SigScanner.ScanText(SanitizeStringSignature); // 撤回到之前的提交
         _sanitizeString = Marshal.GetDelegateForFunctionPointer<SanitizeStringDelegate>(addr);
         GatherBuddy.Log.Debug($"[Chat] SanitizeString initialized at 0x{addr:X16}");
     }
@@ -165,7 +163,7 @@ public static unsafe class Chat
     private static string SanitizeText(string text)
     {
         InitializeSanitizeString();
-        
+
         var uText = Utf8String.FromString(text);
         _sanitizeString!(uText, 0x27F, IntPtr.Zero);
         var sanitized = uText->ToString();
@@ -177,7 +175,7 @@ public static unsafe class Chat
     private static void SendMessageUnsafe(byte[] message)
     {
         InitializeProcessChatBox();
-        
+
         var uiModule = (IntPtr)Framework.Instance()->GetUIModule();
         using var payload = new ChatPayload(message);
         var mem1 = Marshal.AllocHGlobal(400);
@@ -189,31 +187,31 @@ public static unsafe class Chat
     public static void SendMessage(string message)
     {
         var bytes = Encoding.UTF8.GetBytes(message);
-        
+
         if (bytes.Length == 0)
         {
             GatherBuddy.Log.Error("[Chat] Attempted to send empty message");
             throw new ArgumentException("message is empty", nameof(message));
         }
-        
+
         if (bytes.Length > 500)
         {
             GatherBuddy.Log.Error($"[Chat] Attempted to send message longer than 500 bytes: {bytes.Length}");
             throw new ArgumentException("message is longer than 500 bytes", nameof(message));
         }
-        
+
         if (message.Length != SanitizeText(message).Length)
         {
             GatherBuddy.Log.Error("[Chat] Message contained invalid characters");
             throw new ArgumentException("message contained invalid characters", nameof(message));
         }
-        
+
         if (message.Contains('\n'))
         {
             GatherBuddy.Log.Error("[Chat] Message cannot contain newlines");
             throw new ArgumentException("message can't contain multiple lines", nameof(message));
         }
-        
+
         if (message.Contains('\r'))
         {
             GatherBuddy.Log.Error("[Chat] Message cannot contain carriage return");
@@ -230,7 +228,7 @@ public static unsafe class Chat
             GatherBuddy.Log.Error($"[Chat] Attempted to execute command without slash prefix: {message}");
             throw new InvalidOperationException($"Attempted to execute command but was not prefixed with a slash: {message}");
         }
-        
+
         SendMessage(message);
     }
 
