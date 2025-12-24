@@ -1541,7 +1541,7 @@ namespace GatherBuddy.AutoGather
             if (!positionData.HasValue)
             {
                 Communicator.PrintError(
-                    $"缺少钓鱼地点位置数据: {fish.FishingSpot.Name}。自动钓鱼无法继续, 请在 {fish.FishingSpot.Name} 手动钓一次, 以便 GBR 记录位置数据。");
+                    $"缺少钓场位置数据: {fish.FishingSpot.Name}。自动钓鱼无法继续, 请在 {fish.FishingSpot.Name} 手动钓一次, 以便 GBR 记录位置数据。");
                 AbortAutoGather();
                 return;
             }
@@ -1550,6 +1550,53 @@ namespace GatherBuddy.AutoGather
             return;
         }
 
+            if (IsFishing)
+            {
+                if (fishingSpotData.Expiration < DateTime.Now)
+                {
+                    GatherBuddy.Log.Information($"[AutoGather] Fishing spot timer expired ({GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes} minutes), relocating...");
+                    var oldPosition = fishingSpotData.Position;
+
+                    const float MinRelocationDistance = 10.0f;
+                    var positionData = _plugin.FishRecorder.GetPositionForFishingSpot(
+                        fish!.FishingSpot,
+                        oldPosition,
+                        MinRelocationDistance);
+
+                    if (!positionData.HasValue)
+                    {
+                        Communicator.PrintError(
+                            $"缺少钓场的备用位置数据: {fish.FishingSpot.Name}。自动钓鱼无法继续。");
+                        AbortAutoGather();
+                        return;
+                    }
+
+                    var newPos = positionData.Value.Position;
+                    var newRot = positionData.Value.Rotation;
+                    var dist = Vector3.Distance(newPos, oldPosition);
+
+                    GatherBuddy.Log.Debug($"[AutoGather] Relocating fishing spot for '{fish.FishingSpot.Name}' " +
+                                  $"from {oldPosition} to {newPos}, distance={dist}");
+
+                    FishingSpotData[fish] = (newPos, newRot, DateTime.MaxValue);
+
+                    if (GatherBuddy.Config.AutoGatherConfig.UseAutoHook && AutoHook.Enabled)
+                    {
+                        AutoHook.SetPluginState?.Invoke(false);
+                        AutoHook.SetAutoStartFishing?.Invoke(false);
+                    }
+                    
+                    AutoStatus = "正在停止钓鱼以前往新的钓点...";
+                    QueueQuitFishingTasks();
+                    return;
+                }
+                
+                StopNavigation();
+                AutoStatus = "钓鱼中...";
+                DoFishingTasks(next);
+                return;
+            }
+            
             if (fishingSpotData.Expiration < DateTime.Now)
             {
                 GatherBuddy.Log.Debug("[AutoGather] Time for a new fishing spot!");
@@ -1578,23 +1625,8 @@ namespace GatherBuddy.AutoGather
 
                 FishingSpotData[fish] = (newPos, newRot, DateTime.MaxValue);
 
-                if (IsGathering || IsFishing)
-                {
-                    AutoStatus = "正在停止钓鱼以前往新的钓点...";
-                    QueueQuitFishingTasks();
-                    return;
-                }
-
-                AutoStatus = "正在移动到新的钓点...";
+                AutoStatus = "正在移动至新的钓场...";
                 MoveToFishingSpot(newPos, newRot);
-                return;
-            }
-
-            if (IsFishing)
-            {
-                StopNavigation();
-                AutoStatus = "钓鱼中...";
-                DoFishingTasks(next);
                 return;
             }
 
