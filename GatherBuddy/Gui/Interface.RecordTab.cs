@@ -407,7 +407,7 @@ public partial class Interface
 
             private static readonly Dictionary<Effects, string> _effectNamesZhCN = new() // 建立字典
             {
-                { Effects.Large,           "嘉惠" },
+                { Effects.Large,           "大尺寸" },
                 { Effects.Collectible,     "收藏品" },
                 { Effects.Patience,        "耐心" },
                 { Effects.Patience2,       "耐心 II" },
