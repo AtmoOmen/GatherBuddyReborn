@@ -795,13 +795,13 @@ namespace GatherBuddy.AutoGather
                     
                     if (GatherBuddy.CollectableManager?.IsRunning == true)
                     {
-                        AutoStatus = "Turning in collectables...";
+                        AutoStatus = "正在交易收藏品...";
                         return;
                     }
                     
                     if (HasCollectables())
                     {
-                        AutoStatus = "Turning in collectables...";
+                        AutoStatus = "正在交易收藏品...";
                         GatherBuddy.CollectableManager?.Start();
                         return;
                     }
@@ -835,13 +835,13 @@ namespace GatherBuddy.AutoGather
 
             if (GatherBuddy.CollectableManager?.IsRunning == true)
             {
-                AutoStatus = "Turning in collectables...";
+                AutoStatus = "正在交易收藏品...";
                 return;
             }
             
             if (HasCollectables())
             {
-                AutoStatus = "Turning in collectables...";
+                AutoStatus = "正在交易收藏品...";
                 GatherBuddy.CollectableManager?.Start();
                 return;
             }
