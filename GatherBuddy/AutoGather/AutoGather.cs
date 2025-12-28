@@ -469,7 +469,7 @@ namespace GatherBuddy.AutoGather
              && !GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
             {
                 Communicator.PrintError(
-                    "自动采集列表中包含鱼类, 但未开启捕鱼数据采集, 因此无法继续自动采集, 请启用捕鱼数据收集, 或从自动采集列表中删除所有鱼类");
+                    "自动采集列表中包含鱼类, 但未开启捕鱼数据收集, 因此无法继续自动采集, 请在设置中启用捕鱼数据收集, 或从自动采集列表中删除所有鱼类");
                 AbortAutoGather();
                 return;
             }
