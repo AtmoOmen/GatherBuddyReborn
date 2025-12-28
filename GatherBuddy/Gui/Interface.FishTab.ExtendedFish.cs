@@ -535,7 +535,7 @@ public partial class Interface
         private static void PrintPoints(ExtendedFish fish)
         {
             if (fish.Data.Points > 0)
-                ImUtf8.TextFramed($"Worth {fish.Data.Points} Points", 0xFF006400);
+                ImUtf8.TextFramed($"任务评价: {fish.Data.Points} 点", 0xFF006400);
         }
 
         public void SetTooltip(Territory territory, Vector2 iconSize, Vector2 smallIconSize, Vector2 weatherIconSize, bool printName,
