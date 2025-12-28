@@ -184,12 +184,7 @@ namespace GatherBuddy.AutoGather
                         }
                     }
                     
-                    if (GatherBuddy.Config.CollectableConfig.CollectOnAutogatherDisabled && _disabledBySystem)
-                    {
-                        GatherBuddy.Log.Debug("[AutoGather] Triggering collectable turn-in after AutoGather ended (system disable)");
-                        GatherBuddy.CollectableManager?.Start();
-                    }
-                    else if (GatherBuddy.CollectableManager?.IsRunning == true)
+                    if (GatherBuddy.CollectableManager?.IsRunning == true)
                     {
                         GatherBuddy.Log.Debug("[AutoGather] Stopping collectable turn-in (user disabled AutoGather)");
                         GatherBuddy.CollectableManager?.Stop();
@@ -762,10 +757,6 @@ namespace GatherBuddy.AutoGather
                 
                 if (!next.Any())
                 {
-                    if (GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle)
-                        if (GoHome())
-                            return;
-
                     if (HasReducibleItems())
                     {
                         if (Player.Job == 18 /* FSH */)
@@ -801,6 +792,23 @@ namespace GatherBuddy.AutoGather
 
                         return;
                     }
+                    
+                    if (GatherBuddy.CollectableManager?.IsRunning == true)
+                    {
+                        AutoStatus = "Turning in collectables...";
+                        return;
+                    }
+                    
+                    if (HasCollectables())
+                    {
+                        AutoStatus = "Turning in collectables...";
+                        GatherBuddy.CollectableManager?.Start();
+                        return;
+                    }
+
+                    if (GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle)
+                        if (GoHome())
+                            return;
 
                     if (!Waiting)
                     {
@@ -824,6 +832,19 @@ namespace GatherBuddy.AutoGather
 
             if (RepairIfNeeded())
                 return;
+
+            if (GatherBuddy.CollectableManager?.IsRunning == true)
+            {
+                AutoStatus = "Turning in collectables...";
+                return;
+            }
+            
+            if (HasCollectables())
+            {
+                AutoStatus = "Turning in collectables...";
+                GatherBuddy.CollectableManager?.Start();
+                return;
+            }
 
             if (!GatherBuddy.Config.AutoGatherConfig.UseNavigation)
             {
@@ -2068,6 +2089,43 @@ namespace GatherBuddy.AutoGather
             if (Functions.InTheDiadem())
             {
                 LeaveTheDiadem();
+                return;
+            }
+
+            if (HasReducibleItems())
+            {
+                GatherBuddy.Log.Debug("[AutoGather] Found reducible items during abort, reducing before shutdown");
+                
+                if (Player.Job == 18)
+                {
+                    if (IsGathering)
+                    {
+                        QueueQuitFishingTasks();
+                        return;
+                    }
+
+                    if (GatherBuddy.Config.AutoGatherConfig.UseAutoHook && AutoHook.Enabled)
+                    {
+                        TaskManager.Enqueue(() =>
+                        {
+                            AutoHook.SetPluginState?.Invoke(false);
+                            AutoHook.SetAutoStartFishing?.Invoke(false);
+                        });
+                    }
+                    
+                    ReduceItems(true, () =>
+                    {
+                        AbortAutoGather(status);
+                    });
+                }
+                else
+                {
+                    ReduceItems(true, () =>
+                    {
+                        AbortAutoGather(status);
+                    });
+                }
+                
                 return;
             }
 

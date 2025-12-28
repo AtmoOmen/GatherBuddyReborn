@@ -14,11 +14,11 @@ using GatherBuddy.Classes;
 using GatherBuddy.Config;
 using GatherBuddy.Enums;
 using GatherBuddy.FishTimer;
-using OtterGui;
-using OtterGui.Widgets;
+using ElliLib;
+using ElliLib.Widgets;
 using FishRecord = GatherBuddy.FishTimer.FishRecord;
 using GatheringType = GatherBuddy.Enums.GatheringType;
-using ImRaii = OtterGui.Raii.ImRaii;
+using ImRaii = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
@@ -973,17 +973,24 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.DiademAutoAetherCannon,
                 b => GatherBuddy.Config.AutoGatherConfig.DiademAutoAetherCannon = b);
         
-        public static void DrawCollectOnAutogatherDisabledBox()
-            => DrawCheckbox("自动采集停止时交易收藏品",
-                "当自动采集停止时自动交易收藏品",
-                GatherBuddy.Config.CollectableConfig.CollectOnAutogatherDisabled,
-                b => GatherBuddy.Config.CollectableConfig.CollectOnAutogatherDisabled = b);
+        public static void DrawCollectableAutoTurninBox()
+            => DrawCheckbox("自动交易收藏品",
+                "采集过程中, 物品栏中的收藏品数量达到设定阈值时自动交易收藏品。",
+                GatherBuddy.Config.CollectableConfig.AutoTurnInCollectables,
+                b => GatherBuddy.Config.CollectableConfig.AutoTurnInCollectables = b);
         
-        public static void DrawEnableAutogatherOnFinishBox()
-            => DrawCheckbox("交易完成后重新启用自动采集",
-                "在收藏品交易完成后自动重新启用自动采集",
-                GatherBuddy.Config.CollectableConfig.EnableAutogatherOnFinish,
-                b => GatherBuddy.Config.CollectableConfig.EnableAutogatherOnFinish = b);
+        public static void DrawCollectableThreshold()
+        {
+            var threshold = GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.DragInt("收藏品交易数量阈值", ref threshold, 1, 1, 999))
+            {
+                GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold = Math.Max(1, threshold);
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("角色物品栏中的收藏品达到此数量时, 自动交易收藏品。");
+        }
+        
         
         public static void DrawBuyAfterEachCollectBox()
             => DrawCheckbox("交易后自动购买票据商店物品",
@@ -1260,8 +1267,11 @@ public partial class Interface
             
             if (ImGui.TreeNodeEx("收藏品"))
             {
-                ConfigFunctions.DrawCollectOnAutogatherDisabledBox();
-                ConfigFunctions.DrawEnableAutogatherOnFinishBox();
+                ConfigFunctions.DrawCollectableAutoTurninBox();
+                if (GatherBuddy.Config.CollectableConfig.AutoTurnInCollectables)
+                {
+                    ConfigFunctions.DrawCollectableThreshold();
+                }
                 ConfigFunctions.DrawBuyAfterEachCollectBox();
                 
                 ImGui.Spacing();

@@ -65,9 +65,9 @@ public partial class FishingParser
         private static readonly Lazy<Regexes> ChineseSimplified = new(() => new Regexes
         {
             Cast = new Regex(@"在(?<FishingSpot>.+)甩出了鱼线开始钓鱼。", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            AreaDiscovered = new Regex(@"将新钓场「(?<FishingSpot>.+)」记录到了钓鱼笔记中！", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            AreaDiscovered = new Regex(@"将新钓场“(?<FishingSpot>.+)”记录到了钓鱼笔记中！", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
             Mooch = new Regex(@"开始利用上钩的.+尝试以小钓大。", RegexOptions.Compiled | RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Undiscovered = "未发现的钓场",
+            Undiscovered = "未知钓场",
         });
         // @formatter:on
     }
