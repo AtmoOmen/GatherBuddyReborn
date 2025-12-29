@@ -461,7 +461,7 @@ public partial class Interface
             public UptimesColumn()
             {
                 SetFlags(FishFilter.TimeDependency, FishFilter.WeatherDependency, FishFilter.NoDependency);
-                SetNames("依赖时间", "依赖天气", "依赖天气"); // 使用中文字符
+                SetNames("依赖时间", "依赖天气", "无依赖"); // 使用中文字符
             }
 
             public override float Width
