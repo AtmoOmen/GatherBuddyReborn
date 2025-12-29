@@ -950,6 +950,82 @@ public partial class Interface
             }
         }
 
+        public static void DrawAmbitiousLureConfig()
+        {
+            DrawCheckbox("启用自动『雄心之饵』",
+                "对需要强力提钩的鱼类自动启用『雄心之饵』。",
+                GatherBuddy.Config.AutoGatherConfig.EnableAmbitiousLure,
+                b => GatherBuddy.Config.AutoGatherConfig.EnableAmbitiousLure = b);
+            
+            if (GatherBuddy.Config.AutoGatherConfig.EnableAmbitiousLure)
+            {
+                ImGui.Indent();
+                
+                var gpAbove = GatherBuddy.Config.AutoGatherConfig.AmbitiousLureGPAbove;
+                if (ImGui.RadioButton("当 GP 高于阈值时使用『雄心之饵』", gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.AmbitiousLureGPAbove = true;
+                    GatherBuddy.Config.Save();
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.RadioButton("低于阈值##AmbitiousLure", !gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.AmbitiousLureGPAbove = false;
+                    GatherBuddy.Config.Save();
+                }
+                
+                var gpThreshold = GatherBuddy.Config.AutoGatherConfig.AmbitiousLureGPThreshold;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.DragInt("GP 阈值##AmbitiousLure", ref gpThreshold, 1, 0, 10000))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.AmbitiousLureGPThreshold = Math.Max(0, gpThreshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当你的 GP 高于/低于此阈值时，将使用『雄心之饵』。");
+                
+                ImGui.Unindent();
+            }
+        }
+
+        public static void DrawModestLureConfig()
+        {
+            DrawCheckbox("启用自动『谦逊之饵』",
+                "对需要精准提钩的鱼类自动启用『谦逊之饵』。",
+                GatherBuddy.Config.AutoGatherConfig.EnableModestLure,
+                b => GatherBuddy.Config.AutoGatherConfig.EnableModestLure = b);
+            
+            if (GatherBuddy.Config.AutoGatherConfig.EnableModestLure)
+            {
+                ImGui.Indent();
+                
+                var gpAbove = GatherBuddy.Config.AutoGatherConfig.ModestLureGPAbove;
+                if (ImGui.RadioButton("当 GP 高于阈值时使用『谦逊之饵』", gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ModestLureGPAbove = true;
+                    GatherBuddy.Config.Save();
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.RadioButton("低于阈值##ModestLure", !gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ModestLureGPAbove = false;
+                    GatherBuddy.Config.Save();
+                }
+                
+                var gpThreshold = GatherBuddy.Config.AutoGatherConfig.ModestLureGPThreshold;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.DragInt("GP 阈值##ModestLure", ref gpThreshold, 1, 0, 10000))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ModestLureGPThreshold = Math.Max(0, gpThreshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当你的 GP 高于/低于此阈值时，将使用『谦逊之饵』。");
+                
+                ImGui.Unindent();
+            }
+        }
+
         public static void DrawUseHookTimersBox()
         {
             DrawCheckbox("在 AutoHook 预设中启用咬钩计时器",
@@ -981,14 +1057,49 @@ public partial class Interface
         
         public static void DrawCollectableThreshold()
         {
-            var threshold = GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold;
-            ImGui.SetNextItemWidth(SetInputWidth);
-            if (ImGui.DragInt("收藏品交易数量阈值", ref threshold, 1, 1, 999))
+            var useInventoryFull = GatherBuddy.Config.CollectableConfig.UseInventoryFullThreshold;
+            
+            if (ImGui.RadioButton("按收藏品持有数量", !useInventoryFull))
             {
-                GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold = Math.Max(1, threshold);
+                GatherBuddy.Config.CollectableConfig.UseInventoryFullThreshold = false;
                 GatherBuddy.Config.Save();
             }
-            ImGuiUtil.HoverTooltip("角色物品栏中的收藏品达到此数量时, 自动交易收藏品。");
+            ImGuiUtil.HoverTooltip("当您持有特定数量的收藏品时, 进行收藏品交易。");
+            
+            if (!useInventoryFull)
+            {
+                ImGui.Indent();
+                var threshold = GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold;
+                ImGui.SetNextItemWidth(150);
+                if (ImGui.DragInt("数量阈值", ref threshold, 1, 1, 999))
+                {
+                    GatherBuddy.Config.CollectableConfig.CollectableInventoryThreshold = Math.Max(1, threshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当您持有的收藏品达到此数量时, 进行收藏品交易。");
+                ImGui.Unindent();
+            }
+            
+            if (ImGui.RadioButton("按物品栏占位数量", useInventoryFull))
+            {
+                GatherBuddy.Config.CollectableConfig.UseInventoryFullThreshold = true;
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("当您的物品栏占用格子达到特定数量时, 进行收藏品交易。");
+            
+            if (useInventoryFull)
+            {
+                ImGui.Indent();
+                var fullThreshold = GatherBuddy.Config.CollectableConfig.InventoryFullThreshold;
+                ImGui.SetNextItemWidth(150);
+                if (ImGui.DragInt("物品栏占位数量", ref fullThreshold, 1, 1, 140))
+                {
+                    GatherBuddy.Config.CollectableConfig.InventoryFullThreshold = Math.Max(1, Math.Min(140, fullThreshold));
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当您的物品栏占用格子达到此数量时, 进行收藏品交易(最高 140)。");
+                ImGui.Unindent();
+            }
         }
         
         
@@ -1080,6 +1191,9 @@ public partial class Interface
                     
                     foreach (var item in shopItems)
                     {
+                        if (item.Page < 3)
+                            continue;
+                        
                         if (_scripShopFilterText.Length > 0 && !item.Name.Contains(_scripShopFilterText, StringComparison.OrdinalIgnoreCase))
                             continue;
                         
@@ -1232,6 +1346,8 @@ public partial class Interface
                 ConfigFunctions.DrawUseHookTimersBox();
                 ConfigFunctions.DrawSurfaceSlapConfig();
                 ConfigFunctions.DrawIdenticalCastConfig();
+                ConfigFunctions.DrawAmbitiousLureConfig();
+                ConfigFunctions.DrawModestLureConfig();
                 ConfigFunctions.DrawManualPresetGenerator();
                 ImGui.TreePop();
             }

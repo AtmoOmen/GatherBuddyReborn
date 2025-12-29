@@ -418,6 +418,18 @@ namespace GatherBuddy.AutoGather
                     else
                         ReduceItems(false);
                 }
+                else if (HasCollectables())
+                {
+                    if (GatherBuddy.CollectableManager?.IsRunning == true)
+                    {
+                        AutoStatus = "正在交易收藏品...";
+                        return;
+                    }
+                    
+                    GatherBuddy.Log.Information("[AutoGather] Inventory full with collectables - starting turn-in");
+                    AutoStatus = "正在交易收藏品...";
+                    GatherBuddy.CollectableManager?.Start();
+                }
                 else
                 {
                     AbortAutoGather("背包物品已满");
@@ -460,13 +472,23 @@ namespace GatherBuddy.AutoGather
                 }
             }
 
-            if (_activeItemList.GetNextOrDefault(new List<uint>()).Any(g => g.Fish != null)
-             && !GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
+            if (_activeItemList.GetNextOrDefault(new List<uint>()).Any(g => g.Fish != null))
             {
-                Communicator.PrintError(
-                    "自动采集列表中包含鱼类, 但未开启捕鱼数据收集, 因此无法继续自动采集, 请在设置中启用捕鱼数据收集, 或从自动采集列表中删除所有鱼类");
-                AbortAutoGather();
-                return;
+                if (!GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
+                {
+                    Communicator.PrintError(
+                        "自动采集列表中包含鱼类, 但未开启捕鱼数据收集, 因此无法继续自动采集。请在设置中启用捕鱼数据收集, 或从自动采集列表中删除所有鱼类");
+                    AbortAutoGather();
+                    return;
+                }
+                
+                if (!AutoHook.Enabled)
+                {
+                    Communicator.PrintError(
+                        "[GatherBuddyReborn] 自动采集列表中包含鱼类, 但 AutoHook 插件未安装或未启用, 因此无法继续自动采集。请安装并启用 AutoHook, 或从自动采集列表中删除所有鱼类");
+                    AbortAutoGather();
+                    return;
+                }
             }
 
             if (IsGathering)
