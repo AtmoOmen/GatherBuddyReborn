@@ -14,6 +14,8 @@ using GatherBuddy.Classes;
 using GatherBuddy.Config;
 using GatherBuddy.Enums;
 using GatherBuddy.FishTimer;
+using GatherBuddy.Utilities;
+using Dalamud.Utility;
 using ElliLib;
 using ElliLib.Widgets;
 using FishRecord = GatherBuddy.FishTimer.FishRecord;
@@ -874,7 +876,7 @@ public partial class Interface
 
         public static void DrawSurfaceSlapConfig()
         {
-            DrawCheckbox("启用自动『拍击水面』",
+            DrawCheckbox("启用『拍击水面』",
                 "当非目标鱼与目标鱼具有相同咬钩类型时, 自动启用『拍击水面』。\n"
               + "这有助于排除不需要的鱼, 提高目标鱼的上钩率。",
                 GatherBuddy.Config.AutoGatherConfig.EnableSurfaceSlap,
@@ -900,7 +902,7 @@ public partial class Interface
                 
                 var gpThreshold = GatherBuddy.Config.AutoGatherConfig.SurfaceSlapGPThreshold;
                 ImGui.SetNextItemWidth(SetInputWidth);
-                if (ImGui.DragInt("GP 阈值", ref gpThreshold, 1, 0, 10000))
+                if (ImGui.DragInt("GP 阈值##SurfaceSlap", ref gpThreshold, 1, 0, 10000)) // 临时修补
                 {
                     GatherBuddy.Config.AutoGatherConfig.SurfaceSlapGPThreshold = Math.Max(0, gpThreshold);
                     GatherBuddy.Config.Save();
@@ -913,7 +915,7 @@ public partial class Interface
 
         public static void DrawIdenticalCastConfig()
         {
-            DrawCheckbox("启用自动『专一垂钓』",
+            DrawCheckbox("启用『专一垂钓』",
                 "为目标鱼自动启用『专一垂钓』以提高上钩率。\n"
               + "在同一钓点使用『专一垂钓』可提升捕获成功率。",
                 GatherBuddy.Config.AutoGatherConfig.EnableIdenticalCast,
@@ -952,7 +954,7 @@ public partial class Interface
 
         public static void DrawAmbitiousLureConfig()
         {
-            DrawCheckbox("启用自动『雄心之饵』",
+            DrawCheckbox("启用『雄心之饵』",
                 "对需要强力提钩的鱼类自动启用『雄心之饵』。",
                 GatherBuddy.Config.AutoGatherConfig.EnableAmbitiousLure,
                 b => GatherBuddy.Config.AutoGatherConfig.EnableAmbitiousLure = b);
@@ -990,7 +992,7 @@ public partial class Interface
 
         public static void DrawModestLureConfig()
         {
-            DrawCheckbox("启用自动『谦逊之饵』",
+            DrawCheckbox("启用『谦逊之饵』",
                 "对需要精准提钩的鱼类自动启用『谦逊之饵』。",
                 GatherBuddy.Config.AutoGatherConfig.EnableModestLure,
                 b => GatherBuddy.Config.AutoGatherConfig.EnableModestLure = b);
@@ -1041,6 +1043,218 @@ public partial class Interface
                 "根据最低收藏价值自动接受或拒绝鱼类收藏品。",
                 GatherBuddy.Config.AutoGatherConfig.AutoCollectablesFishing,
                 b => GatherBuddy.Config.AutoGatherConfig.AutoCollectablesFishing = b);
+
+        public static void DrawDeferRepairDuringFishingBuffsBox()
+            => DrawCheckbox("持有钓鱼 Buff 时推迟自动修理",
+                "持有钓鱼技能 Buff 时, 防止 GBR 因自动修理而中断钓鱼。\n"
+              + "包括耐心、拍击水面、专一垂钓、大鱼猎手等 Buff 效果。",
+                GatherBuddy.Config.AutoGatherConfig.DeferRepairDuringFishingBuffs,
+                b => GatherBuddy.Config.AutoGatherConfig.DeferRepairDuringFishingBuffs = b);
+
+        public static void DrawDeferReductionDuringFishingBuffsBox()
+            => DrawCheckbox("持有钓鱼 buff 时推迟自动精选",
+                "持有钓鱼技能 Buff 时, 防止 GBR 因自动精选而中断钓鱼。",
+                GatherBuddy.Config.AutoGatherConfig.DeferReductionDuringFishingBuffs,
+                b => GatherBuddy.Config.AutoGatherConfig.DeferReductionDuringFishingBuffs = b);
+
+        public static void DrawDeferMateriaExtractionDuringFishingBuffsBox()
+            => DrawCheckbox("持有钓鱼 buff 时推迟自动精制魔晶石",
+                "持有钓鱼技能 Buff 时, 防止 GBR 因自动精制魔晶石而中断钓鱼。",
+                GatherBuddy.Config.AutoGatherConfig.DeferMateriaExtractionDuringFishingBuffs,
+                b => GatherBuddy.Config.AutoGatherConfig.DeferMateriaExtractionDuringFishingBuffs = b);
+
+        public static void DrawFishingCordialConfig()
+        {
+            DrawCheckbox("使用 强心剂",
+                "在生成的钓鱼预设中, 自动在 GP 低于最低阈值时使用强心剂。",
+                GatherBuddy.Config.AutoGatherConfig.UseCordialForFishing,
+                b => GatherBuddy.Config.AutoGatherConfig.UseCordialForFishing = b);
+
+            if (GatherBuddy.Config.AutoGatherConfig.UseCordialForFishing)
+            {
+                ImGui.Indent();
+                ImGui.SetNextItemWidth(150);
+                var gpThreshold = GatherBuddy.Config.AutoGatherConfig.CordialForFishingGPThreshold;
+                if (ImGui.DragInt("GP 阈值##UseCordialForFishing", ref gpThreshold, 1, 0, 10000)) // 临时修补
+                {
+                    GatherBuddy.Config.AutoGatherConfig.CordialForFishingGPThreshold = Math.Max(0, gpThreshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当 GP 低于此阈值时使用强心剂(防止溢出)。");
+                ImGui.Unindent();
+            }
+        }
+
+        public static void DrawUsePatienceBox()
+            => DrawCheckbox("使用『耐心/耐心II』",
+                "在生成的钓鱼预设中, 以下情况自动使用『耐心/耐心II』:\n"
+              + "• 需要以小钓大的鱼类\n"
+              + "• 收藏品鱼类\n"
+              + "• 可以精选的鱼类",
+                GatherBuddy.Config.AutoGatherConfig.UsePatience,
+                b => GatherBuddy.Config.AutoGatherConfig.UsePatience = b);
+
+        public static void DrawPrizeCatchConfig()
+        {
+            DrawCheckbox("使用『大鱼猎手』",
+                "在生成的钓鱼预设中, 自动使用『大鱼猎手』。\n"
+              + "推荐在需要『以小钓大』或『拍击水面』时启用。",
+                GatherBuddy.Config.AutoGatherConfig.UsePrizeCatch,
+                b => GatherBuddy.Config.AutoGatherConfig.UsePrizeCatch = b);
+            
+            if (GatherBuddy.Config.AutoGatherConfig.UsePrizeCatch)
+            {
+                ImGui.Indent();
+                
+                var gpAbove = GatherBuddy.Config.AutoGatherConfig.PrizeCatchGPAbove;
+                if (ImGui.RadioButton("当 GP 高于阈值时使用『大鱼猎手』", gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.PrizeCatchGPAbove = true;
+                    GatherBuddy.Config.Save();
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.RadioButton("低于阈值##PrizeCatch", !gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.PrizeCatchGPAbove = false;
+                    GatherBuddy.Config.Save();
+                }
+                
+                var gpThreshold = GatherBuddy.Config.AutoGatherConfig.PrizeCatchGPThreshold;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.DragInt("GP 阈值##PrizeCatch", ref gpThreshold, 1, 0, 10000))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.PrizeCatchGPThreshold = Math.Max(0, gpThreshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当你的 GP 高于/低于此阈值时, 将使用『大鱼猎手』。");
+                
+                ImGui.Unindent();
+            }
+        }
+
+        public static void DrawChumConfig()
+        {
+            DrawCheckbox("使用『撒饵』",
+                "在生成的钓鱼预设中, 自动使用『撒饵』。",
+                GatherBuddy.Config.AutoGatherConfig.UseChum,
+                b => GatherBuddy.Config.AutoGatherConfig.UseChum = b);
+            
+            if (GatherBuddy.Config.AutoGatherConfig.UseChum)
+            {
+                ImGui.Indent();
+                
+                var gpAbove = GatherBuddy.Config.AutoGatherConfig.ChumGPAbove;
+                if (ImGui.RadioButton("当 GP 高于阈值时使用『撒饵』", gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ChumGPAbove = true;
+                    GatherBuddy.Config.Save();
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.RadioButton("低于阈值##Chum", !gpAbove))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ChumGPAbove = false;
+                    GatherBuddy.Config.Save();
+                }
+                
+                var gpThreshold = GatherBuddy.Config.AutoGatherConfig.ChumGPThreshold;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.DragInt("GP 阈值##Chum", ref gpThreshold, 1, 0, 10000))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.ChumGPThreshold = Math.Max(0, gpThreshold);
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("当你的 GP 高于/低于此阈值时, 将使用『撒饵』。");
+                
+                ImGui.Unindent();
+            }
+        }
+
+        public static void DrawFishingConsumablesConfig()
+        {
+            DrawCheckbox("使用 食物",
+                "自动在食物效果消失时使用设定的食物(仅在非钓鱼状态或无钓鱼技能 Buff 时触发)。",
+                GatherBuddy.Config.AutoGatherConfig.UseFood,
+                b => GatherBuddy.Config.AutoGatherConfig.UseFood = b);
+
+            if (GatherBuddy.Config.AutoGatherConfig.UseFood)
+            {
+                ImGui.Indent();
+                ImGui.SetNextItemWidth(150);
+                DrawConsumableCombo("选择食物", AutoGather.AutoGather.PossibleFoods, 
+                    GatherBuddy.Config.AutoGatherConfig.FoodItemId, 
+                    id => 
+                    {
+                        GatherBuddy.Config.AutoGatherConfig.FoodItemId = id;
+                        GatherBuddy.Config.Save();
+                    });
+                ImGui.Unindent();
+            }
+
+            DrawCheckbox("使用 药水",
+                "自动在药水效果消失时使用设定的药水(例如: 精炼药)\n(仅在非钓鱼状态或无钓鱼技能 Buff 时触发)。",
+                GatherBuddy.Config.AutoGatherConfig.UseMedicine,
+                b => GatherBuddy.Config.AutoGatherConfig.UseMedicine = b);
+
+            if (GatherBuddy.Config.AutoGatherConfig.UseMedicine)
+            {
+                ImGui.Indent();
+                ImGui.SetNextItemWidth(150);
+                DrawConsumableCombo("选择药水", AutoGather.AutoGather.PossiblePotions, 
+                    GatherBuddy.Config.AutoGatherConfig.MedicineItemId, 
+                    id => 
+                    {
+                        GatherBuddy.Config.AutoGatherConfig.MedicineItemId = id;
+                        GatherBuddy.Config.Save();
+                    });
+                ImGui.Unindent();
+            }
+        }
+
+        private static void DrawConsumableCombo(string label, Lumina.Excel.Sheets.Item[] items, uint currentItemId, Action<uint> onChanged)
+        {
+            var list = items
+                .SelectMany(item => new[]
+                {
+                    (item, rowid: item.RowId, isHq: false),
+                    (item, rowid: item.RowId + 1_000_000, isHq: true)
+                })
+                .Where(x => !x.isHq || x.item.CanBeHq)
+                .Select(x => (name: ItemUtil.GetItemName(x.rowid, includeIcon: true).ExtractText(), x.rowid, count: AutoGather.AutoGather.GetInventoryItemCount(x.rowid)))
+                .Where(x => !string.IsNullOrEmpty(x.name))
+                .OrderBy(x => x.count == 0)
+                .ThenBy(x => x.name)
+                .Select(x => x with { name = $"{x.name} ({x.count})" })
+                .ToList();
+
+            var selected = (currentItemId > 0 ? list.FirstOrDefault(x => x.rowid == currentItemId).name : null) ?? string.Empty;
+            using var combo = ImRaii.Combo(label, selected);
+            if (combo)
+            {
+                if (ImGui.Selectable(string.Empty, currentItemId <= 0))
+                {
+                    onChanged(0);
+                }
+
+                bool? separatorState = null;
+                foreach (var (itemname, rowid, count) in list)
+                {
+                    if (count != 0)
+                        separatorState = true;
+                    else if (separatorState ?? false)
+                    {
+                        ImGui.Separator();
+                        separatorState = false;
+                    }
+
+                    if (ImGui.Selectable(itemname, currentItemId == rowid))
+                    {
+                        onChanged(rowid);
+                    }
+                }
+            }
+        }
         
         public static void DrawDiademAutoAetherCannonBox()
             => DrawCheckbox("云冠群岛自动以太钻孔机",
@@ -1343,7 +1557,15 @@ public partial class Interface
                 ConfigFunctions.DrawFishingSpotMinutes();
                 ConfigFunctions.DrawFishCollectionBox();
                 ConfigFunctions.DrawAutoCollectablesFishingBox();
+                ConfigFunctions.DrawDeferRepairDuringFishingBuffsBox();
+                ConfigFunctions.DrawDeferReductionDuringFishingBuffsBox();
+                ConfigFunctions.DrawDeferMateriaExtractionDuringFishingBuffsBox();
+                ConfigFunctions.DrawFishingCordialConfig();
+                ConfigFunctions.DrawFishingConsumablesConfig();
                 ConfigFunctions.DrawUseHookTimersBox();
+                ConfigFunctions.DrawUsePatienceBox();
+                ConfigFunctions.DrawPrizeCatchConfig();
+                ConfigFunctions.DrawChumConfig();
                 ConfigFunctions.DrawSurfaceSlapConfig();
                 ConfigFunctions.DrawIdenticalCastConfig();
                 ConfigFunctions.DrawAmbitiousLureConfig();
