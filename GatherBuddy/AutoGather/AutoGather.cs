@@ -1718,7 +1718,7 @@ namespace GatherBuddy.AutoGather
                         return;
                     }
                     
-                    EnqueueDismount();
+                    EnqueueDismountFisher(); // 更改为钓鱼下坐骑版本，防止自动前进失位
                     AutoStatus = "正在下坐骑...";
                     return;
                 }

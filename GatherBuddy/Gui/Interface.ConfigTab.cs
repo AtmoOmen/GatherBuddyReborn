@@ -1098,7 +1098,7 @@ public partial class Interface
         {
             DrawCheckbox("使用『大鱼猎手』",
                 "在生成的钓鱼预设中, 自动使用『大鱼猎手』。\n"
-              + "推荐在需要『以小钓大』或『拍击水面』时启用。",
+              + "鱼类需要『以小钓大』或『拍击水面』时才会实际启用。",
                 GatherBuddy.Config.AutoGatherConfig.UsePrizeCatch,
                 b => GatherBuddy.Config.AutoGatherConfig.UsePrizeCatch = b);
             

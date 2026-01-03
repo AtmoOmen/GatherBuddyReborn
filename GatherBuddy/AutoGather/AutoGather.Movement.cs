@@ -43,6 +43,19 @@ namespace GatherBuddy.AutoGather
             TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) TaskManager.DelayNextImmediate(400); });
         }
 
+        private unsafe void EnqueueDismountFisher()
+        {
+            TaskManager.Enqueue(StopNavigation);
+
+            var am = ActionManager.Instance();
+            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐骑");
+
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.InFlight] && CanAct, 1000, "等待飞行状态取消");
+            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐骑 2");
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Mounted] && CanAct, 1000, "等待坐骑状态取消");
+            TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) TaskManager.DelayNextImmediate(500); });
+        }
+
         private unsafe void EnqueueMountUp()
         {
             var am = ActionManager.Instance();
