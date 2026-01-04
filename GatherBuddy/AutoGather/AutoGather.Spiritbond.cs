@@ -42,7 +42,7 @@ public partial class AutoGather
         if (!QuestManager.IsQuestComplete(66174))
         {
             GatherBuddy.Config.AutoGatherConfig.DoMaterialize = false;
-            Communicator.PrintError("[GatherBuddy Reborn] 启用了自动精致魔晶石功能, 但相关任务未完成。此功能已停用。");
+            Communicator.PrintError("[GatherBuddy Reborn] 启用了自动精制魔晶石功能, 但相关任务未完成。此功能已停用。");
             return;
         }
         if (MaterializeAddon == null)

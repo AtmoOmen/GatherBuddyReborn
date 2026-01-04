@@ -116,6 +116,11 @@ public partial class AutoGatherListsManager
             return;
         }
         
+        if (!list.Enabled && !ValidateGatherablePerception(list))
+        {
+            return;
+        }
+        
         list.Enabled = !list.Enabled;
         Save();
         if (list.Items.Count > 0)
@@ -163,7 +168,7 @@ public partial class AutoGatherListsManager
             if (missingBaits.Count > 0)
             {
                 var baitIds = string.Join(", ", missingBaits);
-                Communicator.PrintError($"[Auto-Gather] Cannot enable list '{list.Name}': Missing required bait IDs (and no Versatile Lure): {baitIds}");
+                Communicator.PrintError($"[Auto-Gather] 无法启用列表: '{list.Name}', 缺少钓饵 IDs: {baitIds}, 并且没有万能拟饵");
                 GatherBuddy.Log.Error($"[Auto-Gather] List '{list.Name}' not enabled: Missing bait IDs {baitIds} and no Versatile Lure");
                 return false;
             }
@@ -204,7 +209,7 @@ public partial class AutoGatherListsManager
             
             if (GetInventoryItemCount(baitId) == 0 && GetInventoryItemCount(VersatileLureId) == 0)
             {
-                Communicator.PrintError($"[Auto-Gather] Cannot add/enable {fish.Name[GatherBuddy.Language]}: Missing bait ID {baitId} and no Versatile Lure");
+                Communicator.PrintError($"[Auto-Gather] 无法添加/启用: {fish.Name[GatherBuddy.Language]}, 缺少钓饵 ID: {baitId}, 并且没有万能拟饵");
                 GatherBuddy.Log.Error($"[Auto-Gather] Fish {fish.ItemId} not enabled: Missing bait ID {baitId} and no Versatile Lure");
                 return false;
             }
@@ -214,6 +219,75 @@ public partial class AutoGatherListsManager
         catch (System.Exception ex)
         {
             GatherBuddy.Log.Error($"[Auto-Gather] Error validating single fish bait: {ex.Message}");
+            return true;
+        }
+    }
+    
+    private bool ValidateGatherablePerception(AutoGatherList list)
+    {
+        try
+        {
+            var gatherablesInList = list.Items.OfType<Gatherable>().Where(g => list.EnabledItems.TryGetValue(g, out var enabled) && enabled).ToList();
+            if (gatherablesInList.Count == 0)
+                return true;
+            
+            var playerPerception = DiscipleOfLand.Perception;
+            var insufficientPerception = new System.Collections.Generic.List<(string Name, int Required, int Current)>();
+            
+            foreach (var gatherable in gatherablesInList)
+            {
+                var requiredPerception = (int)gatherable.GatheringData.PerceptionReq;
+                if (requiredPerception == 0)
+                    continue;
+                
+                if (playerPerception < requiredPerception)
+                {
+                    insufficientPerception.Add((gatherable.Name[GatherBuddy.Language], requiredPerception, playerPerception));
+                }
+            }
+            
+            if (insufficientPerception.Count > 0)
+            {
+                var itemDetails = string.Join(", ", insufficientPerception.Select(x => $"{x.Name} (需求: {x.Required})"));
+                Communicator.PrintError($"[Auto-Gather] 无法启用列表: '{list.Name}'， 鉴别力不足 (当前: {playerPerception}): {itemDetails}");
+                GatherBuddy.Log.Error($"[Auto-Gather] List '{list.Name}' not enabled: Insufficient perception {playerPerception}");
+                return false;
+            }
+            
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            GatherBuddy.Log.Error($"[Auto-Gather] Error validating gatherable perception: {ex.Message}\n{ex.StackTrace}");
+            return true;
+        }
+    }
+    
+    private bool ValidateSingleGatherablePerception(IGatherable item)
+    {
+        if (item is not Gatherable gatherable)
+            return true;
+        
+        try
+        {
+            var requiredPerception = (int)gatherable.GatheringData.PerceptionReq;
+            if (requiredPerception == 0)
+                return true;
+            
+            var playerPerception = DiscipleOfLand.Perception;
+            
+            if (playerPerception < requiredPerception)
+            {
+                Communicator.PrintError($"[Auto-Gather] 无法添加/启用: {gatherable.Name[GatherBuddy.Language]}, 鉴别力不足 (需求: {requiredPerception}, 当前: {playerPerception})");
+                GatherBuddy.Log.Error($"[Auto-Gather] Gatherable {gatherable.ItemId} not enabled: Needs {requiredPerception} perception, current: {playerPerception}");
+                return false;
+            }
+            
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            GatherBuddy.Log.Error($"[Auto-Gather] Error validating single gatherable perception: {ex.Message}");
             return true;
         }
     }
@@ -280,6 +354,10 @@ public partial class AutoGatherListsManager
             {
                 list.SetEnabled(item, false);
             }
+            if (list.Enabled && !ValidateSingleGatherablePerception(item))
+            {
+                list.SetEnabled(item, false);
+            }
             Save();
             if (list.Enabled)
                 SetActiveItems();
@@ -323,6 +401,11 @@ public partial class AutoGatherListsManager
     public void ChangeEnabled(AutoGatherList list, IGatherable item, bool enabled)
     {
         if (enabled && list.Enabled && !ValidateSingleFishBait(item))
+        {
+            return;
+        }
+        
+        if (enabled && list.Enabled && !ValidateSingleGatherablePerception(item))
         {
             return;
         }

@@ -254,9 +254,9 @@ public partial class Interface
             var minutes = intuition / RealTime.SecondsPerMinute;
             var seconds = intuition % RealTime.SecondsPerMinute;
             if (seconds == 0)
-                return minutes == 1 ? "直觉持续 1 分钟" : string.Intern($"直觉持续 {minutes} 分钟");
+                return minutes == 1 ? "鱼识持续 1 分钟" : string.Intern($"鱼识持续 {minutes} 分钟");
 
-            return string.Intern($"直觉持续 {minutes}:{seconds:D2} 分钟");
+            return string.Intern($"鱼识持续 {minutes}:{seconds:D2} 分钟");
         }
 
         public ExtendedFish(Fish data)

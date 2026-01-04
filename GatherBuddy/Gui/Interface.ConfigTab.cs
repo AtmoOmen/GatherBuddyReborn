@@ -275,6 +275,24 @@ public partial class Interface
             ImGuiUtil.HoverTooltip("前往采集点的距离达到此值时自动上坐骑");
         }
 
+        public static void DrawLandingDistance()
+        {
+            ImGui.SetNextItemWidth(150);
+            var tmp = GatherBuddy.Config.AutoGatherConfig.LandingDistance;
+            if (ImGui.DragFloat("着陆距离", ref tmp, 0.1f, 0.0f, 50f))
+            {
+                GatherBuddy.Config.AutoGatherConfig.LandingDistance = tmp;
+                GatherBuddy.Config.Save();
+            }
+
+            ImGuiUtil.HoverTooltip(
+                "尝试进行着陆时的目标距离\n\n" +
+                "数值过低可能导致坐骑无法正常降落\n" +
+                "数值过高可能产生怪异的移动路径\n" +
+                "建议值: 4 - 8 yalms"
+            );
+        }
+
         public static void DrawMoveWhileMounting()
             => DrawCheckbox("上坐骑时开始移动",
                 "召唤坐骑期间就开始寻路到下一个采集点",
@@ -1262,6 +1280,13 @@ public partial class Interface
               + "仅在未进行寻路/导航时开火, 每次使用间隔 2 秒。",
                 GatherBuddy.Config.AutoGatherConfig.DiademAutoAetherCannon,
                 b => GatherBuddy.Config.AutoGatherConfig.DiademAutoAetherCannon = b);
+
+        public static void DrawDiademWindmireJumps()
+            => DrawCheckbox("云冠群岛风涡跳跃",
+                "允许在云冠群岛中使用风涡在岛屿之间跳跃。\n" +
+                "仅在风涡能显著缩短移动距离时才会使用风涡跳跃。",
+                GatherBuddy.Config.AutoGatherConfig.DiademWindmireJumps,
+                b => GatherBuddy.Config.AutoGatherConfig.DiademWindmireJumps = b);
         
         public static void DrawCollectableAutoTurninBox()
             => DrawCheckbox("自动交易收藏品",
@@ -1536,6 +1561,7 @@ public partial class Interface
             {
                 AutoGatherUI.DrawMountSelector();
                 ConfigFunctions.DrawMountUpDistance();
+                ConfigFunctions.DrawLandingDistance();
                 ConfigFunctions.DrawMoveWhileMounting();
                 ConfigFunctions.DrawHonkModeBox();
                 if (GatherBuddy.Config.AutoGatherConfig.HonkMode)
@@ -1590,6 +1616,7 @@ public partial class Interface
                     ConfigFunctions.DrawAutoretainerTimedNodeDelayBox();
                 }
                 ConfigFunctions.DrawDiademAutoAetherCannonBox();
+                ConfigFunctions.DrawDiademWindmireJumps();
                 ConfigFunctions.DrawSortingMethodCombo();
                 ConfigFunctions.DrawLifestreamCommandTextInput();
                 ConfigFunctions.DrawAntiStuckCooldown();

@@ -34,12 +34,6 @@ namespace GatherBuddy.AutoGather
             }
 
             ImGui.Text($"状态: {GatherBuddy.AutoGather.AutoStatus}");
-            var lastNavString = GatherBuddy.AutoGather.LastNavigationResult.HasValue
-                ? GatherBuddy.AutoGather.LastNavigationResult.Value
-                    ? "成功"
-                    : "失败 (请尝试重启游戏)"
-                : "无";
-            ImGui.Text($"导航状态: {lastNavString}");
         }
 
 
