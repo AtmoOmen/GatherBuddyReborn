@@ -43,6 +43,7 @@ public static class EnumLocalization
         { NodeType.Unspoiled, "未知" },
         { NodeType.Ephemeral, "限时" },
         { NodeType.Legendary, "传说" },
+        { NodeType.Clouded, "云冠群岛"},
     };
     public static string Get(NodeType type)
         => NodeTypeMap.TryGetValue(type, out var text) ? text : type.ToString();

@@ -24,7 +24,7 @@ namespace GatherBuddy.AutoGather.Helpers
     // At any given time, only 6 nodes in each path are visible: one per chain, all with the same index within the chain.
     // Gathering a node increments the visible node index in all chains in the given path.
 
-    internal class Diadem : IDisposable
+    internal sealed class Diadem : IDisposable
     {
         private const uint FirstNode = 33644;
         private const uint LastNode = FirstNode + TotalPaths * NodesPerPath - 1;
@@ -36,13 +36,15 @@ namespace GatherBuddy.AutoGather.Helpers
         private uint _lastNode;
         private readonly byte[] _indexes = new byte[TotalPaths];
         private int _initialized; // bitfield
-        public static FrozenDictionary<GatheringType, ImmutableArray<uint>> ShortestPaths { get; private set; }
-        public static FrozenSet<GatheringNode> RegularBaseNodes { get; private set; }
-        public static FrozenSet<Gatherable> RegularItems { get; private set; }
-        public static FrozenSet<Gatherable> OddlyDelicateItems { get; private set; }
-        public static FrozenDictionary<uint, uint> RawToApprovedItemIds { get; private set; }
-        public static FrozenDictionary<uint, uint> ApprovedToRawItemIds { get; private set; }
-        public static ImmutableArray<(Vector3 From, Vector3 To)> Windmires { get; private set; } = [
+        public static Territory Territory { get; } = GatherBuddy.GameData.Territories[939];
+        public static bool IsInside => Dalamud.ClientState.TerritoryType == 939;
+        public static FrozenDictionary<GatheringType, ImmutableArray<uint>> ShortestPaths { get; }
+        public static FrozenSet<GatheringNode> RegularBaseNodes { get; }
+        public static FrozenSet<Gatherable> RegularItems { get; }
+        public static FrozenSet<Gatherable> OddlyDelicateItems { get; }
+        public static FrozenDictionary<uint, uint> RawToApprovedItemIds { get; }
+        public static FrozenDictionary<uint, uint> ApprovedToRawItemIds { get; }
+        public static ImmutableArray<(Vector3 From, Vector3 To)> Windmires { get; } = [
             (Vector3.Create(-724.649f,270.846f,-27.428f),Vector3.Create(-540.327f,317.677f,323.471f)),
             (Vector3.Create(-558.688f,318.068f,308.976f),Vector3.Create(-723.915f,271.008f,-49.867f)),
             (Vector3.Create(-287.557f,318.234f,558.728f),Vector3.Create(-118.239f,114.119f,537.373f)),
@@ -114,18 +116,16 @@ namespace GatherBuddy.AutoGather.Helpers
             Dalamud.Framework.Update -= OnUpdate;
         }
 
-        public IEnumerable<uint> GetAvailableNodes(GatheringType type)
+        public bool IsNodeAvailable(uint nodeId)
         {
-            var offset = type switch
-            {
-                GatheringType.Miner => 0u,
-                GatheringType.Botanist => PathsPerJob,
-                _ => throw new System.ComponentModel.InvalidEnumArgumentException(nameof(type), (int)type, typeof(GatheringType)),
-            };
-            return Enumerable.Range(0, (int)(ChainsPerPath * PathsPerJob))
-                .Select(chain => FirstNode + offset * NodesPerPath + (uint)chain * NodesPerChain + _indexes[offset + (uint)chain / ChainsPerPath]);
-        }
+            if (nodeId < FirstNode || nodeId > LastNode)
+                throw new ArgumentOutOfRangeException(nameof(nodeId));
 
+            var offset = nodeId - FirstNode;
+            var path = offset / NodesPerPath;
+            var index = offset % NodesPerChain;
+            return _indexes[path] == index;
+        }
 
         private static (float, ImmutableArray<byte>) FindShortestPath(PathCache cache, Vector3 pos, uint job, uint path0, uint path1)
         {
@@ -171,7 +171,7 @@ namespace GatherBuddy.AutoGather.Helpers
 
         private void OnUpdate(IFramework _)
         {
-            if (!Functions.InTheDiadem())
+            if (!IsInside)
             {
                 Array.Fill(_indexes, (byte)0);
                 _initialized = (1 << (int)TotalPaths) - 1;

@@ -1,10 +1,9 @@
-using System;
-using System.Linq;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility;
-
+using Dalamud.Utility;
+using ElliLib;
+using ElliLib.Widgets;
 using FFXIVClientStructs.STD;
 using GatherBuddy.Alarms;
 using GatherBuddy.AutoGather;
@@ -15,9 +14,10 @@ using GatherBuddy.Config;
 using GatherBuddy.Enums;
 using GatherBuddy.FishTimer;
 using GatherBuddy.Utilities;
-using Dalamud.Utility;
-using ElliLib;
-using ElliLib.Widgets;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using FishRecord = GatherBuddy.FishTimer.FishRecord;
 using GatheringType = GatherBuddy.Enums.GatheringType;
 using ImRaii = ElliLib.Raii.ImRaii;
@@ -66,6 +66,12 @@ public partial class Interface
             => DrawCheckbox("启用采集窗口交互(不推荐禁用此功能)",
                 "是否启用自动采集物品。(\"仅寻路模式\"中建议禁用)",
                 GatherBuddy.Config.AutoGatherConfig.DoGathering, b => GatherBuddy.Config.AutoGatherConfig.DoGathering = b);
+
+        public static void DrawTeleportToNextNodeBox()
+            => DrawCheckbox("传送到下一个限时采集点",
+                "无待采集物品时, 传送到即将出现的限时采集点或钓场, 并在以太之光处等待。\n" +
+                "此选项优先级高于\"空闲时回家\"。",
+                GatherBuddy.Config.AutoGatherConfig.TeleportToNextNode, b => GatherBuddy.Config.AutoGatherConfig.TeleportToNextNode = b);
 
         public static void DrawGoHomeBox()
         {
@@ -333,26 +339,30 @@ public partial class Interface
             ImGuiUtil.HoverTooltip("寻路系统在经过指定秒数后会将你判定为卡住。");
         }
 
+        // 使用字典映射
+        private static readonly Dictionary<AutoGatherConfig.SortingType, string> SortingTypeNames = new()
+        {
+            { AutoGatherConfig.SortingType.Location, "按位置排序" },
+            { AutoGatherConfig.SortingType.None,     "无" },
+        };
+
         public static void DrawSortingMethodCombo()
         {
             var v = GatherBuddy.Config.AutoGatherConfig.SortingMethod;
             ImGui.SetNextItemWidth(150);
 
-            using var combo = ImRaii.Combo("物品排序方法", v.ToString());
+            using var combo = ImRaii.Combo("物品排序方法", SortingTypeNames[v]);
             ImGuiUtil.HoverTooltip("内部排序物品时所使用的方法");
             if (!combo)
                 return;
 
-            if (ImGui.Selectable(AutoGatherConfig.SortingType.Location.ToString(), v == AutoGatherConfig.SortingType.Location))
+            foreach (var kv in SortingTypeNames)
             {
-                GatherBuddy.Config.AutoGatherConfig.SortingMethod = AutoGatherConfig.SortingType.Location;
-                GatherBuddy.Config.Save();
-            }
-
-            if (ImGui.Selectable(AutoGatherConfig.SortingType.None.ToString(), v == AutoGatherConfig.SortingType.None))
-            {
-                GatherBuddy.Config.AutoGatherConfig.SortingMethod = AutoGatherConfig.SortingType.None;
-                GatherBuddy.Config.Save();
+                if (ImGui.Selectable(kv.Value, v == kv.Key))
+                {
+                    GatherBuddy.Config.AutoGatherConfig.SortingMethod = kv.Key;
+                    GatherBuddy.Config.Save();
+                }
             }
         }
 
@@ -1288,6 +1298,12 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.DiademWindmireJumps,
                 b => GatherBuddy.Config.AutoGatherConfig.DiademWindmireJumps = b);
         
+        public static void DrawDiademFarmCloudedNodes()
+            => DrawCheckbox("重进云冠群岛重置灵风天气采集点",
+                "在云冠群岛完成灵风天气物品采集后, 重进云冠群岛使灵风天气采集点重新出现。",
+                GatherBuddy.Config.AutoGatherConfig.DiademFarmCloudedNodes,
+                b => GatherBuddy.Config.AutoGatherConfig.DiademFarmCloudedNodes = b);
+
         public static void DrawCollectableAutoTurninBox()
             => DrawCheckbox("自动交易收藏品",
                 "采集过程中, 物品栏中的收藏品数量达到设定阈值时自动交易收藏品。",
@@ -1343,10 +1359,22 @@ public partial class Interface
         
         
         public static void DrawBuyAfterEachCollectBox()
-            => DrawCheckbox("交易后自动购买票据商店物品",
-                "在收藏品交易完成后自动购买票据商店物品。",
+            => DrawCheckbox("交易后自动购买工票商店物品",
+                "在收藏品交易完成后自动购买工票商店物品。",
                 GatherBuddy.Config.CollectableConfig.BuyAfterEachCollect,
                 b => GatherBuddy.Config.CollectableConfig.BuyAfterEachCollect = b);
+        
+        public static void DrawScripReserveAmount()
+        {
+            var reserveAmount = GatherBuddy.Config.CollectableConfig.ReserveScripAmount;
+            ImGui.SetNextItemWidth(150);
+            if (ImGui.DragInt("保留工票数量", ref reserveAmount, 10, 0, 4000))
+            {
+                GatherBuddy.Config.CollectableConfig.ReserveScripAmount = Math.Max(0, Math.Min(4000, reserveAmount));
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("在工票商店购买物品时, 保留的最低工票数量。\n购买物品时会确保工票数量不低于此数值。");
+        }
         
         public static void DrawScripShopItemManager()
         {
@@ -1418,7 +1446,7 @@ public partial class Interface
             
             if (shopItems.Count() == 0)
             {
-                ImGui.TextDisabled("没有可用的票据商店物品, 数据可能尚未加载。");
+                ImGui.TextDisabled("没有可用的工票商店物品, 数据可能尚未加载。");
             }
             else
             {
@@ -1531,7 +1559,14 @@ public partial class Interface
             
             if (success)
             {
-                Dalamud.Chat.Print($"[GatherBuddy] 已为 {fish.Name[GatherBuddy.Language]} 生成预设: '{presetName}'");
+                if (fish.Predators.Length > 0 && fish.Predators.All(p => !p.Item1.IsSpearFish))
+                {
+                    Dalamud.Chat.Print($"[GatherBuddy] 已为 {fish.Name[GatherBuddy.Language]} 生成两个预设: '{presetName}_Predators' 与 '{presetName}_Target'");
+                }
+                else
+                {
+                    Dalamud.Chat.Print($"[GatherBuddy] 已为 {fish.Name[GatherBuddy.Language]} 生成预设: '{presetName}'");
+                }
             }
             else
             {
@@ -1569,6 +1604,7 @@ public partial class Interface
                     ConfigFunctions.DrawHonkVolumeSlider();
                 }
                 ConfigFunctions.DrawCheckRetainersBox();
+                ConfigFunctions.DrawTeleportToNextNodeBox();
                 ConfigFunctions.DrawGoHomeBox();
                 ConfigFunctions.DrawUseGivingLandOnCooldown();
                 ConfigFunctions.DrawUseSkillsForFallabckBox();
@@ -1617,6 +1653,7 @@ public partial class Interface
                 }
                 ConfigFunctions.DrawDiademAutoAetherCannonBox();
                 ConfigFunctions.DrawDiademWindmireJumps();
+                ConfigFunctions.DrawDiademFarmCloudedNodes();
                 ConfigFunctions.DrawSortingMethodCombo();
                 ConfigFunctions.DrawLifestreamCommandTextInput();
                 ConfigFunctions.DrawAntiStuckCooldown();
@@ -1638,12 +1675,16 @@ public partial class Interface
                     ConfigFunctions.DrawCollectableThreshold();
                 }
                 ConfigFunctions.DrawBuyAfterEachCollectBox();
+                if (GatherBuddy.Config.CollectableConfig.BuyAfterEachCollect)
+                {
+                    ConfigFunctions.DrawScripReserveAmount();
+                }
                 
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
                 
-                if (ImGui.CollapsingHeader("票据商店购买列表"))
+                if (ImGui.CollapsingHeader("工票商店购买列表"))
                 {
                     ConfigFunctions.DrawScripShopItemManager();
                 }

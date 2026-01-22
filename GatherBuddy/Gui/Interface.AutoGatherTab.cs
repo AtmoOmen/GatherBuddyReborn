@@ -75,13 +75,7 @@ public partial class Interface
         {
             var all = GatherBuddy.GameData.Gatherables.Values
                 .Where(g => g.NodeList.SelectMany(l => l.WorldPositions.Values)
-                    .SelectMany(p => p).Any() 
-                    || UmbralNodes.IsUmbralItem(g.ItemId) // Include umbral items
-                    || (g.NodeList.Any(n => n.Territory.Id is 901 or 929 or 939) // Include Diadem items
-                        && (g.Name[GatherBuddy.Language].Contains("Grade 4") // Grade 4: include all
-                            || (g.Name[GatherBuddy.Language].Contains("Artisanal") // Grade 2/3: only Artisanal
-                                && (g.Name[GatherBuddy.Language].Contains("Grade 2") 
-                                    || g.Name[GatherBuddy.Language].Contains("Grade 3"))))))
+                    .SelectMany(p => p).Any())
                 .Cast<IGatherable>()
                 .Concat(GatherBuddy.GameData.Fishes.Values)
                 .GroupBy(g => g.ItemId)
@@ -222,13 +216,7 @@ public partial class Interface
                         
                         if (gatherableItem != null)
                         {
-                            if (gatherableItem.NodeList.Count == 0 
-                                && !UmbralNodes.IsUmbralItem(gatherableItem.ItemId) 
-                                && !(gatherableItem.NodeList.Any(n => n.Territory.Id is 901 or 929 or 939)
-                                    && (gatherableItem.Name[Dalamud.ClientState.ClientLanguage].Contains("Grade 4")
-                                        || (gatherableItem.Name[Dalamud.ClientState.ClientLanguage].Contains("Artisanal")
-                                            && (gatherableItem.Name[Dalamud.ClientState.ClientLanguage].Contains("Grade 2") 
-                                                || gatherableItem.Name[Dalamud.ClientState.ClientLanguage].Contains("Grade 3"))))))
+                            if (gatherableItem.NodeList.Count == 0)
                                 continue;
                         }
                         else
@@ -256,11 +244,12 @@ public partial class Interface
 
         ImGui.SetCursorPosX(ImGui.GetWindowSize().X - 50);
         string agHelpText =
-            "若未启用\"在采集窗口中以出现时间排序\"配置选项, 物品会根据启用列表顺序添加, 其次按列表内的物品顺序添加到采集窗口。\n"
-          + "你可以拖动列表来调整列表位置顺序。\n"
-          + "你可以在某个列表中拖动物品来调整位置顺序。\n"
-          + "你可以将某个物品从选择器拖到其他列表上, 以将其添加到该列表并从当前列表中移除。\n"
-          + "在采集窗口中, 你可以按住 Ctrl 并右键点击某个物品, 将其从所属列表中删除。\n\t如果这会导致该列表没有任何物品, 则该列表也会被删除。";
+            "若设置中\"物品排序方法\"未选择\"按位置排序\"选项(设置-自动采集-高级), 物品会根据启用列表顺序添加, 其次按列表内的物品顺序添加到采集窗口。\n" +
+            "但限时采集点和鱼类始终拥有最高优先级。\n" +
+            "你可以拖放列表来调整列表位置顺序, 或将其移入/移出分组。\n" +
+            "你可以在特定列表内通过拖放物品来重新排列其中的物品顺序。\n" +
+            "在采集窗口中, 你可以按住 Ctrl 并右键点击某个物品, 将其从所属列表中删除。\n\t如果这会导致该列表没有任何物品, 则该列表也会被删除。";
+
 
         ImGuiEx.InfoMarker(agHelpText,                    null, FontAwesomeIcon.InfoCircle.ToIconString(), false);
         ImGuiEx.InfoMarker("自动采集 Discord 支持频道", null, FontAwesomeIcon.Comments.ToIconString(),   false);

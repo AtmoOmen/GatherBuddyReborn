@@ -540,12 +540,16 @@ namespace GatherBuddy.Gui
                 ImGui.SameLine(0, ImGui.CalcTextSize("收藏品").X - ImGui.CalcTextSize("未知").X + ItemSpacing.X);
                 if (ImGuiUtil.Checkbox("传说", "", preset.NodeType.Legendary, x => preset.NodeType.Legendary = x))
                     selector.Save();
-                ImGui.SameLine();
+                ImGui.SameLine(0, ImGui.CalcTextSize("可采集").X - ImGui.CalcTextSize("传说").X + ItemSpacing.X);
                 if (ImGuiUtil.Checkbox("限时", "", preset.NodeType.Ephemeral, x => preset.NodeType.Ephemeral = x))
                     selector.Save();
+                ImGui.SameLine();
+                if (ImGuiUtil.Checkbox("云冠群岛", "", preset.NodeType.Clouded, x => preset.NodeType.Clouded = x))
+                    selector.Save();
+
 
                 ImGui.Text("物品类型:");
-                ImGui.SameLine(0, ImGui.CalcTextSize("采集点类型:").X - ImGui.CalcTextSize("物品类型:").X + ItemSpacing.X);
+                ImGui.SameLine(0, ImGui.CalcTextSize("物品类型:").X - ImGui.CalcTextSize("物品类型:").X + ItemSpacing.X);
                 if (ImGuiUtil.Checkbox("水晶", "", preset.ItemType.Crystals, x => preset.ItemType.Crystals = x))
                     selector.Save();
                 ImGui.SameLine();

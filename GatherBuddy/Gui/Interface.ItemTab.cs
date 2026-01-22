@@ -253,8 +253,8 @@ public partial class Interface
 
             public TypeColumn()
             {
-                SetFlags(ItemFilter.Regular, ItemFilter.Unspoiled, ItemFilter.Ephemeral, ItemFilter.Legendary);
-                SetNames("常规", "未知", "限时", "传说"); // 使用中文名称显示采集点类型
+                SetFlags(ItemFilter.Regular, ItemFilter.Unspoiled, ItemFilter.Ephemeral, ItemFilter.Legendary, ItemFilter.Clouded);
+                SetNames("常规", "未知", "限时", "传说", "云冠群岛"); // 使用中文名称显示采集点类型
             }
 
             public override void DrawColumn(ExtendedGatherable item, int _)
@@ -271,6 +271,7 @@ public partial class Interface
                     NodeType.Unspoiled => FilterValue.HasFlag(ItemFilter.Unspoiled),
                     NodeType.Ephemeral => FilterValue.HasFlag(ItemFilter.Ephemeral),
                     NodeType.Legendary => FilterValue.HasFlag(ItemFilter.Legendary),
+                    NodeType.Clouded   => FilterValue.HasFlag(ItemFilter.Clouded),
                     _                  => false,
                 };
             }
