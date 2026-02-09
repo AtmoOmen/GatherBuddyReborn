@@ -9,8 +9,6 @@ using Dalamud.Interface;
 using GatherBuddy.AutoGather.Extensions;
 using GatherBuddy.AutoGather.Lists;
 using GatherBuddy.Classes;
-using GatherBuddy.Data;
-using GatherBuddy.Config;
 using GatherBuddy.CustomInfo;
 using GatherBuddy.Plugin;
 using Dalamud.Bindings.ImGui;
@@ -18,27 +16,17 @@ using ElliLib;
 using ElliLib.Widgets;
 using ImRaii = ElliLib.Raii.ImRaii;
 using GatherBuddy.Interfaces;
-using GatherBuddy.Automation;
+using Lumina.Text.ReadOnly;
+using GatherBuddy.AutoGather.Helpers;
 
 namespace GatherBuddy.Gui;
 
 public partial class Interface
 {
-    private class AutoGatherListsDragDropData
+    private record class AutoGatherListsDragDropData(AutoGatherList List, IGatherable Item, int ItemIdx)
     {
-        public AutoGatherList list;
-        public IGatherable    Item;
-        public int            ItemIdx;
-
-        public AutoGatherListsDragDropData(AutoGatherList list, IGatherable item, int idx)
-        {
-            this.list = list;
-            Item      = item;
-            ItemIdx   = idx;
-        }
+        public static string Label => "AutoGatherListItem";
     }
-
-    private static AutoGatherListsDragDropData? _dragDropData;
 
     private class AutoGatherListsCache : IDisposable
     {
@@ -193,41 +181,48 @@ public partial class Interface
             {
                 try
                 {
-                    Dictionary<string, int> items = new Dictionary<string, int>();
-
                     // Regex pattern
                     var pattern = @"\b(\d+)x\s(.+)\b";
                     var matches = Regex.Matches(clipboardText, pattern);
 
-                    // Loop through matches and add them to dictionary
-                    foreach (Match match in matches)
-                    {
-                        var quantity = int.Parse(match.Groups[1].Value);
-                        var itemName = match.Groups[2].Value;
-                        items[itemName] = quantity;
-                    }
-
                     var list = _autoGatherListsCache.Selector.Selected!;
 
-                    foreach (var (itemName, quantity) in items)
+                    Dictionary<ReadOnlySeString, uint>? diademItems = null;
+                    Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Item>? itemSheet = null;
+                    Dictionary<string, IGatherable> normalItems = new(GatherBuddy.GameData.Gatherables.Count + GatherBuddy.GameData.Fishes.Count);
+                    foreach (var item in ((IEnumerable<IGatherable>)GatherBuddy.GameData.Gatherables.Values).Concat(GatherBuddy.GameData.Fishes.Values))
+                        normalItems[item.Name[GatherBuddy.Language]] = item;
+
+                    foreach (Match match in matches)
                     {
-                        var gatherableItem = GatherBuddy.GameData.Gatherables.Values.FirstOrDefault(g => g.Name[Dalamud.ClientState.ClientLanguage] == itemName);
-                        IGatherable? gatherable = gatherableItem;
-                        
-                        if (gatherableItem != null)
+                        var quantity = uint.Parse(match.Groups[1].Value);
+                        var itemName = match.Groups[2].Value;
+
+                        if (normalItems.TryGetValue(itemName, out var item))
                         {
-                            if (gatherableItem.NodeList.Count == 0)
+                            if (!item.Locations.Any())
                                 continue;
                         }
                         else
                         {
-                            gatherable = GatherBuddy.GameData.Fishes.Values.FirstOrDefault(f => f.Name[Dalamud.ClientState.ClientLanguage] == itemName);
-                            
-                            if (gatherable == null)
+                            itemSheet ??= Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.Item>(GatherBuddy.Language);
+                            diademItems ??= Diadem.ApprovedToRawItemIds
+                                .Select(kv => (itemSheet.GetRow(kv.Key).Name, kv.Value))
+                                .ToDictionary();
+
+                            if (!diademItems.TryGetValue(itemName, out var rawId))
+                                continue;
+
+                            if (GatherBuddy.GameData.Gatherables.TryGetValue(rawId, out var gatherable))
+                                item = gatherable;
+                            else if (GatherBuddy.GameData.Fishes.TryGetValue(rawId, out var fish))
+                                item = fish;
+                            else
                                 continue;
                         }
 
-                        list.Add(gatherable, (uint)quantity);
+                        if(!list.Add(item, quantity))
+                            list.SetQuantity(item, quantity + list.Quantities[item]);
                     }
 
                     _plugin.AutoGatherListsManager.Save();
@@ -244,10 +239,11 @@ public partial class Interface
 
         ImGui.SetCursorPosX(ImGui.GetWindowSize().X - 50);
         string agHelpText =
-            "若设置中\"物品排序方法\"未选择\"按位置排序\"选项(设置-自动采集-高级), 物品会根据启用列表顺序添加, 其次按列表内的物品顺序添加到采集窗口。\n" +
+            "若设置中\"物品排序方法\"未选择\"按位置排序\"选项(设置-自动采集-高级), 采集顺序将根据启用列表顺序执行, 并按每个列表内的物品顺序进行采集。\n" +
             "但限时采集点和鱼类始终拥有最高优先级。\n" +
-            "你可以拖放列表来调整列表位置顺序, 或将其移入/移出分组。\n" +
+            "你可以拖放列表来调整列表位置顺序。\n" +
             "你可以在特定列表内通过拖放物品来重新排列其中的物品顺序。\n" +
+            "你可以将物品拖放到其他列表, 实现在列表之间移动物品。\n" +
             "在采集窗口中, 你可以按住 Ctrl 并右键点击某个物品, 将其从所属列表中删除。\n\t如果这会导致该列表没有任何物品, 则该列表也会被删除。";
 
 
@@ -318,7 +314,7 @@ public partial class Interface
 
             ImGui.SameLine();
             ImGui.Text("物品: ");
-            var invTotal = item.GetInventoryCount();
+            var invTotal = item.GetTotalCount();
             ImGui.SameLine(0f, ImGui.CalcTextSize($"0000 / ").X - ImGui.CalcTextSize($"{invTotal} / ").X);
             ImGui.Text($"{invTotal} / ");
             ImGui.SameLine(0, 3f);
@@ -336,8 +332,8 @@ public partial class Interface
             {
                 if (source.Success)
                 {
-                    _dragDropData = new AutoGatherListsDragDropData(list, item, i);
-                    ImGui.SetDragDropPayload("AutoGatherListItem", ReadOnlySpan<byte>.Empty);
+                    _autoGatherListsCache.Selector.DragDropItem = new AutoGatherListsDragDropData(list, item, i);
+                    ImGui.SetDragDropPayload(AutoGatherListsDragDropData.Label, []);
                     ImGui.TextUnformatted(item.Name[GatherBuddy.Language]);
                 }
             }
@@ -345,10 +341,11 @@ public partial class Interface
             var localIdx = i;
             using (var target = ImRaii.DragDropTarget())
             {
-                if (target.Success && ImGuiUtil.IsDropping("AutoGatherListItem") && _dragDropData != null)
+                var dragDropData = _autoGatherListsCache.Selector.DragDropItem;
+                if (target.Success && ImGuiUtil.IsDropping(AutoGatherListsDragDropData.Label) && dragDropData != null)
                 {
-                    _plugin.AutoGatherListsManager.MoveItem(_dragDropData.list, _dragDropData.ItemIdx, localIdx);
-                    _dragDropData = null;
+                    _plugin.AutoGatherListsManager.MoveItem(dragDropData.List, dragDropData.ItemIdx, localIdx);
+                    _autoGatherListsCache.Selector.DragDropItem = null;
                 }
             }
         }

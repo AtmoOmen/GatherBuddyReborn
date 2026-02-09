@@ -144,12 +144,20 @@ namespace GatherBuddy.AutoGather.Lists
         private bool NeedsGathering((IGatherable item, uint quantity) value)
         {
             var (item, quantity) = value;
-            return item.GetInventoryCount() < (item.IsTreasureMap ? 1 : quantity);
+            return item.GetTotalCount() < quantity && CheckOvercap(item);
         }
 
         private bool NeedsGathering(GatherTarget target)
             => NeedsGathering((target.Item, target.Quantity));
 
+        private static bool CheckOvercap(IGatherable item)
+        {
+            if (item.IsTreasureMap)
+                return item.GetInventoryCount() < 1;
+            if (item.IsCrystal)
+                return item.GetInventoryCount() < 9999;
+            return true;
+        }
 
         private void OnActiveItemsChanged()
         {
@@ -190,8 +198,6 @@ namespace GatherBuddy.AutoGather.Lists
             var targets = _listsManager.ActiveItems
                 // Filter out items that are already gathered.
                 .Where(NeedsGathering)
-                // If treasure map, only gather if the allowance is up.
-                .Where(x => !x.Item.IsTreasureMap || (nextAllowance ??= DiscipleOfLand.NextTreasureMapAllowance) < adjustedServerTime.DateTime)
                 // Fetch preferred location.
                 .Select(x => (x.Item, x.Quantity, PreferredLocation: _listsManager.GetPreferredLocation(x.Item)))
                 // Flatten node list and calculate the next uptime.
@@ -202,6 +208,8 @@ namespace GatherBuddy.AutoGather.Lists
                         FishingSpot spot => GatherBuddy.UptimeManager.NextUptime((x.Item as Fish)!, spot.Territory, adjustedServerTime),
                         _ => throw new InvalidOperationException()
                     }, x.Quantity, x.PreferredLocation)))
+                // If treasure map, only gather if the allowance is up.
+                .Select(x => x.Item.IsTreasureMap && (nextAllowance ??= DiscipleOfLand.NextTreasureMapAllowance) > adjustedServerTime.DateTime ? x with { Time = TimeInterval.Invalid } : x)
                 // Remove nodes that require the player to be on the home world.
                 .Where(x => !RequiresHomeWorld(x.Location) || Functions.OnHomeWorld())
                 // Remove nodes with a level higher than the player can gather.

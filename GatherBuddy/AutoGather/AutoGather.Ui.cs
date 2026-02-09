@@ -23,8 +23,6 @@ namespace GatherBuddy.AutoGather
 {
     public static class AutoGatherUI
     {
-        private static bool _gatherDebug;
-
         public static void DrawAutoGatherStatus()
         {
             var enabled = GatherBuddy.AutoGather.Enabled;
@@ -61,13 +59,14 @@ namespace GatherBuddy.AutoGather
                 GatherBuddy.Log.Information("节点偏移设置已导出至剪贴板");
             }
             // First column: Nearby nodes table
-            if (ImGui.BeginTable("##nearbyNodesTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
+            if (ImGui.BeginTable("##nearbyNodesTable", 7, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
             {
                 ImGui.TableSetupColumn("名称");
                 ImGui.TableSetupColumn("可选中");
                 ImGui.TableSetupColumn("节点 ID");
                 ImGui.TableSetupColumn("位置");
                 ImGui.TableSetupColumn("距离");
+                ImGui.TableSetupColumn("自动偏移");
                 ImGui.TableSetupColumn("操作");
 
                 ImGui.TableHeadersRow();
@@ -89,6 +88,9 @@ namespace GatherBuddy.AutoGather
                     var distance = Vector3.Distance(playerPosition, node.Position);
                     ImGui.Text(distance.ToString());
                     ImGui.TableSetColumnIndex(5);
+                    var autoOffsetCount = AutoOffsets.GetOffsetCount(node.BaseId, node.Position);
+                    ImGui.Text(autoOffsetCount.ToString());
+                    ImGui.TableSetColumnIndex(6);
 
                     var territoryId = Dalamud.ClientState.TerritoryType;
                     var isBlacklisted = GatherBuddy.Config.AutoGatherConfig.BlacklistedNodesByTerritoryId.TryGetValue(territoryId, out var list)

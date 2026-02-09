@@ -910,7 +910,7 @@ public partial class Interface
             if (tr != null)
             {
                 text.AppendLine($"Touched: {tr.Touched}");
-                text.AppendLine($"HiddenRevealed: {tr.HiddenRevealed}");
+                text.AppendLine($"HasUnhidden: {tr.HasUnhidden}");
                 text.AppendLine($"Integrty: {tr.IntegrityRemaining}/{tr.IntegrityMax}");
                 text.Append($"Quick gathering: {(!tr.QuickGatheringAllowed ? "not" : "")} allowed");
                 if (tr.QuickGatheringAllowed) text.Append($", {(!tr.QuickGatheringEnabled ? "not" : "")} checked");
@@ -925,7 +925,7 @@ public partial class Interface
                         text.AppendLine(" empty;");
                         continue;
                     }
-                    text.Append($" {n.Item?.Name[GatherBuddy.Language] ?? "None"};");
+                    text.Append($" {(!n.IsEmpty ? n.Item.Name[GatherBuddy.Language] : "None")};");
                     //if (!n.Enabled) text.Append(" disabled;");
                     text.Append($" level: {n.ItemLevel}; yield: {n.Yield}{(n.HasGivingLandBuff ? "+?" : "")}; chance: {n.GatherChance}; boon: {n.BoonChance};");
                     if (n.IsHidden) text.Append(" hidden;");
@@ -965,8 +965,8 @@ public partial class Interface
     private static void DrawCosmicFishDataButton()
     {
         ImGui.PushItemWidth(100);
-        ImUtf8.InputScalar($"Start ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_startId)?.Name}", ref _startId);
-        ImUtf8.InputScalar($"End ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_endId)?.Name}",     ref _endId);
+        ImUtf8.InputScalar($"Start ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_startId)?.Name}###startid", ref _startId);
+        ImUtf8.InputScalar($"End ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_endId)?.Name}###endid",     ref _endId);
         ImGui.PopItemWidth();
 
         if (!ImUtf8.Button("Copy Most Recent Unknown Fish Data"u8))

@@ -214,9 +214,16 @@ public partial class Interface
 
         public static void DrawAetherialReduction()
             => DrawCheckbox("自动精选",
-                "自动在空闲状态或物品栏已满时进行精选",
+                "自动在空闲状态或物品栏空位少于 20 时进行精选",
                 GatherBuddy.Config.AutoGatherConfig.DoReduce,
                 b => GatherBuddy.Config.AutoGatherConfig.DoReduce = b);
+
+        public static void DrawAlwaysReduceAllItemsBox()
+            => DrawCheckbox("始终精选所有物品",
+                "未启用: 采集时如果物品栏空位少于 20 格, 进行紧急精选, 但只会精选 1 种物品\n" +
+                "启用: 一次性精选所有物品",
+                GatherBuddy.Config.AutoGatherConfig.AlwaysReduceAllItems,
+                b => GatherBuddy.Config.AutoGatherConfig.AlwaysReduceAllItems = b);
 
         public static void DrawUseFlagBox()
             => DrawCheckbox("禁用地图标记导航", "是否使用地图标记进行导航(仅限时采集点)",
@@ -292,7 +299,8 @@ public partial class Interface
             }
 
             ImGuiUtil.HoverTooltip(
-                "尝试进行着陆时的目标距离\n\n" +
+                "尝试在距离采集点固定距离处着陆\n\n" +
+                "应用于\"禁用随机着陆位置\"、没有可用的采集点数据时\n\n" +
                 "数值过低可能导致坐骑无法正常降落\n" +
                 "数值过高可能产生怪异的移动路径\n" +
                 "建议值: 4 - 8 yalms"
@@ -321,6 +329,13 @@ public partial class Interface
         public static void DrawForceWalkingBox()
             => DrawCheckbox("强制行走", "前往采集点时强制步行, 而不是使用坐骑。",
                 GatherBuddy.Config.AutoGatherConfig.ForceWalking, b => GatherBuddy.Config.AutoGatherConfig.ForceWalking = b);
+
+        public static void DrawDisableRandomLandingPositionsBox()
+            => DrawCheckbox("禁用随机着陆位置",
+                "GBR 会自动收集玩家的采集位置作为着陆点(偏移位置)\n" +
+                "未启用: 从玩家曾被观察到采集的位置中随机选择着陆点\n" +
+                "启用: 改为使用固定的着陆距离进行着陆\n",
+                GatherBuddy.Config.AutoGatherConfig.DisableRandomLandingPositions, b => GatherBuddy.Config.AutoGatherConfig.DisableRandomLandingPositions = b);
 
         public static void DrawUseNavigationBox()
             => DrawCheckbox("使用 vnavmesh 寻路", "使用 vnavmesh 寻路以自动移动角色。",
@@ -529,8 +544,6 @@ public partial class Interface
                     else
                         _plugin.AlarmManager.Disable();
                 });
-
-        private static bool _gatherDebug = false;
 
         public static void DrawAlarmsInDutyToggle()
             => DrawCheckbox("在副本任务中启用闹钟", "设置当你在副本任务中时闹钟是否应该触发。",
@@ -1645,6 +1658,7 @@ public partial class Interface
                 }
                 ConfigFunctions.DrawMaterialExtraction();
                 ConfigFunctions.DrawAetherialReduction();
+                ConfigFunctions.DrawAlwaysReduceAllItemsBox();
                 ConfigFunctions.DrawAutoretainerBox();
                 if (GatherBuddy.Config.AutoGatherConfig.AutoRetainerMultiMode)
                 {
@@ -1664,6 +1678,7 @@ public partial class Interface
                 ConfigFunctions.DrawUseFlagBox();
                 ConfigFunctions.DrawUseNavigationBox();
                 ConfigFunctions.DrawForceWalkingBox();
+                ConfigFunctions.DrawDisableRandomLandingPositionsBox();
                 ImGui.TreePop();
             }
             

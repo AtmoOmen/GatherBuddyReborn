@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dalamud.Plugin;
 using GatherBuddy.AutoGather.Lists;
 using GatherBuddy.Gui;
+using GatherBuddy.Interfaces;
 using GatherBuddy.Plugin;
 using GatherBuddy.Utility;
 
@@ -37,6 +38,7 @@ namespace GatherBuddy.AutoGather.Helpers
                 {
                     if (TouchArtisanAssembly)
                     {
+#pragma warning disable CS8600, CS8602, CS8604, CS8605 // Null handled by catch block
                         System.Collections.IList artisanCraftingLists = (System.Collections.IList)ArtisanAssemblyInstance.GetFoP("Config").GetFoP("NewCraftingLists");
                         foreach (var list in artisanCraftingLists)
                         {
@@ -45,6 +47,7 @@ namespace GatherBuddy.AutoGather.Helpers
                             if (name != null)
                                 listNames.Add(id, name);
                         }
+#pragma warning restore CS8600, CS8602, CS8604, CS8605
                     }
                     return listNames;
                 }
@@ -64,6 +67,7 @@ namespace GatherBuddy.AutoGather.Helpers
             {
                 try
                 {
+#pragma warning disable CS8600, CS8602, CS8604, CS8605 // Null handled by catch block
                     if (TouchArtisanAssembly)
                     {
                         System.Collections.IList artisanCraftingLists = (System.Collections.IList)ArtisanAssemblyInstance.GetFoP("Config").GetFoP("NewCraftingLists");
@@ -84,16 +88,26 @@ namespace GatherBuddy.AutoGather.Helpers
                         list.Description = "来自 Artisan 导入的制作清单";
                         foreach (var (itemId, quantity) in matList)
                         {
-                            var gatherable = GatherBuddy.GameData.Gatherables.FirstOrDefault(g => g.Key == itemId);
-                            if (gatherable.Value == null || gatherable.Value.NodeList.Count == 0)
+                            if (!Diadem.ApprovedToRawItemIds.TryGetValue(itemId, out var mappedItemId))
+                                mappedItemId = itemId;
+
+                            IGatherable? item = null;
+                            if (GatherBuddy.GameData.Gatherables.TryGetValue(mappedItemId, out var gatherable))
+                                item = gatherable;
+                            else if (GatherBuddy.GameData.Fishes.TryGetValue(mappedItemId, out var fish))
+                                item = fish;
+
+                            if (item == null || !item.Locations.Any())
                                 continue;
-                            list.Add(gatherable.Value, (uint)quantity);
+
+                            list.Add(item, (uint)quantity);
                         }
                         _listsManager.AddList(list);
                         Communicator.Print($"列表 '{listKvp.Value}' 成功导入!");
                         return true;
                     }
                     return false;
+#pragma warning restore CS8600, CS8602, CS8604, CS8605
                 }
                 catch (Exception e)
                 {
