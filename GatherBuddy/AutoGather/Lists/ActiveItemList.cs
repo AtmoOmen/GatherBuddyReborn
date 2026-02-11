@@ -221,14 +221,16 @@ namespace GatherBuddy.AutoGather.Lists
                 })
                 // Apply predators and mooch dependencies time restrictions.
                 .Select(x => x with { Time = IntersectMoochUptime(x.Item, x.Location, x.Time, adjustedServerTime) })
-                .Select(x => x with { Time = IntersectPredatorUptime(x.Item, x.Location, x.Time, adjustedServerTime) })
                 .Select(x => x with { Location = CorrectForPredatorLocation(x.Item, x.Location) })
+                .Select(x => x with { Time = IntersectPredatorUptime(x.Item, x.Location, x.Time, adjustedServerTime) })
                 // Remove uptime for nodes that have already been gathered.
                 .Select(x => x.Location is GatheringNode node && _visitedTimedNodes.ContainsKey(node) ? x with { Time = TimeInterval.Invalid } : x)
                 // Group by item and select the best node.
                 .GroupBy(x => x.Item, x => x, (_, g) => g
+                    // Prioritize active nodes
+                    .OrderBy(x => !x.Time.InRange(adjustedServerTime))
                     // Prioritize preferred location, then current job, then preferred job, then the rest.
-                    .OrderBy(x =>
+                    .ThenBy(x =>
                         x.Location == x.PreferredLocation ? 0
                         : x.Location.GatheringType.ToGroup() == Player.Job switch
                         {
@@ -241,8 +243,6 @@ namespace GatherBuddy.AutoGather.Lists
                         : 3)
                     // Bring Shadow Nodes to the end
                     .ThenBy(x => x.Location is FishingSpot spot && spot.IsShadowNode)
-                    // Prioritize active nodes
-                    .ThenBy(x => !x.Time.InRange(adjustedServerTime))
                     // Prioritize closest nodes in the current territory.
                     .ThenBy(x => GetHorizontalSquaredDistanceToPlayer(x.Location))
                     // Order by end time, longest first as in the original UptimeManager.NextUptime().
@@ -330,7 +330,6 @@ namespace GatherBuddy.AutoGather.Lists
                     }
                     else if (shadowSpot.ParentNode != null)
                     {
-                        // First predator not met - use parent node to gather it
                         location = shadowSpot.ParentNode;
                         GatherBuddy.Log.Debug($"[ActiveItemList] First predator not met for {fish.Name[GatherBuddy.Language]}, using parent node");
                     }
