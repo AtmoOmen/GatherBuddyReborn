@@ -53,6 +53,7 @@
 	  <ProjectReference Include="..\GatherBuddy.GameData\GatherBuddy.GameData.csproj" />
 	  <ProjectReference Include="..\GatherBuddy.Models\GatherBuddy.Models.csproj" />
 	  <ProjectReference Include="..\ElliLib\ElliLib.csproj" />
+	  <ProjectReference Include="..\ElliCon\ElliCon.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -70,8 +71,11 @@
 	<ItemGroup>
 	  <EmbeddedResource Include="CustomInfo\ScripShopItems.json" />
 	</ItemGroup>
-
-	<ItemGroup>
-	  <None Include="AutoGather\GatheringTracker.cs" />
-	</ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist $(ProjectDir)raphael-rs git clone https://github.com/KonaeAkira/raphael-rs.git $(ProjectDir)raphael-rs" />
+    <Exec Command="cd $(ProjectDir)raphael-rs &amp; cargo build --release --package raphael-cli" />
+    <Exec Command="copy $(ProjectDir)raphael-rs\target\release\raphael-cli.exe $(OutputPath)\raphael-cli.exe /Y" />
+  </Target>
+  
 </Project>
