@@ -62,6 +62,12 @@ public class CraftingListEditor
     private int _tempQuantityInput = 0;
     private Dictionary<uint, int>? _cachedPrecraftMaterials = null;
     private string _cachedPrecraftMaterialsHash = string.Empty;
+
+    private string _editingName        = string.Empty;
+    private string _editingDescription = string.Empty;
+    private bool   _nameConflict       = false;
+    private bool   _editingDescActive  = false;
+    private bool   _focusDescNext      = false;
     
     internal bool HasCachedMaterials    => _cachedMaterials != null;
     internal bool IsGeneratingMaterials => _isGeneratingMaterials;
@@ -71,7 +77,9 @@ public class CraftingListEditor
 
     public CraftingListEditor(CraftingListDefinition list)
     {
-        _list = list;
+        _list               = list;
+        _editingName        = list.Name;
+        _editingDescription = list.Description;
         RefreshInventoryCounts();
         TriggerQueueRegeneration();
     }
@@ -99,15 +107,21 @@ public class CraftingListEditor
         var leftPaneWidth = availableWidth * 0.4f;
         var rightPaneWidth = availableWidth - leftPaneWidth - 8;
         
-        ImGui.BeginChild("LeftPane", new Vector2(leftPaneWidth, availableHeight), true);
-        DrawQueuePane();
-        ImGui.EndChild();
-        
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
+        {
+            ImGui.BeginChild("LeftPane", new Vector2(leftPaneWidth, availableHeight), true);
+            DrawQueuePane();
+            ImGui.EndChild();
+        }
+
         ImGui.SameLine();
-        
-        ImGui.BeginChild("RightPane", new Vector2(rightPaneWidth, availableHeight), true);
-        DrawDetailsPane();
-        ImGui.EndChild();
+
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
+        {
+            ImGui.BeginChild("RightPane", new Vector2(rightPaneWidth, availableHeight), true);
+            DrawDetailsPane();
+            ImGui.EndChild();
+        }
         
         _craftSettingsPopup.Draw();
         _consumablesPopup.Draw();
@@ -115,27 +129,189 @@ public class CraftingListEditor
 
     private void DrawQueuePane()
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.9f, 0.9f, 1));
-        ImGui.Text("制作队列");
-        ImGui.PopStyleColor();
-        
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "制作队列");
         ImGui.Separator();
         ImGui.Spacing();
-        
+
         if (_list.Recipes.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "队列中无配方。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "队列中无配方。");
             ImGui.Spacing();
             ImGui.TextWrapped("请使用右侧面板添加配方。");
             return;
         }
-        
+
+        var sortedQueue  = GetSortedQueue();
+        var displayQueue = _showPrecrafts
+            ? sortedQueue
+            : _list.Recipes.Select(r => new CraftingListItem(r.RecipeId, r.Quantity)).ToList();
+
+        var lineH   = ImGui.GetTextLineHeightWithSpacing();
+        var spacing = ImGui.GetStyle().ItemSpacing.Y;
+        var bottomH = lineH * 3 + spacing * 3    // 3 checkboxes
+                    + 22f * 2  + spacing * 2     // Start + gather/materials row
+                    + spacing * 2 + 6f;          // separator + padding
+        var queueH  = Math.Max(ImGui.GetContentRegionAvail().Y - bottomH, lineH * 3);
+
+        ImGui.BeginChild("QueueList", new Vector2(-1, queueH), false);
+
         if (_isGeneratingQueue)
         {
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "正在计算制作队列...");
-            return;
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "正在计算制作队列...");
         }
-        
+        else if (displayQueue.Count == 0)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "队列为空");
+        }
+        else
+        {
+            var originalRecipes = new HashSet<uint>(_list.Recipes.Select(r => r.RecipeId));
+
+            void DrawQueueItem(int idx)
+            {
+                var queueItem  = displayQueue[idx];
+                var recipeData = RecipeManager.GetRecipe(queueItem.RecipeId);
+                if (recipeData == null) return;
+
+                var itemName = recipeData.Value.ItemResult.Value.Name.ExtractText();
+                var jobName  = GetCraftingJobName(recipeData.Value.CraftType.RowId);
+
+                var isOriginalRecipe = originalRecipes.Contains(queueItem.RecipeId);
+                var willBeSkipped    = _list.SkipIfEnough && WillBeSkippedDueToInventory(recipeData.Value, queueItem.Quantity);
+                var recipeOptions    = _list.GetRecipeOptions(queueItem.RecipeId);
+                var quickSynthPrefix = recipeOptions.NQOnly ? "[简易制作] " : "";
+
+                Vector4 textColor;
+                if (willBeSkipped)
+                    textColor = new Vector4(1, 0.3f, 0.3f, 1);
+                else if (recipeOptions.NQOnly)
+                    textColor = new Vector4(0.3f, 0.9f, 0.9f, 1);
+                else if (isOriginalRecipe)
+                    textColor = new Vector4(1, 1, 1, 1);
+                else
+                    textColor = new Vector4(0.7f, 0.7f, 0.7f, 1);
+
+                var queueItemCraftSettings = isOriginalRecipe
+                    ? _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId)?.CraftSettings
+                    : _list.PrecraftCraftSettings.GetValueOrDefault(queueItem.RecipeId);
+                var queueItemValidation = MacroValidator.GetOrCompute(queueItem.RecipeId, ResolveEffectiveMacroId(queueItemCraftSettings, !isOriginalRecipe), queueItemCraftSettings, _list.Consumables);
+                if (queueItemValidation != null)
+                {
+                    var dotColor = queueItemValidation.IsValid
+                        ? new Vector4(0.30f, 0.70f, 0.30f, 1f)
+                        : (queueItemValidation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
+                            ? new Vector4(0.78f, 0.62f, 0.15f, 1f)
+                            : new Vector4(0.78f, 0.25f, 0.25f, 1f));
+                    ImGui.TextColored(dotColor, "\u25cf");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip(queueItemValidation.IsValid
+                            ? $"宏: 通过\n进展: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}\n品质: {queueItemValidation.FinalQuality}\n耐久: {queueItemValidation.FinalDurability}"
+                            : $"宏: {queueItemValidation.Failure} 于步骤 {queueItemValidation.FailedAtStep}\n进展: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}");
+                    ImGui.SameLine();
+                }
+
+                ImGui.PushStyleColor(ImGuiCol.Text, textColor);
+                var isSelected = _selectedQueueIndex == idx;
+                var label      = $"{quickSynthPrefix}{idx + 1}. {itemName} x{queueItem.Quantity} ({jobName})";
+                if (ImGui.Selectable(label, isSelected))
+                    _selectedQueueIndex = idx;
+                ImGui.PopStyleColor();
+
+                var isPopupOpen = GatherBuddy.ControllerSupport != null
+                    ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"queue_ctx_{idx}", Dalamud.GamepadState)
+                    : ImGui.BeginPopupContextItem($"queue_ctx_{idx}");
+
+                if (isPopupOpen)
+                {
+                    if (ImGui.MenuItem("制作设置..."))
+                    {
+                        if (isOriginalRecipe)
+                        {
+                            var listItem = _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId);
+                            if (listItem != null)
+                                _craftSettingsPopup.OpenForListItem(listItem, _list, itemName);
+                        }
+                        else
+                        {
+                            _craftSettingsPopup.OpenForPrecraft(queueItem.RecipeId, itemName, _list);
+                        }
+                    }
+
+                    ImGui.Separator();
+
+                    if (recipeData.Value.CanQuickSynth)
+                    {
+                        var useQuickSynth = recipeOptions.NQOnly;
+                        if (ImGui.MenuItem("简易制作", "", useQuickSynth))
+                        {
+                            _list.SetRecipeQuickSynth(queueItem.RecipeId, !useQuickSynth);
+                            GatherBuddy.CraftingListManager.SaveList(_list);
+                            _cachedQueueValid    = false;
+                            _cachedMaterialsValid = false;
+                            TriggerQueueRegeneration();
+                        }
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip("为此配方使用简易制作 (仅普通品质)");
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled("简易制作不可用");
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip("配方必须解锁并至少制作过一次才能使用简易制作");
+                    }
+
+                    ImGui.EndPopup();
+                }
+            }
+
+            for (int i = 0; i < displayQueue.Count; i++)
+                DrawQueueItem(i);
+        }
+
+        ImGui.EndChild();
+
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.Checkbox("显示半成品制作##sp", ref _showPrecrafts);
+
+        var skipIfEnough = _list.SkipIfEnough;
+        if (ImGui.Checkbox("跳过已经足够的物品##sie", ref skipIfEnough))
+        {
+            _list.SkipIfEnough    = skipIfEnough;
+            _cachedQueueValid     = false;
+            _cachedMaterialsValid = false;
+            GatherBuddy.CraftingListManager.SaveList(_list);
+            TriggerQueueRegeneration();
+            RefreshInventoryCounts();
+        }
+
+        var quickSynthAll = _list.QuickSynthAll;
+        if (ImGui.Checkbox("简易制作全部##qsa", ref quickSynthAll))
+        {
+            _list.QuickSynthAll = quickSynthAll;
+            GatherBuddy.CraftingListManager.SaveList(_list);
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("强制清单中所有可用物品使用简易制作, 覆盖每个物品的求解器设置。");
+
+        var allaganEnabled = AllaganTools.Enabled;
+        using (ImRaii.Disabled(!allaganEnabled))
+        {
+            var retainerRestock = _list.RetainerRestock;
+            if (ImGui.Checkbox("从雇员补货##rrr", ref retainerRestock))
+            {
+                _list.RetainerRestock = retainerRestock;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip(allaganEnabled
+                ? "在生成自动采集列表前, 从雇员处取出需要的材料, 遵循 HQ/NQ 偏好设置。"
+                : "需要安装并启用 Allagan Tools 插件。");
+
+        ImGui.Spacing();
+
         if (IPCSubscriber.IsReady("Artisan"))
         {
             ImGuiUtil.DrawDisabledButton("检测到 Artisan", new Vector2(-1, 22),
@@ -145,9 +321,9 @@ public class CraftingListEditor
         {
             var (hardFails, warnings) = CountValidationIssues();
             if (hardFails > 0)
-                ImGui.PushStyleColor(ImGuiCol.Button, ImGuiColors.DalamudRed);
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.50f, 0.15f, 0.15f, 1f));
             else if (warnings > 0)
-                ImGui.PushStyleColor(ImGuiCol.Button, ImGuiColors.DalamudYellow);
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.40f, 0.05f, 1f));
 
             if (ImGui.Button("开始 采集/制作", new Vector2(-1, 22)))
             {
@@ -162,13 +338,13 @@ public class CraftingListEditor
                 ImGui.PopStyleColor();
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(hardFails > 0
-                        ? $"{hardFails} 个宏预计会失败。点击确认并继续开始。"
+                        ? $"{hardFails} 个宏预计会在本次制作中失败, 点击确认仍然开始。"
                         : $"{warnings} 个宏存在警告。");
             }
 
-            if (ImGui.BeginPopupModal("宏失败确认##startCraft", ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal("ConfirmFailedMacros##startCraft", ImGuiWindowFlags.AlwaysAutoResize))
             {
-                ImGui.TextColored(ImGuiColors.DalamudRed, $"{hardFails} 个宏预计无法完成制作。");
+                ImGui.TextColored(new Vector4(0.78f, 0.25f, 0.25f, 1f), $"{hardFails} 个宏预计会制作失败。");
                 ImGui.TextWrapped("这些物品可能无法完成, 是否仍要开始制作?");
                 ImGui.Spacing();
                 if (ImGui.Button("仍然开始", new Vector2(120, 0)))
@@ -182,293 +358,200 @@ public class CraftingListEditor
                 ImGui.EndPopup();
             }
         }
-        
-        if (ImGui.Button("生成自动采集列表", new Vector2(-1, 22)))
+
+        var halfW = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2f;
+        if (ImGui.Button("生成自动采集列表##gatherList", new Vector2(halfW, 22)))
         {
             var materials = _list.ListMaterials();
-            CraftingGatherBridge.CreatePersistentGatherList($"{_list.Name}...自动生成", materials);
+            CraftingGatherBridge.CreatePersistentGatherList($"{_list.Name}...Auto-Generated", materials);
         }
-        
-        var matsBtnLabel = GatherBuddy.CraftingMaterialsWindow?.IsOpen == true ? "隐藏材料" : "查看材料";
-        if (ImGui.Button(matsBtnLabel, new Vector2(-1, 22)) && GatherBuddy.CraftingMaterialsWindow != null)
+        ImGui.SameLine();
+        var matsBtnLabel = GatherBuddy.CraftingMaterialsWindow?.IsOpen == true ? "隐藏材料表" : "查看材料表";
+        if (ImGui.Button($"{matsBtnLabel}##viewMats", new Vector2(-1, 22)) && GatherBuddy.CraftingMaterialsWindow != null)
             GatherBuddy.CraftingMaterialsWindow.IsOpen = !GatherBuddy.CraftingMaterialsWindow.IsOpen;
-        
-        if (ImGui.Button("编辑清单 消耗品/宏", new Vector2(-1, 22)))
-            _consumablesPopup.OpenListDefaults(_list);
-        
-        ImGui.Spacing();
-        ImGui.Checkbox("显示 半成品制作", ref _showPrecrafts);
-        
-        var skipIfEnough = _list.SkipIfEnough;
-        if (ImGui.Checkbox("跳过已经足够的物品", ref skipIfEnough))
-        {
-            _list.SkipIfEnough = skipIfEnough;
-            GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid = false;
-            _cachedMaterialsValid = false;
-            TriggerQueueRegeneration();
-            RefreshInventoryCounts();
-        }
-
-        var quickSynthAll = _list.QuickSynthAll;
-        if (ImGui.Checkbox("简易制作全部", ref quickSynthAll))
-        {
-            _list.QuickSynthAll = quickSynthAll;
-            GatherBuddy.CraftingListManager.SaveList(_list);
-        }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("强制清单中所有可用物品进行简易制作, 覆盖单个配方的求解器设置。");
-        ImGui.Spacing();
-        
-        ImGui.Separator();
-        
-        var sortedQueue = GetSortedQueue();
-        var displayQueue = _showPrecrafts ? sortedQueue : _list.Recipes.Select(r => new CraftingListItem(r.RecipeId, r.Quantity)).ToList();
-        
-        if (displayQueue.Count == 0)
-        {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "队列为空。");
-            return;
-        }
-        
-        var height = ImGui.GetTextLineHeightWithSpacing();
-        var childHeight = ImGui.GetContentRegionAvail().Y;
-        
-        ImGui.BeginChild("QueueList", new Vector2(-1, childHeight), false);
-        
-        var originalRecipes = new HashSet<uint>(_list.Recipes.Select(r => r.RecipeId));
-        
-        void DrawQueueItem(int idx)
-        {
-            var queueItem = displayQueue[idx];
-            var recipeData = RecipeManager.GetRecipe(queueItem.RecipeId);
-            if (recipeData == null) return;
-            
-            var itemName = recipeData.Value.ItemResult.Value.Name.ExtractText();
-            var jobName = GetCraftingJobName(recipeData.Value.CraftType.RowId);
-            
-            var isOriginalRecipe = originalRecipes.Contains(queueItem.RecipeId);
-            var willBeSkipped = _list.SkipIfEnough && WillBeSkippedDueToInventory(recipeData.Value, queueItem.Quantity);
-
-            var recipeOptions = _list.GetRecipeOptions(queueItem.RecipeId);
-            var quickSynthPrefix = recipeOptions.NQOnly ? "[简易制作] " : "";
-
-            Vector4 textColor;
-            if (willBeSkipped)
-            {
-                textColor = new Vector4(1, 0.3f, 0.3f, 1);
-            }
-            else if (recipeOptions.NQOnly)
-            {
-                textColor = new Vector4(0.3f, 0.9f, 0.9f, 1);
-            }
-            else if (isOriginalRecipe)
-            {
-                textColor = new Vector4(1, 1, 1, 1);
-            }
-            else
-            {
-                textColor = new Vector4(0.7f, 0.7f, 0.7f, 1);
-            }
-
-            var queueItemCraftSettings = isOriginalRecipe
-                ? _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId)?.CraftSettings
-                : _list.PrecraftCraftSettings.GetValueOrDefault(queueItem.RecipeId);
-            var queueItemValidation = MacroValidator.GetOrCompute(queueItem.RecipeId, ResolveEffectiveMacroId(queueItemCraftSettings, !isOriginalRecipe), queueItemCraftSettings, _list.Consumables);
-            if (queueItemValidation != null)
-            {
-                var dotColor = queueItemValidation.IsValid
-                    ? ImGuiColors.ParsedGreen
-                    : (queueItemValidation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
-                        ? ImGuiColors.DalamudYellow
-                        : ImGuiColors.DalamudRed);
-                ImGui.TextColored(dotColor, "\u25cf");
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip(queueItemValidation.IsValid
-                        ? $"宏: 通过\n进展: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}\n品质: {queueItemValidation.FinalQuality}\n耐久: {queueItemValidation.FinalDurability}"
-                        : $"宏: {queueItemValidation.Failure} 于步骤 {queueItemValidation.FailedAtStep}\n进展: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}");
-                ImGui.SameLine();
-            }
-
-            ImGui.PushStyleColor(ImGuiCol.Text, textColor);
-            var isSelected = _selectedQueueIndex == idx;
-            var label = $"{quickSynthPrefix}{idx + 1}. {itemName} x{queueItem.Quantity} ({jobName})";
-
-            if (ImGui.Selectable(label, isSelected))
-                _selectedQueueIndex = idx;
-            ImGui.PopStyleColor();
-
-            var isPopupOpen = GatherBuddy.ControllerSupport != null
-                ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"queue_ctx_{idx}", Dalamud.GamepadState)
-                : ImGui.BeginPopupContextItem($"queue_ctx_{idx}");
-            
-            if (isPopupOpen)
-            {
-                if (ImGui.MenuItem("制作设置..."))
-                {
-                    if (isOriginalRecipe)
-                    {
-                        var listItem = _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId);
-                        if (listItem != null)
-                            _craftSettingsPopup.OpenForListItem(listItem, _list, itemName);
-                    }
-                    else
-                    {
-                        _craftSettingsPopup.OpenForPrecraft(queueItem.RecipeId, itemName, _list);
-                    }
-                }
-
-                ImGui.Separator();
-
-                if (recipeData.Value.CanQuickSynth)
-                {
-                    var useQuickSynth = recipeOptions.NQOnly;
-                if (ImGui.MenuItem("简易制作", "", useQuickSynth))
-                {
-                    _list.SetRecipeQuickSynth(queueItem.RecipeId, !useQuickSynth);
-                    GatherBuddy.CraftingListManager.SaveList(_list);
-                    _cachedQueueValid = false;
-                    _cachedMaterialsValid = false;
-                    TriggerQueueRegeneration();
-                }
-                    
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip("为此配方使用简易制作 (仅普通品质)");
-                    }
-                }
-                else
-                {
-                    ImGui.TextDisabled("简易制作不可用");
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip("配方必须解锁并至少制作过一次才能使用简易制作");
-                    }
-                }
-                
-                ImGui.EndPopup();
-            }
-        }
-        
-        for (int i = 0; i < displayQueue.Count; i++)
-        {
-            DrawQueueItem(i);
-        }
-        
-        ImGui.EndChild();
     }
     
     private void DrawDetailsPane()
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.9f, 0.9f, 1));
-        ImGui.Text("详情 & 管理");
-        ImGui.PopStyleColor();
-        
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "制作清单详情");
         ImGui.Separator();
         ImGui.Spacing();
-        
-        if (ImGui.CollapsingHeader("添加配方", ImGuiTreeNodeFlags.DefaultOpen))
-        {
-            DrawAddRecipeSection();
-        }
-        
-        ImGui.Spacing();
-        
-        if (ImGui.CollapsingHeader("配方清单管理", ImGuiTreeNodeFlags.DefaultOpen))
-        {
-            DrawRecipeListSection();
-        }
-        
-        ImGui.Spacing();
+        DrawListInfoSection();
 
-        if (ImGui.CollapsingHeader("清单消耗品", ImGuiTreeNodeFlags.DefaultOpen))
-        {
-            DrawListConsumablesSection();
-        }
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "制作清单消耗品");
+        ImGui.Separator();
+        ImGui.Spacing();
+        DrawListConsumablesSection();
+
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "添加配方");
+        ImGui.Separator();
+        ImGui.Spacing();
+        DrawAddRecipeSection();
+
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "配方清单");
+        ImGui.Separator();
+        ImGui.Spacing();
+        DrawRecipeListSection();
         
+    }
+
+    private void DrawListInfoSection()
+    {
+        ImGui.SetNextItemWidth(-1);
+        if (ImGui.InputText("##listName", ref _editingName, 128))
+            _nameConflict = false;
+
+        if (ImGui.IsItemDeactivatedAfterEdit())
+        {
+            var trimmed = _editingName.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                _editingName = _list.Name;
+            }
+            else if (GatherBuddy.CraftingListManager.IsNameUnique(trimmed, _list.ID))
+            {
+                _list.Name   = trimmed;
+                _editingName = trimmed;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                GatherBuddy.Log.Debug($"[CraftingListEditor] Renamed list to '{trimmed}'");
+            }
+            else
+            {
+                _nameConflict = true;
+            }
+        }
+
+        if (_nameConflict)
+            ImGui.TextColored(ImGuiColors.DalamudRed, "已存在同名的制作清单。");
+
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "备注"); // Notes
+
+        if (_editingDescActive)
+        {
+            if (_focusDescNext)
+            {
+                ImGui.SetKeyboardFocusHere();
+                _focusDescNext = false;
+            }
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextMultiline("##listDesc", ref _editingDescription, 512, new Vector2(-1, 60));
+            if (ImGui.IsItemDeactivated())
+            {
+                _list.Description = _editingDescription;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _editingDescActive = false;
+                GatherBuddy.Log.Debug($"[CraftingListEditor] Updated description for list '{_list.Name}'");
+            }
+        }
+        else
+        {
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.18f, 1f)))
+            {
+                ImGui.BeginChild("##notesDisplay", new Vector2(-1, 60f), true,
+                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
+                if (string.IsNullOrEmpty(_editingDescription))
+                    ImGui.TextColored(ImGuiColors.DalamudGrey, "点击添加备注...");
+                else
+                {
+                    using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey3))
+                        ImGui.TextWrapped(_editingDescription);
+                }
+
+                if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                {
+                    _editingDescActive = true;
+                    _focusDescNext     = true;
+                }
+
+                ImGui.EndChild();
+            }
+        }
     }
 
     private void DrawListConsumablesSection()
     {
-        var hadAny = false;
+        var labelColor = new Vector4(0.80f, 0.80f, 0.80f, 1f);
+        var valueX     = 80f;
+        var hasAny     = false;
+
         if (_list.Consumables.FoodItemId.HasValue)
         {
-            ImGui.Text($"食物: {GetItemLabel(_list.Consumables.FoodItemId.Value, _list.Consumables.FoodHQ)}");
-            hadAny = true;
+            ImGui.TextColored(labelColor, "食物:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.FoodItemId.Value, _list.Consumables.FoodHQ));
+            hasAny = true;
         }
         if (_list.Consumables.MedicineItemId.HasValue)
         {
-            ImGui.Text($"药水: {GetItemLabel(_list.Consumables.MedicineItemId.Value, _list.Consumables.MedicineHQ)}");
-            hadAny = true;
+            ImGui.TextColored(labelColor, "药水:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.MedicineItemId.Value, _list.Consumables.MedicineHQ));
+            hasAny = true;
         }
         if (_list.Consumables.ManualItemId.HasValue)
         {
-            ImGui.Text($"指南: {GetItemLabel(_list.Consumables.ManualItemId.Value, false)}");
-            hadAny = true;
+            ImGui.TextColored(labelColor, "指南:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.ManualItemId.Value, false));
+            hasAny = true;
         }
         if (_list.Consumables.SquadronManualItemId.HasValue)
         {
-            ImGui.Text($"军用指南: {GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false)}");
-            hadAny = true;
+            ImGui.TextColored(labelColor, "军用指南:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false));
+            hasAny = true;
         }
+        if (!hasAny)
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "无设置");
 
-        if (hadAny)
-            ImGui.Spacing();
+        ImGui.Spacing();
+        if (ImGui.Button("编辑 消耗品 & 宏##editConsumables", new Vector2(0, 0)))
+            _consumablesPopup.OpenListDefaults(_list);
     }
     
     private void DrawAddRecipeSection()
     {
-        ImGui.Text("添加配方到清单");
-        ImGui.Spacing();
-
         if (_recipeCombo == null)
-        {
             InitializeRecipeCombo();
-        }
 
         DrawRecipeComboWithKeywordFilter();
 
-        ImGui.Text("数量:");
-        ImGui.SetNextItemWidth(100);
+        ImGui.SetNextItemWidth(120);
         ImGui.InputInt("##quantity", ref _searchQuantity, 1);
         if (_searchQuantity < 1)
             _searchQuantity = 1;
+        ImGui.SameLine();
 
-        ImGui.Spacing();
-        
-        var buttonEnabled = _selectedRecipe != null;
-        
-        if (!buttonEnabled)
-            ImGui.BeginDisabled();
-        
-        var buttonClicked = ImGui.Button("添加配方", new Vector2(100, 0));
-        
-        if (!buttonClicked && ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        using (ImRaii.Disabled(_selectedRecipe == null))
         {
-            buttonClicked = true;
+            var clicked = ImGui.Button("添加到清单##addRecipeBtn", new Vector2(0, 0));
+            if (!clicked && ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+                clicked = true;
+            if (clicked && _selectedRecipe != null)
+            {
+                _list.AddRecipe(_selectedRecipe.Value.RowId, _searchQuantity);
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid     = false;
+                _cachedMaterialsValid = false;
+                TriggerQueueRegeneration();
+                _selectedRecipe = null;
+                _searchQuantity = 1;
+            }
         }
-        
-        if (buttonClicked && _selectedRecipe != null)
-        {
-            _list.AddRecipe(_selectedRecipe.Value.RowId, _searchQuantity);
-            GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid = false;
-            _cachedMaterialsValid = false;
-            TriggerQueueRegeneration();
-            _selectedRecipe = null;
-            _searchQuantity = 1;
-        }
-        
-        if (!buttonEnabled)
-            ImGui.EndDisabled();
-        
+
         if (ImGui.IsItemHovered() && _selectedRecipe != null)
             ImGui.SetTooltip($"添加 {_recipeLabels[_selectedRecipe.Value.RowId]} x{_searchQuantity} 到清单");
     }
 
     private void DrawRecipeComboWithKeywordFilter()
     {
-        ImGui.SetNextItemWidth(300);
+        ImGui.SetNextItemWidth(-1);
         if (ImGui.BeginCombo("##recipeComboCustom", _selectedRecipe.HasValue ? _recipeLabels.GetValueOrDefault(_selectedRecipe.Value.RowId, "选择配方") : "选择配方"))
         {
             ImGui.SetNextItemWidth(-1);
@@ -546,7 +629,7 @@ public class CraftingListEditor
     {
         if (_list.Recipes.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "尚未添加任何配方。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "尚未添加任何配方。");
             return;
         }
 
@@ -565,17 +648,17 @@ public class CraftingListEditor
             var skipIndicator = item.Options.Skipping ? "[跳过] " : "";
             var hqIndicator = (item.IngredientPreferences.Count > 0 || item.CraftSettings?.IngredientPreferences.Count > 0) ? "[HQ] " : "";
             var quickSynthIndicator = item.Options.NQOnly ? "[简易制作] " : "";
-            var craftSettingsIndicator = item.CraftSettings?.HasAnySettings() == true ? "[SET] " : "";
+            var craftSettingsIndicator = item.CraftSettings?.HasAnySettings() == true ? "[设置] " : "";
             var textColor = item.Options.Skipping ? new Vector4(0.7f, 0.7f, 0.7f, 1) : new Vector4(1, 1, 1, 1);
 
             var validation = MacroValidator.GetOrCompute(item.RecipeId, ResolveEffectiveMacroId(item.CraftSettings, false), item.CraftSettings, _list.Consumables);
             if (validation != null)
             {
                 var dotColor = validation.IsValid
-                    ? ImGuiColors.ParsedGreen
+                    ? new Vector4(0.30f, 0.70f, 0.30f, 1f)
                     : (validation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
-                        ? ImGuiColors.DalamudYellow
-                        : ImGuiColors.DalamudRed);
+                        ? new Vector4(0.78f, 0.62f, 0.15f, 1f)
+                        : new Vector4(0.78f, 0.25f, 0.25f, 1f));
                 ImGui.TextColored(dotColor, "\u25cf");
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(validation.IsValid
@@ -903,10 +986,9 @@ public class CraftingListEditor
         }
     }
 
-    internal int GetRetainerCount(uint itemId)
-    {
-        return (int)RetainerCache.GetRetainerItemCount(itemId);
-    }
+    internal int GetRetainerCount(uint itemId)   => (int)RetainerCache.GetRetainerItemCount(itemId);
+    internal int GetRetainerCountNQ(uint itemId) => (int)RetainerCache.GetRetainerItemCountNQ(itemId);
+    internal int GetRetainerCountHQ(uint itemId) => (int)RetainerCache.GetRetainerItemCountHQ(itemId);
     
     private unsafe bool WillBeSkippedDueToInventory(Recipe recipe, int quantityToCraft)
     {

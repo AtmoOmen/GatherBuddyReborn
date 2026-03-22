@@ -4,6 +4,7 @@ using System.Linq;
 using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Game.Text.SeStringHandling;
+using GatherBuddy.Crafting;
 using GatherBuddy.Enums;
 using GatherBuddy.Plugin;
 using GatherBuddy.Time;
@@ -94,7 +95,7 @@ public partial class GatherBuddy
 
         _commands["/vulcan"] = new CommandInfo(OnVulcan)
         {
-            HelpMessage = "打开 Vulcan 制作界面, 参数为清单 ID 时直接跳转到对应清单",
+            HelpMessage = "打开 Vulcan 制作界面\n\t参数: <制作清单ID> → 直接跳转到该清单界面\n\t参数: craft <配方ID|名称> <数量> → 立即开始采集/制作流程",
             ShowInHelp  = true,
         };
 
@@ -247,13 +248,89 @@ public partial class GatherBuddy
     private void OnVulcan(string command, string arguments)
     {
         var trimmed = arguments.Trim();
-        if (trimmed.Length > 0)
+        if (trimmed.Length == 0)
         {
-            _vulcanWindow?.OpenToList(trimmed);
+            _vulcanWindow?.Toggle();
             return;
         }
 
-        _vulcanWindow?.Toggle();
+        var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts[0].Equals("craft", StringComparison.OrdinalIgnoreCase))
+        {
+            OnVulcanCraft(parts);
+            return;
+        }
+
+        _vulcanWindow?.OpenToList(trimmed);
+    }
+
+    private void OnVulcanCraft(string[] parts)
+    {
+        if (parts.Length < 2)
+        {
+            Communicator.Print("/vulcan craft <配方 ID | 物品名称> [数量]");
+            return;
+        }
+
+        var rest = parts[1..];
+        int quantity = 1;
+        string recipeArg;
+
+        if (rest.Length >= 2 && int.TryParse(rest[^1], out var qty) && qty > 0)
+        {
+            quantity = qty;
+            recipeArg = string.Join(" ", rest[..^1]);
+        }
+        else
+        {
+            recipeArg = string.Join(" ", rest);
+        }
+
+        Lumina.Excel.Sheets.Recipe? recipe = null;
+        if (uint.TryParse(recipeArg, out var recipeId))
+        {
+            recipe = RecipeManager.GetRecipe(recipeId);
+            if (recipe == null)
+            {
+                Communicator.Print($"未找到 ID 为 {recipeId} 的配方。");
+                return;
+            }
+        }
+        else
+        {
+            var matches = RecipeManager.FindByItemName(recipeArg);
+            if (matches.Count == 0)
+            {
+                Communicator.Print($"未找到与 {recipeArg} 匹配的配方。");
+                return;
+            }
+
+            if (matches.Count > 1)
+            {
+                Communicator.Print($"多个配方匹配 {recipeArg} , 使用配方 ID:");
+                var classJobSheet = Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>();
+                foreach (var m in matches)
+                {
+                    var jobAbbr = classJobSheet?.GetRow(m.CraftType.RowId + 8).Abbreviation.ExtractText() ?? "??";
+                    Communicator.Print($"  {m.ItemResult.Value.Name.ExtractText()} [{jobAbbr}] - ID: {m.RowId}");
+                }
+                return;
+            }
+
+            recipe = matches[0];
+        }
+
+        var itemName = recipe.Value.ItemResult.Value.Name.ExtractText();
+        var tempList = new CraftingListDefinition
+        {
+            ID   = -1,
+            Name = $"Command: {itemName} x{quantity}",
+        };
+        tempList.Recipes.Add(new CraftingListItem(recipe.Value.RowId, quantity));
+
+        GatherBuddy.Log.Information($"[Commands] /vulcan craft: {itemName} x{quantity} (recipe {recipe.Value.RowId})");
+        Communicator.Print($"开始制作: {itemName} x{quantity}");
+        _vulcanWindow?.StartCraftingList(tempList);
     }
 
     private static void OnGatherDebug(string command, string arguments)
@@ -261,15 +338,15 @@ public partial class GatherBuddy
         var parts = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var subcommand = parts.Length > 0 ? parts[0].ToLowerInvariant() : "";
         
-        Communicator.Print($"[Debug] Subcommand: '{subcommand}', Args: '{arguments}'");
+        Communicator.Print($"[Debug] 子命令: {subcommand} , 参数: '{arguments}'");
         
         switch (subcommand)
         {
             case "findrecipe":
                 if (parts.Length < 2)
                 {
-                    Communicator.Print("Usage: /gatherdebug findrecipe <itemName>\n" +
-                        "Example: /gatherdebug findrecipe Rarefied Sykon");
+                    Communicator.Print("用法: /gatherdebug findrecipe <物品名称>\n" +
+                        "示例: /gatherdebug findrecipe 收藏用无花果");
                     return;
                 }
                 
@@ -277,7 +354,7 @@ public partial class GatherBuddy
                 var recipeSheet = Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.Recipe>();
                 if (recipeSheet == null)
                 {
-                    Communicator.Print("Failed to load recipe sheet");
+                    Communicator.Print("加载配方表失败");
                     return;
                 }
                 
@@ -289,15 +366,15 @@ public partial class GatherBuddy
                 
                 if (matches.Count == 0)
                 {
-                    Communicator.Print($"No recipes found matching '{searchName}'");
+                    Communicator.Print($"未找到匹配的配方: '{searchName}'");
                 }
                 else
                 {
-                    Communicator.Print($"Found {matches.Count} recipe(s) matching '{searchName}':");
+                    Communicator.Print($"找到 {matches.Count} 个匹配 '{searchName}' 的配方:");
                     foreach (var recipe in matches)
                     {
                         var itemName = recipe.ItemResult.Value.Name.ExtractText();
-                        Communicator.Print($"  {itemName} - Recipe ID: {recipe.RowId}");
+                        Communicator.Print($"  {itemName} - 配方 ID: {recipe.RowId}");
                     }
                 }
                 return;
@@ -305,22 +382,22 @@ public partial class GatherBuddy
             case "recipenote":
                 if (parts.Length < 3)
                 {
-                    Communicator.Print("Usage: /gatherdebug recipenote <ingredientIndex> <clickCount> [hq] [open|recipeId]\n" +
-                        "Example: /gatherdebug recipenote 0 5 hq       (click ingredient 0, 5 times HQ)\n" +
-                        "Example: /gatherdebug recipenote 0 5 hq open  (open Recipe Note, then click)\n" +
-                        "Example: /gatherdebug recipenote 0 5 hq 30503 (open recipe 30503, then click)");
+                    Communicator.Print("用法: /gatherdebug recipenote <材料索引> <点击次数> [hq] [打开|配方ID]\n" +
+                        "示例: /gatherdebug recipenote 0 5 hq       (点击索引材料0, 点击5次HQ)\n" +
+                        "示例: /gatherdebug recipenote 0 5 hq open  (打开制作笔记, 然后点击)\n" +
+                        "示例: /gatherdebug recipenote 0 5 hq 30503 (打开配方 30503, 然后点击)");
                     return;
                 }
                 
                 if (!uint.TryParse(parts[1], out var index))
                 {
-                    Communicator.Print($"Invalid ingredient index: {parts[1]}");
+                    Communicator.Print($"无效的材料索引: {parts[1]}");
                     return;
                 }
                 
                 if (!int.TryParse(parts[2], out var count))
                 {
-                    Communicator.Print($"Invalid click count: {parts[2]}");
+                    Communicator.Print($"无效的点击次数: {parts[2]}");
                     return;
                 }
                 
@@ -383,11 +460,11 @@ public partial class GatherBuddy
                 Communicator.Print("Debug: Triggered 'amiss' quest toast [CN] (ID 3516)");
                 break;
             case "repair":
-                Communicator.Print("[Debug] Forcing repair mode for testing...");
+                Communicator.Print("[Debug] 强制进入修理模式进行测试...");
                 Crafting.CraftingGatherBridge.TestRepairSystem();
                 break;
             case "repairstop":
-                Communicator.Print("[Debug] Stopping repair test...");
+                Communicator.Print("[Debug] 停止修理测试...");
                 Crafting.CraftingGatherBridge.StopQueue();
                 Crafting.CraftingTasks.StopNavigation();
                 break;
@@ -395,34 +472,34 @@ public partial class GatherBuddy
                 var repairNPCs = Crafting.RepairNPCHelper.RepairNPCs;
                 if (repairNPCs.Count == 0)
                 {
-                    Communicator.Print("[Debug] No repair NPCs found. Run /gatherdebug repairpopulate first.");
+                    Communicator.Print("[Debug] 未找到修理 NPC, 请先执行: /gatherdebug repairpopulate");
                 }
                 else
                 {
-                    Communicator.Print($"[Debug] Found {repairNPCs.Count} repair NPCs:");
+                    Communicator.Print($"[Debug] 找到 {repairNPCs.Count} 个修理 NPC:");
                     foreach (var npc in repairNPCs.Take(10))
                     {
                         var territorySheet = Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>();
                         var territory = territorySheet?.GetRow(npc.TerritoryType);
-                        var placeName = territory?.PlaceName.ValueNullable?.Name.ExtractText() ?? "Unknown";
+                        var placeName = territory?.PlaceName.ValueNullable?.Name.ExtractText() ?? "未知";
                         Communicator.Print($"  {npc.Name} - {placeName} ({npc.TerritoryType})");
                     }
                     if (repairNPCs.Count > 10)
-                        Communicator.Print($"  ... and {repairNPCs.Count - 10} more");
+                        Communicator.Print($"  ... 以及另外 {repairNPCs.Count - 10} 个");
                 }
                 break;
             case "repairpopulate":
-                Communicator.Print("[Debug] Populating repair NPCs (this may take a moment)...");
+                Communicator.Print("[Debug] 正在填充修理 NPC (可能需要一些时间)...");
                 System.Threading.Tasks.Task.Run(() =>
                 {
                     try
                     {
                         Crafting.RepairNPCHelper.PopulateRepairNPCs();
-                        Communicator.Print($"[Debug] Populated {Crafting.RepairNPCHelper.RepairNPCs.Count} repair NPCs");
+                        Communicator.Print($"[Debug] 已填充 {Crafting.RepairNPCHelper.RepairNPCs.Count} 个修理 NPC");
                     }
                     catch (Exception ex)
                     {
-                        Communicator.Print($"[Debug] Error: {ex.Message}");
+                        Communicator.Print($"[Debug] 错误: {ex.Message}");
                     }
                 });
                 break;

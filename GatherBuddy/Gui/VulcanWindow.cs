@@ -4,10 +4,13 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Colors;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using ElliLib;
 using GatherBuddy.Crafting;
+using GatherBuddy.Plugin;
 using GatherBuddy.Vulcan;
 using Lumina.Excel.Sheets;
 using ElliLib.Raii;
@@ -18,9 +21,10 @@ namespace GatherBuddy.Gui;
 public partial class VulcanWindow : Window, IDisposable
 {
     // Shared state
-    private CraftingListDefinition? _editingList = null;
-    private CraftingListEditor? _listEditor = null;
-    private bool _deferEditorDraw = false;
+    private CraftingListDefinition? _editingList  = null;
+    private CraftingListDefinition? _previewList  = null;
+    private CraftingListEditor?     _listEditor   = null;
+    private bool                    _deferEditorDraw = false;
 
     private bool _isMinimized = false;
     private bool _wasFocusedLastFrame = false;
@@ -28,7 +32,6 @@ public partial class VulcanWindow : Window, IDisposable
     // TeamCraft import state
     private bool _showTeamCraftImport = false;
     private string _teamCraftListName = string.Empty;
-    private string _teamCraftPrecrafts = string.Empty;
     private string _teamCraftFinalItems = string.Empty;
     
     // Debug tab state
@@ -183,22 +186,23 @@ public partial class VulcanWindow : Window, IDisposable
             }
 
             _editingList = refreshedList;
-            
-            ImGui.Text($"正在编辑: {_editingList.Name}");
+
+            if (ImGui.SmallButton("\u2190 清单##backToLists"))
+            {
+                _editingList = null;
+                _listEditor  = null;
+                GatherBuddy.CraftingMaterialsWindow?.SetEditor(null);
+                return;
+            }
+
+            ImGui.Spacing();
+            ImGui.TextColored(ImGuiColors.ParsedGold, _editingList.Name);
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "制作清单");
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("返回到清单管理", new Vector2(200, 0)))
-            {
-                _editingList = null;
-                _listEditor = null;
-            }
-
-            ImGui.Spacing();
             if (_listEditor != null)
-            {
                 _listEditor.Draw();
-            }
         }
         else
         {
@@ -208,21 +212,15 @@ public partial class VulcanWindow : Window, IDisposable
 
     private void DrawListManager()
     {
-        ImGui.Text("制作清单");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "制作清单");
+        ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("创建新清单", new Vector2(130, 0)))
-        {
-            // Will show input dialog
+        if (ImGui.Button("新建制作清单", new Vector2(130, 0)))
             ImGui.OpenPopup("CreateListPopup");
-        }
-        
         ImGui.SameLine();
         if (ImGui.Button("TeamCraft 导入", new Vector2(130, 0)))
-        {
             _showTeamCraftImport = true;
-        }
-
         ImGui.SameLine();
         if (ImGui.Button("导入清单", new Vector2(130, 0)))
         {
@@ -233,75 +231,218 @@ public partial class VulcanWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        if (GatherBuddy.CraftingListManager.Lists.Count > 0)
+        var avail  = ImGui.GetContentRegionAvail();
+        var leftW  = 220f;
+        var rightW = avail.X - leftW - ImGui.GetStyle().ItemSpacing.X;
+
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
         {
-            ImGui.Text("已保存清单:");
-            ImGui.Spacing();
-
-            using var indent = ImRaii.PushIndent();
-            var lists = GatherBuddy.CraftingListManager.Lists.ToList();
-            foreach (var list in lists)
-            {
-            var selectableLabel = $"{list.Name} ({list.Recipes.Count} 个配方)";
-                var selectableWidth = ImGui.CalcTextSize(selectableLabel).X + ImGui.GetStyle().ItemSpacing.X;
-                if (ImGui.Selectable($"{selectableLabel}##list_{list.ID}", false, ImGuiSelectableFlags.None, new Vector2(selectableWidth, 0)))
-                {
-                    _editingList = list;
-                    _listEditor = new CraftingListEditor(list);
-                    _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
-                    GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
-                    _deferEditorDraw = true;
-                }
-                
-                var isPopupOpen = GatherBuddy.ControllerSupport != null
-                    ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"ListContextMenu_{list.ID}", Dalamud.GamepadState)
-                    : ImGui.BeginPopupContextItem($"ListContextMenu_{list.ID}");
-                
-                if (isPopupOpen)
-                {
-                    if (ImGui.Selectable("编辑"))
-                    {
-                        _editingList = list;
-                        _listEditor = new CraftingListEditor(list);
-                        _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
-                        GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
-                        _deferEditorDraw = true;
-                    }
-
-                    if (ImGui.Selectable("开始"))
-                    {
-                        StartCraftingList(list);
-                    }
-
-                    if (ImGui.Selectable("导入到剪贴板"))
-                    {
-                        var exported = GatherBuddy.CraftingListManager.ExportList(list.ID);
-                        if (exported != null)
-                        {
-                            ImGui.SetClipboardText(exported);
-                            GatherBuddy.Log.Information($"[VulcanWindow] Exported list '{list.Name}' to clipboard");
-                        }
-                    }
-
-                    ImGui.Separator();
-
-                    if (ImGui.Selectable("删除"))
-                    {
-                        GatherBuddy.CraftingListManager.DeleteList(list.ID);
-                    }
-
-                    ImGui.EndPopup();
-                }
-            }
+            ImGui.BeginChild("##listSelectorPanel", new Vector2(leftW, avail.Y), true);
+            DrawListSelectorPanel();
+            ImGui.EndChild();
         }
-        else
+
+        ImGui.SameLine();
+
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "尚未创建任何制作清单, 请点击\"创建新清单\"按钮以开始创建。");
+            ImGui.BeginChild("##listPreviewPanel", new Vector2(rightW, avail.Y), true);
+            DrawListPreviewPanel();
+            ImGui.EndChild();
         }
 
         DrawCreateListPopup();
         DrawImportListPopup();
         DrawTeamCraftImportWindow();
+    }
+
+    private void DrawListSelectorPanel()
+    {
+        if (GatherBuddy.CraftingListManager.Lists.Count == 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有任何制作清单。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "点击 \"新建制作清单\"以开始创建。");
+            return;
+        }
+
+        var lists = GatherBuddy.CraftingListManager.Lists.ToList();
+        foreach (var list in lists)
+        {
+            var isHighlighted = _previewList?.ID == list.ID;
+            if (isHighlighted)
+                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.ParsedGold);
+
+            if (ImGui.Selectable($"{list.Name}##list_{list.ID}", isHighlighted))
+            {
+                _editingList = list;
+                _listEditor  = new CraftingListEditor(list);
+                _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
+                GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
+                _deferEditorDraw = true;
+            }
+
+            if (isHighlighted)
+                ImGui.PopStyleColor();
+
+            if (ImGui.IsItemHovered())
+                _previewList = list;
+
+            var isPopupOpen = GatherBuddy.ControllerSupport != null
+                ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"ListContextMenu_{list.ID}", Dalamud.GamepadState)
+                : ImGui.BeginPopupContextItem($"ListContextMenu_{list.ID}");
+
+            if (isPopupOpen)
+            {
+                if (ImGui.Selectable("编辑"))
+                {
+                    _editingList = list;
+                    _listEditor  = new CraftingListEditor(list);
+                    _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
+                    GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
+                    _deferEditorDraw = true;
+                }
+                if (ImGui.Selectable("开始"))
+                    StartCraftingList(list);
+                if (ImGui.Selectable("导出到剪贴板"))
+                {
+                    var exported = GatherBuddy.CraftingListManager.ExportList(list.ID);
+                    if (exported != null)
+                    {
+                        ImGui.SetClipboardText(exported);
+                        GatherBuddy.Log.Information($"[VulcanWindow] Exported list '{list.Name}' to clipboard");
+                    }
+                }
+                ImGui.Separator();
+                if (ImGui.Selectable("删除"))
+                {
+                    if (_previewList?.ID == list.ID)
+                        _previewList = null;
+                    GatherBuddy.CraftingListManager.DeleteList(list.ID);
+                }
+                ImGui.EndPopup();
+            }
+        }
+    }
+
+    private void DrawListPreviewPanel()
+    {
+        if (_previewList == null)
+        {
+            var h = ImGui.GetContentRegionAvail().Y;
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "悬停在清单上以预览。");
+            return;
+        }
+
+        var list = GatherBuddy.CraftingListManager.GetListByID(_previewList.ID);
+        if (list == null)
+        {
+            _previewList = null;
+            return;
+        }
+        _previewList = list;
+
+        ImGui.Spacing();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.TextColored(ImGuiColors.ParsedGold, list.Name);
+
+        if (!string.IsNullOrWhiteSpace(list.Description))
+        {
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey3))
+                ImGui.TextWrapped(list.Description);
+        }
+
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        var recipeWord = list.Recipes.Count == 1 ? "配方" : "配方";
+        ImGui.TextColored(ImGuiColors.DalamudGrey3,
+            $"{list.Recipes.Count} {recipeWord}  \u00b7  创建时间 {list.CreatedAt.ToLocalTime():yyyy-MM-dd}");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var style   = ImGui.GetStyle();
+        var buttonH = 22f * 2 + style.ItemSpacing.Y * 3 + 4f;
+        var listH   = Math.Max(ImGui.GetContentRegionAvail().Y - buttonH, 40f);
+
+        ImGui.BeginChild("##previewRecipeList", new Vector2(-1, listH), false);
+
+        if (list.Recipes.Count == 0)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "此制作清单中没有任何配方。");
+        }
+        else
+        {
+            var iconSz = new Vector2(22f, 22f);
+            foreach (var item in list.Recipes)
+            {
+                var recipe = RecipeManager.GetRecipe(item.RecipeId);
+                if (recipe == null) continue;
+
+                var resultItem = recipe.Value.ItemResult.Value;
+                var icon = Icons.DefaultStorage.TextureProvider
+                    .GetFromGameIcon(new GameIconLookup(resultItem.Icon));
+                if (icon.TryGetWrap(out var wrap, out _))
+                    ImGui.Image(wrap.Handle, iconSz);
+                else
+                    ImGui.Dummy(iconSz);
+
+                ImGui.SameLine(0, 6);
+                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSz.Y - ImGui.GetTextLineHeight()) / 2f);
+                ImGui.Text(resultItem.Name.ExtractText());
+                ImGui.SameLine();
+                ImGui.TextColored(ImGuiColors.DalamudGrey3,
+                    $"x{item.Quantity}  ({JobNames[recipe.Value.CraftType.RowId]})");
+            }
+        }
+
+        ImGui.EndChild();
+
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var halfW = (ImGui.GetContentRegionAvail().X - style.ItemSpacing.X) / 2f;
+        if (ImGui.Button("编辑清单##previewEdit", new Vector2(halfW, 22)))
+        {
+            _editingList = list;
+            _listEditor  = new CraftingListEditor(list);
+            _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
+            GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
+            _deferEditorDraw = true;
+        }
+        ImGui.SameLine();
+        if (IPCSubscriber.IsReady("Artisan"))
+        {
+            ImGuiUtil.DrawDisabledButton("检测到 Artisan##previewStart", new Vector2(-1, 22),
+                "Artisan 插件已加载, 请卸载 Artisan 以使用 Vulcan 的制作系统。", true);
+        }
+        else if (ImGui.Button("开始制作##previewStart", new Vector2(-1, 22)))
+        {
+            StartCraftingList(list);
+            MinimizeWindow();
+        }
+
+        if (ImGui.Button("导出##previewExport", new Vector2(halfW, 22)))
+        {
+            var exported = GatherBuddy.CraftingListManager.ExportList(list.ID);
+            if (exported != null)
+            {
+                ImGui.SetClipboardText(exported);
+                GatherBuddy.Log.Information($"[VulcanWindow] Exported list '{list.Name}' to clipboard");
+            }
+        }
+        ImGui.SameLine();
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.45f, 0.12f, 0.12f, 1f)))
+        {
+            if (ImGui.Button("删除##previewDelete", new Vector2(-1, 22)))
+            {
+                GatherBuddy.CraftingListManager.DeleteList(list.ID);
+                _previewList = null;
+            }
+        }
     }
 
     private string _newListName    = string.Empty;
@@ -403,7 +544,7 @@ public partial class VulcanWindow : Window, IDisposable
         }
     }
 
-    private void StartCraftingList(CraftingListDefinition list)
+    public void StartCraftingList(CraftingListDefinition list)
     {
         if (list.Recipes.Count == 0)
         {
@@ -487,9 +628,17 @@ public partial class VulcanWindow : Window, IDisposable
         }
         
         var materials = list.ListMaterials();
-        
+        var retainerPrecraftItems = new System.Collections.Generic.Dictionary<uint, int>();
+
+        if (list.RetainerRestock && AllaganTools.Enabled)
+        {
+            var (corrected, precraftItems) = Crafting.RetainerTaskExecutor.PlanRetainerRestock(list, expandedQueue);
+            materials             = corrected;
+            retainerPrecraftItems = precraftItems;
+        }
+
         GatherBuddy.Log.Information($"[VulcanWindow] Starting crafting list '{list.Name}' with {expandedQueue.Count} crafts from {sortedRecipes.Count} recipes");
-        CraftingGatherBridge.StartQueueCraftAndGather(expandedQueue, materials, list.Consumables, list.SkipIfEnough);
+        CraftingGatherBridge.StartQueueCraftAndGather(expandedQueue, materials, list.Consumables, list.SkipIfEnough, list.RetainerRestock, retainerPrecraftItems);
     }
 
     private List<CraftingListItem> GetRecipesInDependencyOrder(List<CraftingListItem> recipes, List<CraftingListItem> originalRecipesList)
@@ -596,7 +745,7 @@ public partial class VulcanWindow : Window, IDisposable
             if (classJob.RowId > 0)
                 return classJob.Abbreviation.ExtractText();
         }
-        return "Unknown";
+        return "未知";
     }
 
     private unsafe int GetInventoryCount(uint itemId)
@@ -1348,89 +1497,70 @@ public partial class VulcanWindow : Window, IDisposable
     {
         if (!_showTeamCraftImport)
             return;
-        
-        ImGui.SetNextWindowSize(new Vector2(600, 500), ImGuiCond.Appearing);
-        if (ImGui.Begin("TeamCraft 导入###TCImport", ref _showTeamCraftImport, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize))
+
+        ImGui.SetNextWindowSize(new Vector2(520, 310), ImGuiCond.Appearing);
+        if (ImGui.Begin("TeamCraft 导入###TCImport", ref _showTeamCraftImport, ImGuiWindowFlags.NoCollapse))
         {
-            ImGui.TextWrapped("从 FFXIV TeamCraft 导入制作清单:");
-            ImGui.Spacing();
-            ImGui.TextColored(new Vector4(1, 0.7f, 0, 1), "重要提示:");
-            ImGui.TextWrapped("只有当您的游戏客户端语言与 TeamCraft 使用的语言一致时, 此导入才会生效。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "在 TeamCraft 打开您的清单, 在\"成品\"部分点击\"复制为文本\"");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, ", 然后粘贴到下方, 需要制作的半成品会自动生成。");
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
-            
-            ImGui.TextWrapped("步骤 1: 在 TeamCraft 打开您的清单");
-            ImGui.TextWrapped("步骤 2: 找到\"半成品\"标签并点击\"复制为文本\"");
-            ImGui.TextWrapped("步骤 3: 将内容粘贴到下方的半成品制作物品框中");
-            ImGui.TextWrapped("步骤 4: 对\"成品\"部分重复以上操作");
-            ImGui.TextWrapped("步骤 5: 给您的清单命名并点击导入");
-            
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            
+
             ImGui.Text("清单名称:");
-            ImGui.SetNextItemWidth(550);
+            ImGui.SetNextItemWidth(-1);
             ImGui.InputText("##ImportListName", ref _teamCraftListName, 256);
-            
+
             ImGui.Spacing();
-            ImGui.Text("半成品制作物品:");
-            ImGui.InputTextMultiline("##PrecraftItems", ref _teamCraftPrecrafts, 500000, new Vector2(550, 150));
-            
-            ImGui.Spacing();
-            ImGui.Text("成品制作物品:");
-            ImGui.InputTextMultiline("##FinalItems", ref _teamCraftFinalItems, 500000, new Vector2(550, 150));
-            
+            ImGui.Text("成品:");
+            ImGui.InputTextMultiline("##FinalItems", ref _teamCraftFinalItems, 500000, new Vector2(-1, 150));
+
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
-            
+
             if (ImGui.Button("导入", new Vector2(100, 0)))
             {
                 var importedList = ParseTeamCraftImport();
                 if (importedList != null)
                 {
                     _editingList = importedList;
-                    _listEditor = new CraftingListEditor(importedList);
+                    _listEditor  = new CraftingListEditor(importedList);
                     _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
                     _listEditor.RefreshInventoryCounts();
-                    
-                    _teamCraftListName = string.Empty;
-                    _teamCraftPrecrafts = string.Empty;
+                    GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
+                    _deferEditorDraw = true;
+
+                    _teamCraftListName  = string.Empty;
                     _teamCraftFinalItems = string.Empty;
                     _showTeamCraftImport = false;
-                    
+
                     GatherBuddy.Log.Information($"[VulcanWindow] Successfully imported TeamCraft list: {importedList.Name}");
                 }
             }
-            
+
             ImGui.SameLine();
             if (ImGui.Button("取消", new Vector2(100, 0)))
             {
-                _teamCraftListName = string.Empty;
-                _teamCraftPrecrafts = string.Empty;
+                _teamCraftListName   = string.Empty;
                 _teamCraftFinalItems = string.Empty;
                 _showTeamCraftImport = false;
             }
-            
+
             ImGui.End();
         }
     }
     
     private CraftingListDefinition? ParseTeamCraftImport()
     {
-        if (string.IsNullOrWhiteSpace(_teamCraftListName) && 
-            string.IsNullOrWhiteSpace(_teamCraftPrecrafts) && 
-            string.IsNullOrWhiteSpace(_teamCraftFinalItems))
+        if (string.IsNullOrWhiteSpace(_teamCraftFinalItems))
         {
-            GatherBuddy.Log.Warning("[VulcanWindow] TeamCraft import: All fields are empty");
+            GatherBuddy.Log.Warning("[VulcanWindow] TeamCraft import: Final items field is empty");
             return null;
         }
-        
+
         var recipesToAdd = new List<(uint recipeId, int quantity)>();
-        
-        ParseTeamCraftSection(_teamCraftPrecrafts, recipesToAdd);
+
         ParseTeamCraftSection(_teamCraftFinalItems, recipesToAdd);
         
         if (recipesToAdd.Count == 0)
