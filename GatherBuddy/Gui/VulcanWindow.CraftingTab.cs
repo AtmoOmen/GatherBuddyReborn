@@ -287,9 +287,10 @@ public partial class VulcanWindow
     private static bool _craftedStatusDirty = false;
     private static int _browserCraftQuantity = 1;
     private static RecipeCraftSettingsPopup _craftSettingsPopup = new();
-    private static string _contextMenuListSearch = string.Empty;
-    private static int _contextMenuAddQuantity = 1;
-    private static string _contextMenuNewListName = string.Empty;
+    private static string _contextMenuListSearch   = string.Empty;
+    private static int    _contextMenuAddQuantity   = 1;
+    private static string _contextMenuNewListName   = string.Empty;
+    private static bool   _contextMenuNewListEphemeral = false;
     private static readonly uint[] CraftTypeToClassJobId = { 8, 9, 10, 11, 12, 13, 14, 15 };
     private static readonly string[] JobNames = { "刻木匠", "锻铁匠", "铸甲匠", "雕金匠", "制革匠", "裁衣匠", "炼金术士", "烹调师" };
 
@@ -399,7 +400,7 @@ public partial class VulcanWindow
         
         if (GatherBuddy.ControllerSupport != null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("配方##recipesTab", 1, 7);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("配方##recipesTab", 1, 8);
             tabItem = handle;
             tabOpen = handle;
         }
@@ -774,17 +775,21 @@ public partial class VulcanWindow
 
                 if (ImGui.IsWindowAppearing())
                 {
-                    _contextMenuListSearch = string.Empty;
-                    _contextMenuAddQuantity = 1;
-                    _contextMenuNewListName = string.Empty;
+                    _contextMenuListSearch      = string.Empty;
+                    _contextMenuAddQuantity     = 1;
+                    _contextMenuNewListName     = string.Empty;
+                    _contextMenuNewListEphemeral = false;
                 }
 
                 ImGui.TextColored(new Vector4(0.7f, 1.0f, 0.7f, 1.0f), "创建新清单:");
                 ImGui.SetNextItemWidth(-1);
                 var createEnter = ImGui.InputTextWithHint("##NewListName", "清单名称...", ref _contextMenuNewListName, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+                ImGui.Checkbox("临时清单##ctxNewListEphemeral", ref _contextMenuNewListEphemeral);
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("在制作完成后自动删除该清单。\n可以在清单编辑器中关闭此选项。");
                 if ((ImGui.Button("创建 & 添加", new Vector2(-1, 0)) || createEnter) && !string.IsNullOrWhiteSpace(_contextMenuNewListName))
                 {
-                    var newList = GatherBuddy.CraftingListManager.CreateNewList(_contextMenuNewListName.Trim());
+                    var newList = GatherBuddy.CraftingListManager.CreateNewList(_contextMenuNewListName.Trim(), _contextMenuNewListEphemeral);
                     newList.Recipes.Add(new CraftingListItem(recipe.Recipe.RowId, _contextMenuAddQuantity));
                     GatherBuddy.CraftingListManager.SaveList(newList);
                     GatherBuddy.Log.Information($"[VulcanWindow] Created list '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}");

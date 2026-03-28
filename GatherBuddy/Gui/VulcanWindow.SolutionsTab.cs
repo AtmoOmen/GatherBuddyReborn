@@ -28,7 +28,7 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("解法缓存##solutionsTab", 4, 7); // Solutions | 解法缓存?
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("解法缓存##solutionsTab", 4, 8);
             tabItem = handle;
             tabOpen = handle;
         }

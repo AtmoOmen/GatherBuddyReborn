@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using ElliLib;
+using ElliLib.Raii;
 using ElliLib.Text;
+using GatherBuddy.Crafting;
 using GatherBuddy.Plugin;
 using Lumina.Excel.Sheets;
 
@@ -14,24 +17,29 @@ namespace GatherBuddy.Gui;
 public class CraftingMaterialsWindow : Window
 {
     private CraftingListEditor? _editor;
-    private bool _matsOvercapPercent = false;
-    private bool _matsShowPrecrafts  = false;
+    private bool _matsOvercapPercent;
+    private bool _matsShowPrecrafts;
+    private bool _matsPreferVendors;
+
+    private static readonly Vector4 AccentGather = new(0.45f, 1.00f, 0.45f, 1f);
+    private static readonly Vector4 AccentDrop   = new(1.00f, 0.45f, 0.45f, 1f);
+    private static readonly Vector4 AccentShop   = new(0.80f, 0.55f, 1.00f, 1f);
+    private static readonly Vector4 AccentVendor = new(1.00f, 0.85f, 0.20f, 1f);
+    private static readonly Vector4 AccentCraft  = new(0.35f, 0.90f, 0.90f, 1f);
+    private static readonly Vector4 PanelBg      = new(0.08f, 0.08f, 0.10f, 1.00f);
 
     public CraftingMaterialsWindow() : base("材料###CraftingMaterials")
     {
-        Size           = new Vector2(400, 480);
+        Size           = new Vector2(560, 520);
         SizeCondition  = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(260, 140),
-            MaximumSize = new Vector2(800, 1000),
+            MinimumSize = new Vector2(400, 300),
+            MaximumSize = new Vector2(1200, 1400),
         };
     }
 
-    public void SetEditor(CraftingListEditor? editor)
-    {
-        _editor = editor;
-    }
+    public void SetEditor(CraftingListEditor? editor) => _editor = editor;
 
     public override void PreDraw()
     {
@@ -68,22 +76,17 @@ public class CraftingMaterialsWindow : Window
         if (itemSheet == null) return;
 
         var showRetainer = AllaganTools.Enabled;
-        var missing = new List<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId)>();
-        var ready   = new List<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId)>();
+
+        var allEntries = new List<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId, bool isPrecraft)>();
 
         foreach (var (itemId, needed) in materials)
         {
             if (!itemSheet.TryGetRow(itemId, out var item)) continue;
-            var have   = _editor.GetInventoryCount(itemId);
-            var retNQ  = showRetainer ? _editor.GetRetainerCountNQ(itemId) : 0;
-            var retHQ  = showRetainer ? _editor.GetRetainerCountHQ(itemId) : 0;
-            var entry  = (itemId, have, retNQ, retHQ, needed, item.Name.ExtractText(), item.Icon);
-            if (have + retNQ + retHQ < needed) missing.Add(entry);
-            else ready.Add(entry);
+            var have  = _editor.GetInventoryCount(itemId);
+            var retNQ = showRetainer ? _editor.GetRetainerCountNQ(itemId) : 0;
+            var retHQ = showRetainer ? _editor.GetRetainerCountHQ(itemId) : 0;
+            allEntries.Add((itemId, have, retNQ, retHQ, needed, item.Name.ExtractText(), item.Icon, false));
         }
-
-        var missingPrecrafts = new List<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId)>();
-        var readyPrecrafts   = new List<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId)>();
 
         if (_matsShowPrecrafts)
         {
@@ -91,24 +94,17 @@ public class CraftingMaterialsWindow : Window
             foreach (var (itemId, needed) in precrafts)
             {
                 if (!itemSheet.TryGetRow(itemId, out var item)) continue;
-                var have   = _editor.GetInventoryCount(itemId);
-                var retNQ  = showRetainer ? _editor.GetRetainerCountNQ(itemId) : 0;
-                var retHQ  = showRetainer ? _editor.GetRetainerCountHQ(itemId) : 0;
-                var entry  = (itemId, have, retNQ, retHQ, needed, item.Name.ExtractText(), item.Icon);
-                if (have + retNQ + retHQ < needed) missingPrecrafts.Add(entry);
-                else readyPrecrafts.Add(entry);
+                var have  = _editor.GetInventoryCount(itemId);
+                var retNQ = showRetainer ? _editor.GetRetainerCountNQ(itemId) : 0;
+                var retHQ = showRetainer ? _editor.GetRetainerCountHQ(itemId) : 0;
+                allEntries.Add((itemId, have, retNQ, retHQ, needed, item.Name.ExtractText(), item.Icon, true));
             }
-            missingPrecrafts.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
-            readyPrecrafts.Sort((a, b)   => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
         }
 
-        missing.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
-        ready.Sort((a, b)   => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
+        var totalMissing = allEntries.Count(e => e.have + e.retNQ + e.retHQ < e.needed);
+        var totalReady   = allEntries.Count - totalMissing;
 
-        var totalMissing = missing.Count + missingPrecrafts.Count;
-        var totalReady   = ready.Count   + readyPrecrafts.Count;
-
-        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{totalMissing} 缺少  \u00b7  {totalReady} 备齐");
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{totalMissing} 缺少  \u00b7  {totalReady} 足够");
         ImGui.SameLine();
         ImGui.Checkbox("150%##overcap", ref _matsOvercapPercent);
         if (ImGui.IsItemHovered())
@@ -116,76 +112,136 @@ public class CraftingMaterialsWindow : Window
         ImGui.SameLine();
         ImGui.Checkbox("半成品制作##precrafts", ref _matsShowPrecrafts);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("显示清单中需要制作的半成品部分"); // Include intermediate craftable components
+            ImGui.SetTooltip("在清单中包含可制作的半成品");
+        ImGui.SameLine();
+        ImGui.Checkbox("优先从 NPC 商店购买##preferVendors", ref _matsPreferVendors);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(
+                "默认优先级:\n" +
+                "  采集 > 捕鱼 > 工票 > 掉落 > 制作 > 从 NPC 商店购买 > 点数 > 其他\n\n" +
+                "开启时: 对于那些可在 NPC 商店购买的物品,\n" +
+                "将会优先从 NPC 商店购买。");
         ImGui.Separator();
 
-        const float barWidth      = 80f;
-        const float countColWidth = 50f;
-        var colCount = showRetainer ? 6 : 4;
+        var avail   = ImGui.GetContentRegionAvail();
+        var spacing = ImGui.GetStyle().ItemSpacing;
+        var panelW  = (avail.X - spacing.X) / 2f;
 
-        var tableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
-                       | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingFixedFit;
+        var preferVendors = _matsPreferVendors;
+        MaterialSource Cls(uint id) => MaterialSourceClassifier.Classify(id, preferVendors);
 
-        if (ImGui.BeginTable("##mat_table", colCount, tableFlags, new Vector2(0, ImGui.GetContentRegionAvail().Y)))
+        var gatherList = allEntries.Where(e => Cls(e.itemId) is MaterialSource.Gatherable or MaterialSource.Fish).ToList();
+        var dropList   = allEntries.Where(e => Cls(e.itemId) is MaterialSource.Drop).ToList();
+        var shopList   = allEntries.Where(e => Cls(e.itemId) is MaterialSource.Scrip or MaterialSource.SpecialCurrency).ToList();
+        var vendorList = allEntries.Where(e => Cls(e.itemId) is MaterialSource.GilVendor or MaterialSource.Other).ToList();
+        var craftList  = _matsShowPrecrafts ? allEntries.Where(e => Cls(e.itemId) is MaterialSource.Craftable).ToList() : null;
+
+        var panels = new List<(string Id, string Label, Vector4 Accent, IEnumerable<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId, bool isPrecraft)> Entries)>();
+        if (gatherList.Count > 0)         panels.Add(("##gather", "采集",          AccentGather, gatherList));
+        if (dropList.Count > 0)           panels.Add(("##drop",   "掉落 / 双色宝石", AccentDrop,   dropList));
+        if (shopList.Count > 0)           panels.Add(("##shop",   "工票 / 点数",   AccentShop,   shopList));
+        if (vendorList.Count > 0)         panels.Add(("##vendor", "NPC 商店",          AccentVendor, vendorList));
+        if (craftList is { Count: > 0 })  panels.Add(("##craft",  "制作",           AccentCraft,  craftList));
+
+        if (panels.Count == 0) return;
+
+        var rows   = (panels.Count + 1) / 2;
+        var panelH = (avail.Y - spacing.Y * (rows - 1)) / rows;
+
+        for (var i = 0; i < panels.Count; i++)
         {
-            ImGui.TableSetupScrollFreeze(0, 1);
-            ImGui.TableSetupColumn("物品",  ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("持有",  ImGuiTableColumnFlags.WidthFixed, countColWidth);
-            if (showRetainer)
-            {
-                ImGui.TableSetupColumn("雇员 NQ", ImGuiTableColumnFlags.WidthFixed, countColWidth);
-                ImGui.TableSetupColumn("雇员 HQ", ImGuiTableColumnFlags.WidthFixed, countColWidth);
-            }
-            ImGui.TableSetupColumn("需求", ImGuiTableColumnFlags.WidthFixed, countColWidth);
-            ImGui.TableSetupColumn("",     ImGuiTableColumnFlags.WidthFixed, barWidth);
-
-            ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-            ImGui.TableSetColumnIndex(0); ImGui.TableHeader("物品");
-            ImGui.TableSetColumnIndex(1);
-            var haveHdrOff = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("Have").X) * 0.5f;
-            if (haveHdrOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + haveHdrOff);
-            ImGui.TableHeader("持有");
-            if (showRetainer)
-            {
-                ImGui.TableSetColumnIndex(2);
-                var nqOff = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("雇员 NQ").X) * 0.5f;
-                if (nqOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + nqOff);
-                ImGui.TableHeader("雇员 NQ");
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("雇员背包中的 NQ 数量(通过 Allagan Tools 插件)");
-                ImGui.TableSetColumnIndex(3);
-                var hqOff = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("雇员 HQ").X) * 0.5f;
-                if (hqOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + hqOff);
-                ImGui.TableHeader("雇员 HQ");
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("雇员背包中的 HQ 数量(通过 Allagan Tools 插件)");
-            }
-            var needCol = showRetainer ? 4 : 2;
-            ImGui.TableSetColumnIndex(needCol);
-            var needHdrOff = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("需求").X) * 0.5f;
-            if (needHdrOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + needHdrOff);
-            ImGui.TableHeader("需求");
-            ImGui.TableSetColumnIndex(needCol + 1);
-            ImGui.TableHeader("");
-
-            foreach (var (_, have, retNQ, retHQ, needed, name, iconId) in missing)
-                DrawMaterialRow(have, retNQ, retHQ, needed, name, iconId, false, showRetainer, false, _matsOvercapPercent);
-
-            foreach (var (_, have, retNQ, retHQ, needed, name, iconId) in missingPrecrafts)
-                DrawMaterialRow(have, retNQ, retHQ, needed, name, iconId, false, showRetainer, true, _matsOvercapPercent);
-
-            foreach (var (_, have, retNQ, retHQ, needed, name, iconId) in ready)
-                DrawMaterialRow(have, retNQ, retHQ, needed, name, iconId, true, showRetainer, false, _matsOvercapPercent);
-
-            foreach (var (_, have, retNQ, retHQ, needed, name, iconId) in readyPrecrafts)
-                DrawMaterialRow(have, retNQ, retHQ, needed, name, iconId, true, showRetainer, true, _matsOvercapPercent);
-
-            ImGui.EndTable();
+            var (id, label, accent, entries) = panels[i];
+            var isLast   = i == panels.Count - 1;
+            var spanFull = isLast && panels.Count % 2 == 1;
+            DrawMaterialPanel(id, label, accent, entries, showRetainer, spanFull ? avail.X : panelW, panelH);
+            if (!spanFull && i % 2 == 0)
+                ImGui.SameLine();
         }
     }
 
-    private static void DrawMaterialRow(int have, int retainerNQ, int retainerHQ, int needed, string name, ushort iconId, bool satisfied, bool showRetainer, bool isPrcraft = false, bool overcapPercent = false)
+    private void DrawMaterialPanel(
+        string id, string label, Vector4 accent,
+        IEnumerable<(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId, bool isPrecraft)> source,
+        bool showRetainer, float width, float height)
+    {
+        var entries = source
+            .OrderBy(e => e.have + e.retNQ + e.retHQ >= e.needed)
+            .ThenBy(e => e.name)
+            .ToList();
+
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, PanelBg))
+        {
+            ImGui.BeginChild(id, new Vector2(width, height), true);
+
+            var colCount   = showRetainer ? 6 : 4;
+            const float numW = 42f; // 调整列宽以完整显示中文
+            const float barW = 46f;
+            var tableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
+                           | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingFixedFit;
+
+            if (ImGui.BeginTable($"{id}_tbl", colCount, tableFlags, new Vector2(0, ImGui.GetContentRegionAvail().Y)))
+            {
+                ImGui.TableSetupScrollFreeze(0, 1);
+                ImGui.TableSetupColumn("",     ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("持有", ImGuiTableColumnFlags.WidthFixed, numW);
+                if (showRetainer)
+                {
+                    ImGui.TableSetupColumn("雇 NQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                    ImGui.TableSetupColumn("雇 HQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                }
+                ImGui.TableSetupColumn("需求", ImGuiTableColumnFlags.WidthFixed, numW);
+                ImGui.TableSetupColumn("%",    ImGuiTableColumnFlags.WidthFixed, barW);
+
+                var needIdx = showRetainer ? 4 : 2;
+
+                ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+                ImGui.TableSetColumnIndex(0);
+                using (ImRaii.PushColor(ImGuiCol.Text, accent))
+                    ImGui.TableHeader(label);
+                ImGui.TableSetColumnIndex(1);
+                ImGui.TableHeader("持有");
+                if (showRetainer)
+                {
+                    ImGui.TableSetColumnIndex(2);
+                    ImGui.TableHeader("雇 NQ");
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("雇员背包中的 NQ 材料数量(通过 Allagan Tools 插件)");
+                    ImGui.TableSetColumnIndex(3);
+                    ImGui.TableHeader("雇 HQ");
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("雇员背包中的 HQ 材料数量(通过 Allagan Tools 插件)");
+                }
+                ImGui.TableSetColumnIndex(needIdx);
+                ImGui.TableHeader("需求");
+                ImGui.TableSetColumnIndex(needIdx + 1);
+                ImGui.TableHeader("%");
+
+                if (entries.Count == 0)
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.TextColored(new Vector4(0.4f, 0.4f, 0.4f, 1f), "  \u2014");
+                }
+                else
+                {
+                    foreach (var e in entries)
+                    {
+                        var satisfied = e.have + e.retNQ + e.retHQ >= e.needed;
+                        DrawPanelRow(e.itemId, e.have, e.retNQ, e.retHQ, e.needed, e.name, e.iconId,
+                            satisfied, showRetainer, e.isPrecraft);
+                    }
+                }
+
+                ImGui.EndTable();
+            }
+
+            ImGui.EndChild();
+        }
+    }
+
+    private void DrawPanelRow(uint itemId, int have, int retNQ, int retHQ, int needed, string name, ushort iconId,
+        bool satisfied, bool showRetainer, bool isPrecraft)
     {
         ImGui.TableNextRow();
-        Vector4 rowColor = (satisfied, isPrcraft) switch
+        Vector4 rowColor = (satisfied, isPrecraft) switch
         {
             (true,  false) => new Vector4(0.15f, 0.50f, 0.15f, 0.25f),
             (true,  true)  => new Vector4(0.05f, 0.40f, 0.45f, 0.25f),
@@ -197,6 +253,17 @@ public class CraftingMaterialsWindow : Window
         var lineH    = ImGui.GetTextLineHeight();
         var iconSize = new Vector2(lineH, lineH);
 
+        static string Trunc(int v) => v > 9999 ? "9999" : v.ToString();
+        void CenterNum(int raw, Vector4 color)
+        {
+            var s   = Trunc(raw);
+            var off = (ImGui.GetColumnWidth() - ImGui.CalcTextSize(s).X) * 0.5f;
+            if (off > 0f) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + off);
+            ImGui.TextColored(color, s);
+            if (raw > 9999 && ImGui.IsItemHovered())
+                ImGui.SetTooltip(raw.ToString());
+        }
+
         ImGui.TableNextColumn();
         var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(iconId));
         if (icon.TryGetWrap(out var wrap, out _))
@@ -205,45 +272,45 @@ public class CraftingMaterialsWindow : Window
             ImGui.Dummy(iconSize);
         ImGui.SameLine(0, 4);
         ImUtf8.CopyOnClickSelectable(name.AsSpan());
+        if (ImGui.BeginPopupContextItem($"##mbctx_{itemId}"))
+        {
+            if (ImGui.Selectable("搜索 Marketboard"))
+            {
+                GatherBuddy.MarketboardService?.QueueLookup(itemId, name, iconId);
+                GatherBuddy.VulcanWindow?.OpenToMarketboardItem(itemId);
+            }
+            ImGui.EndPopup();
+        }
 
-        ImGui.TableNextColumn();
-        var haveStr   = have.ToString();
         var haveColor = satisfied ? new Vector4(0.4f, 1f, 0.4f, 1f) : new Vector4(1f, 0.45f, 0.45f, 1f);
-        var haveOff   = (ImGui.GetColumnWidth() - ImGui.CalcTextSize(haveStr).X) * 0.5f;
-        if (haveOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + haveOff);
-        ImGui.TextColored(haveColor, haveStr);
+        ImGui.TableNextColumn();
+        CenterNum(have, haveColor);
 
         if (showRetainer)
         {
             ImGui.TableNextColumn();
-            var nqStr   = retainerNQ > 0 ? retainerNQ.ToString() : "-";
-            var nqColor = retainerNQ > 0 ? new Vector4(0.9f, 0.85f, 0.3f, 1f) : new Vector4(0.4f, 0.4f, 0.4f, 1f);
-            var nqOff   = (ImGui.GetColumnWidth() - ImGui.CalcTextSize(nqStr).X) * 0.5f;
-            if (nqOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + nqOff);
-            ImGui.TextColored(nqColor, nqStr);
+            var nqColor = retNQ > 0 ? new Vector4(0.9f, 0.85f, 0.3f, 1f) : new Vector4(0.4f, 0.4f, 0.4f, 1f);
+            if (retNQ > 0) CenterNum(retNQ, nqColor);
+            else { var off = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("-").X) * 0.5f; if (off > 0f) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + off); ImGui.TextColored(nqColor, "-"); }
 
             ImGui.TableNextColumn();
-            var hqStr   = retainerHQ > 0 ? retainerHQ.ToString() : "-";
-            var hqColor = retainerHQ > 0 ? new Vector4(0.5f, 0.85f, 1.0f, 1f) : new Vector4(0.4f, 0.4f, 0.4f, 1f);
-            var hqOff   = (ImGui.GetColumnWidth() - ImGui.CalcTextSize(hqStr).X) * 0.5f;
-            if (hqOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + hqOff);
-            ImGui.TextColored(hqColor, hqStr);
+            var hqColor = retHQ > 0 ? new Vector4(0.5f, 0.85f, 1.0f, 1f) : new Vector4(0.4f, 0.4f, 0.4f, 1f);
+            if (retHQ > 0) CenterNum(retHQ, hqColor);
+            else { var off = (ImGui.GetColumnWidth() - ImGui.CalcTextSize("-").X) * 0.5f; if (off > 0f) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + off); ImGui.TextColored(hqColor, "-"); }
         }
 
         ImGui.TableNextColumn();
-        var needStr = needed.ToString();
-        var needOff = (ImGui.GetColumnWidth() - ImGui.CalcTextSize(needStr).X) * 0.5f;
-        if (needOff > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + needOff);
-        ImGui.TextUnformatted(needStr);
+        CenterNum(needed, new Vector4(1f, 1f, 1f, 1f));
 
         ImGui.TableNextColumn();
         var ratio    = needed > 0 ? (float)have / needed : 1f;
         var progress = Math.Clamp(ratio, 0f, 1f);
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, satisfied ? new Vector4(0.2f, 0.65f, 0.2f, 0.9f) : new Vector4(0.65f, 0.2f, 0.2f, 0.9f));
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram,
+            satisfied ? new Vector4(0.2f, 0.65f, 0.2f, 0.9f) : new Vector4(0.65f, 0.2f, 0.2f, 0.9f));
         ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.12f, 0.12f, 0.12f, 0.9f));
         ImGui.ProgressBar(progress, new Vector2(ImGui.GetContentRegionAvail().X, lineH), "");
         ImGui.PopStyleColor(2);
-        var pctText = overcapPercent ? $"{ratio * 100f:F0}%" : $"{progress * 100f:F0}%";
+        var pctText = _matsOvercapPercent ? $"{ratio * 100f:F0}%" : $"{progress * 100f:F0}%";
         var pctSize = ImGui.CalcTextSize(pctText);
         var barMin  = ImGui.GetItemRectMin();
         var barMax  = ImGui.GetItemRectMax();
