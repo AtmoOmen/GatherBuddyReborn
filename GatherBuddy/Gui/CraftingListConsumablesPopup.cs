@@ -19,22 +19,31 @@ public class CraftingListConsumablesPopup
     private CraftingListConsumableSettings _workingDefaults = new();
     private string? _workingDefaultPrecraftMacroId;
     private string? _workingDefaultFinalMacroId;
+    private SolverOverrideMode _workingDefaultPrecraftSolverOverride = SolverOverrideMode.Default;
+    private SolverOverrideMode _workingDefaultFinalSolverOverride = SolverOverrideMode.Default;
     private string _foodSearch = string.Empty;
     private string _medicineSearch = string.Empty;
+    private string _precraftMacroSearch = string.Empty;
+    private string _finalMacroSearch = string.Empty;
     private List<(uint ItemId, string Name, bool IsHQ)> _foodItems = new();
     private List<(uint ItemId, string Name, bool IsHQ)> _medicineItems = new();
     private List<(uint ItemId, string Name)> _manualItems = new();
     private List<(uint ItemId, string Name)> _squadronManualItems = new();
+    public System.Action? OnSaved { get; set; }
 
     public void OpenListDefaults(CraftingListDefinition list)
     {
         _list = list;
-        _title = $"ÖÆ×÷Çåµ¥ ÏûºÄÆ·/ºê - {list.Name}";
+        _title = $"åˆ¶ä½œæ¸…å• æ¶ˆè€—å“/å® - {list.Name}";
         _workingDefaults = list.Consumables.Clone();
         _workingDefaultPrecraftMacroId = list.DefaultPrecraftMacroId;
         _workingDefaultFinalMacroId = list.DefaultFinalMacroId;
+        _workingDefaultPrecraftSolverOverride = list.DefaultPrecraftSolverOverride;
+        _workingDefaultFinalSolverOverride = list.DefaultFinalSolverOverride;
         _foodSearch = string.Empty;
         _medicineSearch = string.Empty;
+        _precraftMacroSearch = string.Empty;
+        _finalMacroSearch = string.Empty;
         EnsureConsumablesLoaded();
         _isOpen = true;
     }
@@ -52,14 +61,14 @@ public class CraftingListConsumablesPopup
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("±£´æÎªÄ¬ÈÏ", new Vector2(140, 0)))
+            if (ImGui.Button("ä¿å­˜ä¸ºé»˜è®¤", new Vector2(140, 0)))
             {
                 Save();
                 _isOpen = false;
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("È¡Ïû", new Vector2(100, 0)))
+            if (ImGui.Button("å–æ¶ˆ", new Vector2(100, 0)))
             {
                 _isOpen = false;
             }
@@ -70,7 +79,7 @@ public class CraftingListConsumablesPopup
 
     private void DrawListDefaults()
     {
-        ImGui.Text("´ËÖÆ×÷Çåµ¥µÄÄ¬ÈÏÏûºÄÆ·:");
+        ImGui.Text("é…ç½®æ­¤æ¸…å•çš„é»˜è®¤æ¶ˆè€—å“:");
         ImGui.Spacing();
         DrawMacroSection();
         ImGui.Spacing();
@@ -100,80 +109,122 @@ public class CraftingListConsumablesPopup
     private void DrawMacroSection()
     {
         var allMacros = CraftingGameInterop.UserMacroLibrary.GetAllMacros();
+        DrawMacroSelector(
+            "åŠæˆå“åˆ¶ä½œå®:",
+            "##PrecraftMacro",
+            "##PrecraftMacroSearch",
+            ref _workingDefaultPrecraftMacroId,
+            ref _workingDefaultPrecraftSolverOverride,
+            ref _precraftMacroSearch,
+            allMacros);
 
+        DrawMacroSelector(
+            "æˆå“åˆ¶ä½œå®:",
+            "##FinalMacro",
+            "##FinalMacroSearch",
+            ref _workingDefaultFinalMacroId,
+            ref _workingDefaultFinalSolverOverride,
+            ref _finalMacroSearch,
+            allMacros);
+    }
+
+    private void DrawMacroSelector(
+        string label,
+        string comboId,
+        string searchId,
+        ref string? selectedMacroId,
+        ref SolverOverrideMode solverOverride,
+        ref string macroSearch,
+        List<UserMacro> allMacros)
+    {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("°ë³ÉÆ·ÖÆ×÷ºê:");
+        ImGui.Text(label);
         ImGui.SameLine(160);
-        var precraftName = string.IsNullOrEmpty(_workingDefaultPrecraftMacroId)
-            ? "ÎŞ (Ê¹ÓÃÇó½âÆ÷)"
-            : (allMacros.FirstOrDefault(m => m.Id == _workingDefaultPrecraftMacroId)?.Name ?? "(Î´ÕÒµ½ºê)");
+
+        var currentName = GetMacroSelectionName(selectedMacroId, solverOverride, allMacros);
         ImGui.SetNextItemWidth(240);
-        if (ImGui.BeginCombo("##PrecraftMacro", precraftName))
+        if (!ImGui.BeginCombo(comboId, currentName))
+            return;
+
+        var isDefault = solverOverride == SolverOverrideMode.Default && string.IsNullOrEmpty(selectedMacroId);
+        if (ImGui.Selectable("é»˜è®¤ (ä½¿ç”¨æ±‚è§£å™¨)", isDefault))
         {
-            if (ImGui.Selectable("ÎŞ (Ê¹ÓÃÇó½âÆ÷)", string.IsNullOrEmpty(_workingDefaultPrecraftMacroId)))
-                _workingDefaultPrecraftMacroId = null;
-            if (allMacros.Count > 0)
+            selectedMacroId = null;
+            solverOverride = SolverOverrideMode.Default;
+        }
+        if (ImGui.Selectable("æ ‡å‡†æ±‚è§£å™¨", solverOverride == SolverOverrideMode.StandardSolver))
+        {
+            selectedMacroId = null;
+            solverOverride = SolverOverrideMode.StandardSolver;
+        }
+        if (ImGui.Selectable("Raphael æ±‚è§£å™¨", solverOverride == SolverOverrideMode.RaphaelSolver))
+        {
+            selectedMacroId = null;
+            solverOverride = SolverOverrideMode.RaphaelSolver;
+        }
+        if (ImGui.Selectable("åªæ¨è¿›åº¦", solverOverride == SolverOverrideMode.ProgressOnlySolver))
+        {
+            selectedMacroId = null;
+            solverOverride = SolverOverrideMode.ProgressOnlySolver;
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("åªä½¿ç”¨æ¨è¿›åº¦çš„æŠ€èƒ½, ä¸ä½¿ç”¨å“è´¨æŠ€èƒ½, é€‚åˆå¿«é€Ÿ NQ åˆ¶ä½œ");
+
+        if (allMacros.Count > 0)
+        {
+            ImGui.Separator();
+            ImGui.InputTextWithHint(searchId, "æœç´¢å®...", ref macroSearch, 128);
+            var searchValue = macroSearch;
+            var filteredMacros = string.IsNullOrWhiteSpace(searchValue)
+                ? allMacros
+                : allMacros.Where(m => m.Name.Contains(searchValue, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var macro in filteredMacros)
             {
-                ImGui.Separator();
-                foreach (var macro in allMacros)
+                var isSelected = selectedMacroId == macro.Id;
+                var displayName = macro.MinCraftsmanship > 0 || macro.MinControl > 0 || macro.MinCP > 0
+                    ? $"{macro.Name} ({macro.MinCraftsmanship}/{macro.MinControl}/{macro.MinCP})"
+                    : macro.Name;
+                if (ImGui.Selectable(displayName, isSelected))
                 {
-                    var isSelected = _workingDefaultPrecraftMacroId == macro.Id;
-                    var displayName = macro.MinCraftsmanship > 0 || macro.MinControl > 0 || macro.MinCP > 0
-                        ? $"{macro.Name} ({macro.MinCraftsmanship}/{macro.MinControl}/{macro.MinCP})"
-                        : macro.Name;
-                    if (ImGui.Selectable(displayName, isSelected))
-                        _workingDefaultPrecraftMacroId = macro.Id;
+                    selectedMacroId = macro.Id;
+                    solverOverride = SolverOverrideMode.Default;
                 }
             }
-            ImGui.EndCombo();
         }
 
-        ImGui.AlignTextToFramePadding();
-        ImGui.Text("³ÉÆ·ÖÆ×÷ºê:");
-        ImGui.SameLine(160);
-        var finalName = string.IsNullOrEmpty(_workingDefaultFinalMacroId)
-            ? "ÎŞ (Ê¹ÓÃÇó½âÆ÷)"
-            : (allMacros.FirstOrDefault(m => m.Id == _workingDefaultFinalMacroId)?.Name ?? "(ºêÎ´ÕÒµ½)");
-        ImGui.SetNextItemWidth(240);
-        if (ImGui.BeginCombo("##FinalMacro", finalName))
+        ImGui.EndCombo();
+    }
+
+    private static string GetMacroSelectionName(string? macroId, SolverOverrideMode solverOverride, List<UserMacro> allMacros)
+    {
+        return solverOverride switch
         {
-            if (ImGui.Selectable("ÎŞ (Ê¹ÓÃÇó½âÆ÷)", string.IsNullOrEmpty(_workingDefaultFinalMacroId)))
-                _workingDefaultFinalMacroId = null;
-            if (allMacros.Count > 0)
-            {
-                ImGui.Separator();
-                foreach (var macro in allMacros)
-                {
-                    var isSelected = _workingDefaultFinalMacroId == macro.Id;
-                    var displayName = macro.MinCraftsmanship > 0 || macro.MinControl > 0 || macro.MinCP > 0
-                        ? $"{macro.Name} ({macro.MinCraftsmanship}/{macro.MinControl}/{macro.MinCP})"
-                        : macro.Name;
-                    if (ImGui.Selectable(displayName, isSelected))
-                        _workingDefaultFinalMacroId = macro.Id;
-                }
-            }
-            ImGui.EndCombo();
-        }
+            SolverOverrideMode.StandardSolver     => "æ ‡å‡†æ±‚è§£å™¨",
+            SolverOverrideMode.RaphaelSolver      => "Raphael æ±‚è§£å™¨",
+            SolverOverrideMode.ProgressOnlySolver => "åªæ¨è¿›åº¦",
+            _ when !string.IsNullOrEmpty(macroId) => allMacros.FirstOrDefault(m => m.Id == macroId)?.Name ?? "(æœªæ‰¾åˆ°å®)",
+            _                                     => "é»˜è®¤ (ä½¿ç”¨æ±‚è§£å™¨)",
+        };
     }
 
     private void DrawFoodSelector(ref uint? itemId, ref bool hq, string idSuffix, ref string search)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Ê³Îï:");
+        ImGui.Text("é£Ÿç‰©:");
         ImGui.SameLine(160);
 
         var current = GetDisplayName(itemId, hq);
         ImGui.SetNextItemWidth(240);
         if (ImGui.BeginCombo($"##Food{idSuffix}", current))
         {
-            if (ImGui.Selectable("ÎŞ", !itemId.HasValue))
+            if (ImGui.Selectable("æ— ", !itemId.HasValue))
             {
                 itemId = null;
                 hq = false;
             }
 
             ImGui.Separator();
-            ImGui.InputTextWithHint($"##FoodSearch{idSuffix}", "ËÑË÷Ê³Îï...", ref search, 128);
+            ImGui.InputTextWithHint($"##FoodSearch{idSuffix}", "æœç´¢é£Ÿç‰©...", ref search, 128);
 
             var searchValue = search;
             var filtered = string.IsNullOrWhiteSpace(searchValue)
@@ -198,21 +249,21 @@ public class CraftingListConsumablesPopup
     private void DrawMedicineSelector(ref uint? itemId, ref bool hq, string idSuffix, ref string search)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Ò©Ë®:");
+        ImGui.Text("è¯æ°´:");
         ImGui.SameLine(160);
 
         var current = GetDisplayName(itemId, hq);
         ImGui.SetNextItemWidth(240);
         if (ImGui.BeginCombo($"##Medicine{idSuffix}", current))
         {
-            if (ImGui.Selectable("ÎŞ", !itemId.HasValue))
+            if (ImGui.Selectable("æ— ", !itemId.HasValue))
             {
                 itemId = null;
                 hq = false;
             }
 
             ImGui.Separator();
-            ImGui.InputTextWithHint($"##MedicineSearch{idSuffix}", "ËÑË÷Ò©Ë®...", ref search, 128);
+            ImGui.InputTextWithHint($"##MedicineSearch{idSuffix}", "æœç´¢è¯æ°´...", ref search, 128);
 
             var searchValue = search;
             var filtered = string.IsNullOrWhiteSpace(searchValue)
@@ -237,15 +288,15 @@ public class CraftingListConsumablesPopup
     private void DrawManualSelector(ref uint? itemId, string idSuffix)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Ö¸ÄÏ:");
+        ImGui.Text("æŒ‡å—:");
         ImGui.SameLine(160);
 
         var manualId = itemId ?? 0;
-        var current = manualId == 0 ? "ÎŞ" : GetItemName(manualId);
+        var current = manualId == 0 ? "æ— " : GetItemName(manualId);
         ImGui.SetNextItemWidth(240);
         if (ImGui.BeginCombo($"##Manual{idSuffix}", current))
         {
-            if (ImGui.Selectable("ÎŞ", manualId == 0))
+            if (ImGui.Selectable("æ— ", manualId == 0))
                 itemId = null;
 
             foreach (var (id, name) in _manualItems)
@@ -262,15 +313,15 @@ public class CraftingListConsumablesPopup
     private void DrawSquadronManualSelector(ref uint? itemId, string idSuffix)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("¾üÓÃÖ¸ÄÏ:");
+        ImGui.Text("Squadron æŒ‡å—:");
         ImGui.SameLine(160);
 
         var squadronId = itemId ?? 0;
-        var current = squadronId == 0 ? "ÎŞ" : GetItemName(squadronId);
+        var current = squadronId == 0 ? "æ— " : GetItemName(squadronId);
         ImGui.SetNextItemWidth(240);
         if (ImGui.BeginCombo($"##Squadron{idSuffix}", current))
         {
-            if (ImGui.Selectable("ÎŞ", squadronId == 0))
+            if (ImGui.Selectable("æ— ", squadronId == 0))
                 itemId = null;
 
             foreach (var (id, name) in _squadronManualItems)
@@ -401,14 +452,14 @@ public class CraftingListConsumablesPopup
     }
 
     private static string GetDisplayName(uint? itemId, bool hq)
-        => itemId.HasValue ? GetItemName(itemId.Value) + (hq ? $" {(char)SeIconChar.HighQuality}" : "") : "ÎŞ";
+        => itemId.HasValue ? GetItemName(itemId.Value) + (hq ? $" {(char)SeIconChar.HighQuality}" : "") : "æ— ";
 
     private static string GetItemName(uint itemId)
     {
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
         if (itemSheet != null && itemSheet.TryGetRow(itemId, out var item))
             return item.Name.ExtractText();
-        return "Î´Öª";
+        return "æœªçŸ¥";
     }
 
     private static unsafe bool HasItemInInventory(uint itemId, bool hq)
@@ -460,7 +511,10 @@ public class CraftingListConsumablesPopup
         _list.Consumables = _workingDefaults;
         _list.DefaultPrecraftMacroId = _workingDefaultPrecraftMacroId;
         _list.DefaultFinalMacroId = _workingDefaultFinalMacroId;
+        _list.DefaultPrecraftSolverOverride = _workingDefaultPrecraftSolverOverride;
+        _list.DefaultFinalSolverOverride = _workingDefaultFinalSolverOverride;
         GatherBuddy.CraftingListManager.SaveList(_list);
         MacroValidator.InvalidateAll();
+        OnSaved?.Invoke();
     }
 }

@@ -28,13 +28,13 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("½â·¨»º´æ##solutionsTab", 4, 8);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("æ–¹æ¡ˆ##solutionsTab", 5, 10);
             tabItem = handle;
             tabOpen = handle;
         }
         else
         {
-            var handle = ImRaii.TabItem("½â·¨»º´æ##solutionsTab");
+            var handle = ImRaii.TabItem("æ–¹æ¡ˆ##solutionsTab");
             tabItem = handle;
             tabOpen = handle.Success;
         }
@@ -57,9 +57,9 @@ public partial class VulcanWindow
             var raphaelConfig = GatherBuddy.Config.RaphaelSolverConfig;
 
             ImGui.SetNextItemWidth(220);
-            ImGui.InputTextWithHint("##solutionsSearch", "ËÑË÷ÎïÆ·...", ref _solutionsSearch, 128);
+            ImGui.InputTextWithHint("##solutionsSearch", "æœç´¢ç‰©å“...", ref _solutionsSearch, 128);
             ImGui.SameLine();
-            if (ImGui.Button("È«²¿Çå¿Õ", new Vector2(90, 0)))
+            if (ImGui.Button("å…¨éƒ¨æ¸…ç©º", new Vector2(90, 0)))
             {
                 coordinator.Clear();
                 _selectedSolutionKey = null;
@@ -67,20 +67,20 @@ public partial class VulcanWindow
             }
             ImGui.SameLine();
             var autoClear = raphaelConfig.AutoClearSolutionCache;
-            if (ImGui.Checkbox("¶ÓÁĞ¿ªÊ¼Ê±×Ô¶¯Çå¿Õ", ref autoClear))
+            if (ImGui.Checkbox("é˜Ÿåˆ—å¼€å§‹æ—¶è‡ªåŠ¨æ¸…ç©º", ref autoClear))
             {
                 raphaelConfig.AutoClearSolutionCache = autoClear;
                 GatherBuddy.Config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Ã¿´ÎÔÚÖÆ×÷¶ÓÁĞ¿ªÊ¼Ê±, Çå¿Õ Raphael Çó½âÆ÷»º´æµÄ×ÊÔ´\n¹Ø±Õ´ËÑ¡Ïî¿ÉÔÚÊôĞÔÎ´±ä»¯Ê±¿ç¶ÓÁĞ¸´ÓÃ½â·¨ºê¡£");
+                ImGui.SetTooltip("Clears cached solutions each time a new crafting queue starts.\nDisable to reuse solutions across queue runs when your stats haven't changed.");
 
             var activeColor = coordinator.ActiveSolves > 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey;
             var pendingColor = coordinator.PendingSolves > 0 ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;
             ImGui.SameLine();
-            ImGui.TextColored(activeColor, $"½øĞĞÖĞ: {coordinator.ActiveSolves}");
+            ImGui.TextColored(activeColor, $"æ´»åŠ¨: {coordinator.ActiveSolves}");
             ImGui.SameLine();
-            ImGui.TextColored(pendingColor, $"µÈ´ıÖĞ: {coordinator.PendingSolves}");
+            ImGui.TextColored(pendingColor, $"ç­‰å¾…: {coordinator.PendingSolves}");
 
             ImGui.Separator();
             ImGui.Spacing();
@@ -95,8 +95,8 @@ public partial class VulcanWindow
             if (filtered.Count == 0)
             {
                 ImGui.TextColored(ImGuiColors.DalamudGrey, _solutionsList.Count == 0
-                    ? "Ã»ÓĞ»º´æµÄ½â·¨ºê, Ê¹ÓÃ Raphael Çó½âÆ÷Æô¶¯¶ÓÁĞÒÔÉú³É½â·¨ºê¡£"
-                    : "Ã»ÓĞÆ¥ÅäËÑË÷Ìõ¼şµÄ½â·¨ºê¡£");
+                    ? "æš‚æ— ç¼“å­˜æ–¹æ¡ˆ, ä½¿ç”¨ Raphael æ±‚è§£å™¨å¼€å§‹é˜Ÿåˆ—åä¼šç”Ÿæˆæ–¹æ¡ˆ"
+                    : "æ²¡æœ‰ç¬¦åˆæœç´¢æ¡ä»¶çš„æ–¹æ¡ˆ");
                 return;
             }
 
@@ -133,7 +133,7 @@ public partial class VulcanWindow
             var (name, iconId) = GetSolutionItemInfo(solution.Request.RecipeId);
             var isSelected = _selectedSolutionKey == solution.Key;
             var req = solution.Request;
-            var statsLine = $"µÈ¼¶ {req.Level}  {req.Craftsmanship}/{req.Control}/{req.CP}  ¹² {solution.ActionIds.Count} ²½";
+            var statsLine = $"Lv{req.Level}  {req.Craftsmanship}/{req.Control}/{req.CP}  {solution.ActionIds.Count} æ­¥";
 
             if (iconId > 0)
             {
@@ -165,7 +165,7 @@ public partial class VulcanWindow
         if (_selectedSolutionKey == null)
         {
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Ñ¡ÔñÒ»¸ö½â·¨ºê²é¿´ÏêÇé¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "é€‰æ‹©ä¸€ä¸ªæ–¹æ¡ˆæŸ¥çœ‹è¯¦æƒ…");
             return;
         }
 
@@ -195,50 +195,45 @@ public partial class VulcanWindow
         var lineH = ImGui.GetTextLineHeightWithSpacing();
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (largeIconSize.Y - lineH * 2f) / 2f);
         ImGui.TextColored(ImGuiColors.ParsedGold, name);
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"Åä·½ ID {req.RecipeId}");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"é…æ–¹ {req.RecipeId}");
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "½â·¨²ÎÊı");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "æ±‚è§£å‚æ•°");
         ImGui.Spacing();
 
-        ImGui.Text($"µÈ¼¶:          {req.Level}");
-        ImGui.Text($"×÷Òµ¾«¶È:  {req.Craftsmanship}");
+        ImGui.Text($"ç­‰çº§:          {req.Level}");
+        ImGui.Text($"ä½œä¸šç²¾åº¦:  {req.Craftsmanship}");
         ImGui.SameLine(180);
-        ImGui.Text($"¼Ó¹¤¾«¶È:  {req.Control}");
+        ImGui.Text($"åŠ å·¥ç²¾åº¦:  {req.Control}");
         ImGui.SameLine(340);
-        ImGui.Text($"ÖÆ×÷Á¦:  {req.CP}");
-        ImGui.Text($"ÕÆÎÕ:   {(req.Manipulation ? "ÊÇ" : "·ñ")}");
+        ImGui.Text($"CP:  {req.CP}");
+        ImGui.Text($"æŒæ¡:   {(req.Manipulation ? "æ˜¯" : "å¦")}");
         ImGui.SameLine(180);
-        ImGui.Text($"×¨¼Ò:  {(req.Specialist ? "ÊÇ" : "·ñ")}");
-        ImGui.Text($"³õÆÚÆ·ÖÊ: {req.InitialQuality}");
+        ImGui.Text($"ä¸“å®¶:  {(req.Specialist ? "æ˜¯" : "å¦")}");
+        ImGui.Text($"åˆå§‹å“è´¨: {req.InitialQuality}");
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudGrey, $"Éú³ÉÊ±¼ä: {solution.GeneratedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        ImGui.TextColored(ImGuiColors.DalamudGrey, $"ç”Ÿæˆæ—¶é—´: {solution.GeneratedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, $"¼¼ÄÜ ({solution.ActionIds.Count})");
+        ImGui.TextColored(ImGuiColors.ParsedGold, $"æŠ€èƒ½ ({solution.ActionIds.Count})");
         ImGui.Spacing();
 
         var actionIconSize = new Vector2(24f, 24f);
         var remainH = ImGui.GetContentRegionAvail().Y;
-        ImGui.BeginChild("##solActions", new Vector2(-1, remainH), false);
+        ImGui.BeginChild("##solæŠ€èƒ½", new Vector2(-1, remainH), false);
 
         for (var i = 0; i < solution.ActionIds.Count; i++)
         {
             var actionId = solution.ActionIds[i];
-            var skillName = ((VulcanSkill)actionId).ToString();
-
-            // Ê¹ÓÃ×ÖµäÓ³ÉäÖĞÎÄ¼¼ÄÜÃû
-            var skillEnum = (VulcanSkill)actionId;
-            var skillNameZh = VulcanSkillNamesZh.TryGetValue(skillEnum, out var zhName)
+            var skillName = VulcanSkillNamesZh.TryGetValue((VulcanSkill)actionId, out var zhName)
                 ? zhName
-                : skillEnum.ToString();
-
+                : ((VulcanSkill)actionId).ToString();
             var skillIconId = GetSkillIconId(actionId);
 
             if (skillIconId > 0)
@@ -258,7 +253,7 @@ public partial class VulcanWindow
 
             ImGui.SameLine(0, 6);
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (actionIconSize.Y - ImGui.GetTextLineHeight()) / 2f);
-            ImGui.Text($"{i + 1}. {skillNameZh}");
+            ImGui.Text($"{i + 1}. {skillName}");
         }
 
         ImGui.EndChild();
@@ -288,7 +283,7 @@ public partial class VulcanWindow
             GatherBuddy.Log.Debug($"[SolutionsTab] Failed to get item info for recipe {recipeId}: {ex.Message}");
         }
 
-        var fallback = ($"Åä·½ ID {recipeId}", 0u);
+        var fallback = ($"é…æ–¹ {recipeId}", 0u);
         _solutionItemCache[recipeId] = fallback;
         return fallback;
     }

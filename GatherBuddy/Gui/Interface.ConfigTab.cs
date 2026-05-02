@@ -682,9 +682,12 @@ public partial class Interface
 
         public static void DrawDoubleHookHintPopupBox()
             => DrawCheckbox("显示多重提钩提醒",
-                "在宇宙探索中显示该鱼是否可被双重提钩或三重提钩。", // TODO: add ocean fishing when implemented.
+                "在宇宙探索和海钓中显示该鱼是否可被双重提钩或三重提钩",
                 GatherBuddy.Config.ShowMultiHookHints, b => GatherBuddy.Config.ShowMultiHookHints = b);
-        
+        public static void DrawOceanTypeHintPopupBox()
+            => DrawCheckbox("Show Ocean Type Hints",
+                "Show what type of fish in Ocean Fishing",
+                GatherBuddy.Config.ShowOceanTypeHints, b => GatherBuddy.Config.ShowOceanTypeHints = b);
         
         // Fish Stats Window
         public static void DrawEnableFishStats()

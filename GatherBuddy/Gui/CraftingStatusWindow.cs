@@ -12,7 +12,7 @@ public class CraftingStatusWindow : Window
     private bool _wasFocusedLastFrame = false;
 
     public CraftingStatusWindow() 
-        : base("ÖÆ×÷×´Ì¬###GatherBuddyCraftingStatus", 
+        : base("åˆ¶ä½œçŠ¶æ€###GatherBuddyCraftingStatus", 
                ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse)
     {
         IsOpen = false;
@@ -40,7 +40,7 @@ public class CraftingStatusWindow : Window
         var isFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
         if (isFocused)
         {
-            GatherBuddy.ControllerSupport?.UpdateFocusedWindow("ÖÆ×÷×´Ì¬###GatherBuddyCraftingStatus");
+            GatherBuddy.ControllerSupport?.UpdateFocusedWindow("åˆ¶ä½œçŠ¶æ€###GatherBuddyCraftingStatus");
             _wasFocusedLastFrame = true;
         }
         else if (_wasFocusedLastFrame)
@@ -54,12 +54,12 @@ public class CraftingStatusWindow : Window
         var totalCount = _queueProcessor.QueueCount;
         var currentItem = _queueProcessor.CurrentRecipeItem;
 
-        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.8f, 1.0f), "ÖÆ×÷¶ÓÁÐÔËÐÐÖÐ");
+        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.8f, 1.0f), "åˆ¶ä½œé˜Ÿåˆ—è¿è¡Œä¸­");
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.Text($"×´Ì¬: {GetStateDisplayName(currentState)}");
-        ImGui.Text($"½ø¶È: {Math.Min(currentIndex + 1, totalCount)} / {totalCount}");
+        ImGui.Text($"çŠ¶æ€: {GetStateDisplayName(currentState)}");
+        ImGui.Text($"è¿›åº¦: {Math.Min(currentIndex + 1, totalCount)} / {totalCount}");
 
         if (currentItem != null)
         {
@@ -67,7 +67,7 @@ public class CraftingStatusWindow : Window
             if (recipeSheet != null && recipeSheet.TryGetRow(currentItem.RecipeId, out var recipe))
             {
                 var itemName = recipe.ItemResult.Value.Name.ExtractText();
-                ImGui.Text($"µ±Ç°Åä·½: {itemName}");
+                ImGui.Text($"å½“å‰é…æ–¹: {itemName}");
             }
         }
 
@@ -77,9 +77,9 @@ public class CraftingStatusWindow : Window
 
         if (currentState == CraftingQueueProcessor.QueueState.Complete)
         {
-            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), "¶ÓÁÐÍê³É!");
+            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), "é˜Ÿåˆ—å®Œæˆ!");
             ImGui.Spacing();
-            if (ImGui.Button("¹Ø±Õ"))
+            if (ImGui.Button("å…³é—­"))
             {
                 IsOpen = false;
                 _queueProcessor = null;
@@ -87,28 +87,28 @@ public class CraftingStatusWindow : Window
         }
         else
         {
-            ImGui.TextDisabled("¶ÓÁÐ´¦ÀíÖÐ...");
+            ImGui.TextDisabled("é˜Ÿåˆ—å¤„ç†ä¸­...");
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
             
             if (!_queueProcessor.Paused)
             {
-                if (ImGui.Button("ÔÝÍ£"))
+                if (ImGui.Button("æš‚åœ"))
                 {
                     _queueProcessor.Pause();
                 }
             }
             else
             {
-                if (ImGui.Button("¼ÌÐø"))
+                if (ImGui.Button("ç»§ç»­"))
                 {
                     _queueProcessor.Resume();
                 }
             }
             
             ImGui.SameLine();
-            if (ImGui.Button("Í£Ö¹"))
+            if (ImGui.Button("åœæ­¢"))
             {
                 CraftingGatherBridge.StopQueue();
             }
@@ -119,19 +119,19 @@ public class CraftingStatusWindow : Window
 
             var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
             ImGui.SetNextItemWidth(150);
-            if (ImGui.SliderInt("¼¼ÄÜÑÓ³Ù (ms)", ref delay, 0, 1000))
+            if (ImGui.SliderInt("æ“ä½œå»¶è¿Ÿ (ms)", ref delay, 0, 1000))
             {
                 GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);
                 GatherBuddy.Config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Ã¿¸öÖÆ×÷¼¼ÄÜÖ®¼äµÄÑÓ³ÙÊ±¼ä");
+                ImGui.SetTooltip("æ¯ä¸ªåˆ¶ä½œæ“ä½œä¹‹é—´çš„å»¶è¿Ÿæ—¶é—´");
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
             
-            if (ImGui.Button("´ò¿ª Vulcan ´°¿Ú"))
+            if (ImGui.Button("æ‰“å¼€ Vulcan çª—å£"))
             {
                 if (GatherBuddy.VulcanWindow != null)
                 {
@@ -145,16 +145,17 @@ public class CraftingStatusWindow : Window
     {
         return state switch
         {
-            CraftingQueueProcessor.QueueState.Idle => "¿ÕÏÐ",
-            CraftingQueueProcessor.QueueState.WaitingForGather => "²É¼¯²ÄÁÏÖÐ",
-            CraftingQueueProcessor.QueueState.WaitingForJobSwitch => "ÇÐ»»Ö°ÒµÖÐ",
-            CraftingQueueProcessor.QueueState.Repairing => "ÐÞÀí×°±¸ÖÐ",
-            CraftingQueueProcessor.QueueState.ExtractingMateria => "ÕýÔÚ¾«ÖÆÄ§¾§Ê¯",
-            CraftingQueueProcessor.QueueState.WaitingForRaphaelSolution => "Ê¹ÓÃ Raphael Çó½âÖÐ",
-            CraftingQueueProcessor.QueueState.ReadyForCraft => "×¼±¸ÖÆ×÷",
-            CraftingQueueProcessor.QueueState.Crafting => "ÖÆ×÷ÖÐ",
-            CraftingQueueProcessor.QueueState.Complete => "Íê³É",
-            _ => "Î´Öª"
+            CraftingQueueProcessor.QueueState.Idle => "ç©ºé—²",
+            CraftingQueueProcessor.QueueState.NavigatingToRetainerBell => "å‰å¾€é›‡å‘˜é“ƒ",
+            CraftingQueueProcessor.QueueState.WaitingForGather => "é‡‡é›†ææ–™ä¸­",
+            CraftingQueueProcessor.QueueState.WaitingForJobSwitch => "åˆ‡æ¢èŒä¸šä¸­",
+            CraftingQueueProcessor.QueueState.Repairing => "ä¿®ç†è£…å¤‡ä¸­",
+            CraftingQueueProcessor.QueueState.ExtractingMateria => "ç²¾åˆ¶é­”æ™¶çŸ³ä¸­",
+            CraftingQueueProcessor.QueueState.WaitingForRaphaelSolution => "ä½¿ç”¨ Raphael æ±‚è§£ä¸­",
+            CraftingQueueProcessor.QueueState.ReadyForCraft => "å‡†å¤‡åˆ¶ä½œ",
+            CraftingQueueProcessor.QueueState.Crafting => "åˆ¶ä½œä¸­",
+            CraftingQueueProcessor.QueueState.Complete => "å®Œæˆ",
+            _ => "æœªçŸ¥"
         };
     }
     

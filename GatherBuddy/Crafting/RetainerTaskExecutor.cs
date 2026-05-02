@@ -68,137 +68,138 @@ internal unsafe class RetainerTaskExecutor
 
     private int _addonRetryCount = 0;
     private const int MaxAddonRetries = 40;
+    private readonly Dictionary<uint, int> _materials;
+    private readonly Dictionary<uint, IngredientQualityDemand> _qualityTargets;
+    private readonly HashSet<uint> _precraftItemIds;
+    private bool _withdrawalPlanBuilt;
 
     public bool IsComplete => _phase == Phase.Complete;
     public bool IsAborted  => _phase == Phase.Aborted;
 
     public RetainerTaskExecutor(
         Dictionary<uint, int> materials,
-        Dictionary<uint, (int TargetHQ, int TargetNQ, bool IsExplicit)> qualityTargets)
+        Dictionary<uint, IngredientQualityDemand> qualityTargets,
+        HashSet<uint>? precraftItemIds = null)
     {
-        BuildWithdrawalPlan(materials, qualityTargets);
+        _materials = materials;
+        _qualityTargets = qualityTargets;
+        _precraftItemIds = precraftItemIds ?? [];
     }
 
-    private void BuildWithdrawalPlan(
-        Dictionary<uint, int> materials,
-        Dictionary<uint, (int TargetHQ, int TargetNQ, bool IsExplicit)> qualityTargets)
+    private bool BuildWithdrawalPlan()
     {
-        var retainerMgr = RetainerManager.Instance();
-        if (retainerMgr == null)
+        _retainersToVisit.Clear();
+        var perRetainerPlan = new Dictionary<ulong, Dictionary<uint, (int NeedHQ, int NeedNQ)>>();
+        var retainerIds = RetainerItemQuery.GetOwnedRetainerIds();
+        if (retainerIds.Count == 0)
+            retainerIds = GetRetainerIdsFromManager();
+
+        if (retainerIds.Count == 0)
         {
-            GatherBuddy.Log.Warning("[RetainerTaskExecutor] RetainerManager unavailable, aborting");
-            _phase = Phase.Aborted;
-            return;
+            GatherBuddy.Log.Debug("[RetainerTaskExecutor] No retainer ids available to build withdrawal plan yet");
+            return false;
         }
 
-        var retainerCount = retainerMgr->GetRetainerCount();
-        var perRetainerPlan = new Dictionary<uint, Dictionary<uint, (int NeedHQ, int NeedNQ)>>();
-
-        foreach (var (itemId, totalNeeded) in materials)
+        foreach (var (itemId, totalNeeded) in _materials)
         {
-            if (!qualityTargets.TryGetValue(itemId, out var qt))
-                qt = (totalNeeded, 0, false);
+            var demand = _qualityTargets.TryGetValue(itemId, out var qualityDemand)
+                ? qualityDemand
+                : IngredientQualityDemand.FromPreferHQ(totalNeeded);
 
-            int inBagHQ = 0, inBagNQ = 0;
-            var inventoryMgr = InventoryManager.Instance();
-            if (inventoryMgr != null)
+            IngredientQualityDemand remainingDemand;
+            if (_precraftItemIds.Contains(itemId))
             {
-                inBagHQ = (int)inventoryMgr->GetInventoryItemCount(itemId, true,  false, false);
-                inBagNQ = (int)inventoryMgr->GetInventoryItemCount(itemId, false, false, false);
+                GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Precraft item {itemId}: pulling exact retainer amount {demand.Total} (inventory already accounted for in plan)");
+                remainingDemand = demand;
+            }
+            else
+            {
+                int inBagHQ = 0, inBagNQ = 0;
+                var inventoryMgr = InventoryManager.Instance();
+                if (inventoryMgr != null)
+                {
+                    inBagHQ = (int)inventoryMgr->GetInventoryItemCount(itemId, true,  false, false);
+                    inBagNQ = (int)inventoryMgr->GetInventoryItemCount(itemId, false, false, false);
+                }
+                remainingDemand = demand.ConsumeSplit(inBagNQ, inBagHQ, out _, out _);
             }
 
-            int totalStillNeeded = Math.Max(0, (int)totalNeeded - inBagHQ - inBagNQ);
-            int hqStillWanted    = Math.Max(0, qt.TargetHQ - inBagHQ);
-            int nqStillNeeded    = Math.Max(0, qt.TargetNQ - inBagNQ);
-
-            if (totalStillNeeded <= 0 && hqStillWanted <= 0 && nqStillNeeded <= 0)
+            if (remainingDemand.Total <= 0)
                 continue;
 
-            int hqFromRetainers = 0;
-            int nqFromRetainers = 0;
-
-            for (uint i = 0; i < retainerCount; i++)
+            foreach (var retainerId in retainerIds)
             {
-                bool done = qt.IsExplicit
-                    ? hqFromRetainers >= hqStillWanted && nqFromRetainers >= nqStillNeeded
-                    : hqFromRetainers + nqFromRetainers >= totalStillNeeded;
-                if (done) break;
-
-                var retainer = retainerMgr->GetRetainerBySortedIndex(i);
-                if (retainer == null || retainer->RetainerId == 0)
-                    continue;
-
-                var rid = retainer->RetainerId;
 
                 int retainerHQ = 0, retainerNQ = 0;
                 for (uint page = 10000; page <= 10006; page++)
                 {
-                    var pageHQ = (int)AllaganTools.ItemCountHQ(itemId, rid, page);
+                    var pageHQ = (int)AllaganTools.ItemCountHQ(itemId, retainerId, page);
                     retainerHQ += pageHQ;
-                    retainerNQ += (int)AllaganTools.ItemCount(itemId, rid, page) - pageHQ;
+                    retainerNQ += (int)AllaganTools.ItemCount(itemId, retainerId, page) - pageHQ;
                 }
-                var crystalPageHQ = (int)AllaganTools.ItemCountHQ(itemId, rid, 12001);
+                var crystalPageHQ = (int)AllaganTools.ItemCountHQ(itemId, retainerId, 12001);
                 retainerHQ += crystalPageHQ;
-                retainerNQ += (int)AllaganTools.ItemCount(itemId, rid, 12001) - crystalPageHQ;
-
-                int toTakeHQ, toTakeNQ;
-                if (qt.IsExplicit)
-                {
-                    toTakeHQ = Math.Min(hqStillWanted - hqFromRetainers, retainerHQ);
-                    toTakeNQ = Math.Min(nqStillNeeded - nqFromRetainers, retainerNQ);
-                }
-                else
-                {
-                    int canTake  = Math.Max(0, totalStillNeeded - hqFromRetainers - nqFromRetainers);
-                    toTakeHQ = Math.Min(Math.Min(hqStillWanted - hqFromRetainers, retainerHQ), canTake);
-                    toTakeNQ = Math.Min(canTake - toTakeHQ, retainerNQ);
-                }
+                retainerNQ += (int)AllaganTools.ItemCount(itemId, retainerId, 12001) - crystalPageHQ;
+                var updatedDemand = remainingDemand.ConsumeSplit(retainerNQ, retainerHQ, out var toTakeNQ, out var toTakeHQ);
 
                 if (toTakeHQ <= 0 && toTakeNQ <= 0)
                     continue;
 
-                if (!perRetainerPlan.ContainsKey(i))
-                    perRetainerPlan[i] = new();
+                if (!perRetainerPlan.ContainsKey(retainerId))
+                    perRetainerPlan[retainerId] = new();
 
-                if (perRetainerPlan[i].TryGetValue(itemId, out var existing))
-                    perRetainerPlan[i][itemId] = (existing.NeedHQ + toTakeHQ, existing.NeedNQ + toTakeNQ);
+                if (perRetainerPlan[retainerId].TryGetValue(itemId, out var existing))
+                    perRetainerPlan[retainerId][itemId] = (existing.NeedHQ + toTakeHQ, existing.NeedNQ + toTakeNQ);
                 else
-                    perRetainerPlan[i][itemId] = (toTakeHQ, toTakeNQ);
+                    perRetainerPlan[retainerId][itemId] = (toTakeHQ, toTakeNQ);
 
-                hqFromRetainers += toTakeHQ;
-                nqFromRetainers += toTakeNQ;
+                remainingDemand = updatedDemand;
+                if (remainingDemand.Total <= 0)
+                    break;
             }
         }
 
-        foreach (var (sortedIndex, items) in perRetainerPlan.OrderBy(kv => kv.Key))
+        _perRetainerPlan = perRetainerPlan;
+        if (_perRetainerPlan.Count == 0)
         {
-            var retainer = retainerMgr->GetRetainerBySortedIndex(sortedIndex);
-            if (retainer == null) continue;
+            GatherBuddy.Log.Debug("[RetainerTaskExecutor] No retainer items to withdraw, completing immediately");
+            return true;
+        }
 
-            var hasAny = items.Values.Any(v => v.NeedHQ > 0 || v.NeedNQ > 0);
-            if (!hasAny) continue;
+        var retainerMgr = RetainerManager.Instance();
+        if (retainerMgr == null)
+        {
+            GatherBuddy.Log.Debug("[RetainerTaskExecutor] RetainerManager unavailable while mapping withdrawal plan");
+            return false;
+        }
 
-            _retainersToVisit.Add(new RetainerEntry(sortedIndex, retainer->RetainerId));
+        for (uint i = 0; i < retainerMgr->GetRetainerCount(); i++)
+        {
+            var retainer = retainerMgr->GetRetainerBySortedIndex(i);
+            if (retainer == null || retainer->RetainerId == 0)
+                continue;
+
+            if (!_perRetainerPlan.TryGetValue(retainer->RetainerId, out var items))
+                continue;
+
+            if (!items.Values.Any(v => v.NeedHQ > 0 || v.NeedNQ > 0))
+                continue;
+
+            _retainersToVisit.Add(new RetainerEntry(i, retainer->RetainerId));
         }
 
         GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Plan: {_retainersToVisit.Count} retainer(s) to visit");
         foreach (var r in _retainersToVisit)
         {
-            var items = perRetainerPlan[r.SortedIndex];
+            var items = _perRetainerPlan[r.RetainerId];
             foreach (var (itemId, amounts) in items)
-                GatherBuddy.Log.Debug($"[RetainerTaskExecutor]   Retainer {r.SortedIndex}: item {itemId} HQ={amounts.NeedHQ} NQ={amounts.NeedNQ}");
+                GatherBuddy.Log.Debug($"[RetainerTaskExecutor]   Retainer {r.SortedIndex} ({r.RetainerId}): item {itemId} HQ={amounts.NeedHQ} NQ={amounts.NeedNQ}");
         }
 
-        _perRetainerPlan = perRetainerPlan;
-
-        if (_retainersToVisit.Count == 0)
-        {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] No retainer items to withdraw, completing immediately");
-            _phase = Phase.Complete;
-        }
+        return _retainersToVisit.Count > 0;
     }
 
-    private Dictionary<uint, Dictionary<uint, (int NeedHQ, int NeedNQ)>> _perRetainerPlan = new();
+    private Dictionary<ulong, Dictionary<uint, (int NeedHQ, int NeedNQ)>> _perRetainerPlan = new();
 
     public CraftingTasks.TaskResult Tick()
     {
@@ -251,7 +252,6 @@ internal unsafe class RetainerTaskExecutor
             return CraftingTasks.TaskResult.Done;
         }
 
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Interacting with bell: {bell.Name}");
         TargetSystem.Instance()->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)bell.Address);
         _phase = Phase.WaitOccupied;
         _addonRetryCount = 0;
@@ -263,7 +263,6 @@ internal unsafe class RetainerTaskExecutor
     {
         if (Dalamud.Conditions[ConditionFlag.OccupiedSummoningBell])
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Bell occupied, waiting for RetainerList");
             _phase = Phase.WaitRetainerList;
             _addonRetryCount = 0;
             return CraftingTasks.TaskResult.Retry;
@@ -293,10 +292,27 @@ internal unsafe class RetainerTaskExecutor
     {
         if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) && addon->IsVisible)
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] RetainerList open");
+            if (!_withdrawalPlanBuilt)
+            {
+                if (!BuildWithdrawalPlan())
+                {
+                    _addonRetryCount++;
+                    if (_addonRetryCount > MaxAddonRetries)
+                    {
+                        GatherBuddy.Log.Warning("[RetainerTaskExecutor] Timed out building retainer withdrawal plan after opening RetainerList");
+                        _phase = Phase.Aborted;
+                        return CraftingTasks.TaskResult.Done;
+                    }
+
+                    Delay(150);
+                    return CraftingTasks.TaskResult.Retry;
+                }
+
+                _withdrawalPlanBuilt = true;
+            }
             _retainerVisitIndex = 0;
             _addonRetryCount = 0;
-            _phase = Phase.SelectRetainer;
+            _phase = _retainersToVisit.Count == 0 ? Phase.CloseRetainerList : Phase.SelectRetainer;
             return CraftingTasks.TaskResult.Retry;
         }
 
@@ -323,7 +339,6 @@ internal unsafe class RetainerTaskExecutor
     {
         if (_retainerVisitIndex >= _retainersToVisit.Count)
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] All retainers visited, closing list");
             _phase = Phase.CloseRetainerList;
             return CraftingTasks.TaskResult.Retry;
         }
@@ -335,7 +350,6 @@ internal unsafe class RetainerTaskExecutor
         }
 
         var entry = _retainersToVisit[_retainerVisitIndex];
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Selecting retainer at sorted index {entry.SortedIndex}");
         Callback.Fire(addon, true, 2, (uint)entry.SortedIndex);
         _addonRetryCount = 0;
         _phase = Phase.WaitRetainerMenu;
@@ -348,7 +362,6 @@ internal unsafe class RetainerTaskExecutor
         if (GenericHelpers.TryGetAddonByName<AddonSelectString>("SelectString", out var menu) &&
             menu->AtkUnitBase.IsVisible)
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Retainer SelectString menu open");
             _phase = Phase.SelectEntrustWithdraw;
             _addonRetryCount = 0;
             Delay(200);
@@ -383,7 +396,6 @@ internal unsafe class RetainerTaskExecutor
             return CraftingTasks.TaskResult.Retry;
         }
 
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Selecting 'Entrust or Withdraw' at index 0 ({entryCount} entries total)");
         new AddonMaster.SelectString((nint)menu).Entries[0].Select();
         _addonRetryCount = 0;
         _phase = Phase.WaitInventory;
@@ -396,9 +408,8 @@ internal unsafe class RetainerTaskExecutor
         var agentRetainer = AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer);
         if (agentRetainer != null && agentRetainer->IsAgentActive())
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Retainer inventory open");
             var entry = _retainersToVisit[_retainerVisitIndex];
-            _currentRetainerItems = BuildItemListForRetainer(entry.SortedIndex);
+            _currentRetainerItems = BuildItemListForRetainer(entry.RetainerId);
             _currentItemIndex = 0;
             _addonRetryCount = 0;
             _phase = Phase.WithdrawNextItem;
@@ -444,7 +455,6 @@ internal unsafe class RetainerTaskExecutor
             return CraftingTasks.TaskResult.Retry;
         }
 
-        GatherBuddy.Log.Debug("[RetainerTaskExecutor] All items for this retainer withdrawn, closing inventory");
         _phase = Phase.CloseRetainerInventory;
         return CraftingTasks.TaskResult.Retry;
     }
@@ -550,7 +560,7 @@ internal unsafe class RetainerTaskExecutor
 
         foreach (var param in contextAgent->EventParams)
         {
-            if (param.Type == FFXIVClientStructs.FFXIV.Component.GUI.ValueType.String)
+            if (param.Type == FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.String)
             {
                 var label = MemoryHelper.ReadSeStringNullTerminated(new IntPtr(param.String)).TextValue;
                 if (label == retrieveAll) idxAll = looper;
@@ -585,7 +595,6 @@ internal unsafe class RetainerTaskExecutor
                 return CraftingTasks.TaskResult.Retry;
             }
 
-            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Retrieve all ({_foundSlotQty}): index {idxAll}");
             Callback.Fire(menu, true, 0, idxAll, 0, 0, 0);
 
             if (_lookingForHQ) target.RemainingHQ -= _foundSlotQty;
@@ -715,7 +724,6 @@ internal unsafe class RetainerTaskExecutor
         var retainerAgent = agentModule->GetAgentByInternalId(AgentId.Retainer);
         if (retainerAgent != null && retainerAgent->IsAgentActive())
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Hiding retainer agent");
             retainerAgent->Hide();
             _addonRetryCount = 0;
             _phase = Phase.WaitInventoryClosed;
@@ -734,7 +742,6 @@ internal unsafe class RetainerTaskExecutor
         var retainerAgent = agentModule->GetAgentByInternalId(AgentId.Retainer);
         if (retainerAgent == null || !retainerAgent->IsAgentActive())
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Retainer inventory closed");
             _phase = Phase.SelectQuit;
             _addonRetryCount = 0;
             return CraftingTasks.TaskResult.Retry;
@@ -779,7 +786,6 @@ internal unsafe class RetainerTaskExecutor
             if (!label.Contains(quitText, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Selecting 'Quit' at index {i}");
             new AddonMaster.SelectString((nint)menu).Entries[i].Select();
             _retainerVisitIndex++;
             _addonRetryCount = 0;
@@ -808,7 +814,6 @@ internal unsafe class RetainerTaskExecutor
         if (!GenericHelpers.TryGetAddonByName<AddonSelectString>("SelectString", out var menu) ||
             !menu->AtkUnitBase.IsVisible)
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] Retainer menu closed after Quit");
             _phase = Phase.SelectRetainer;
             _addonRetryCount = 0;
             Delay(200);
@@ -853,12 +858,10 @@ internal unsafe class RetainerTaskExecutor
                 return CraftingTasks.TaskResult.Retry;
             }
 
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] RetainerList gone and bell released, extraction complete");
             _phase = Phase.Complete;
             return CraftingTasks.TaskResult.Done;
         }
 
-        GatherBuddy.Log.Debug("[RetainerTaskExecutor] Closing RetainerList");
         Callback.Fire(addon, true, -1);
         _addonRetryCount = 0;
         _phase = Phase.WaitListClosed;
@@ -877,7 +880,6 @@ internal unsafe class RetainerTaskExecutor
 
         if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) || !addon->IsVisible)
         {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] RetainerList closed, extraction complete");
             _phase = Phase.Complete;
             return CraftingTasks.TaskResult.Done;
         }
@@ -894,10 +896,10 @@ internal unsafe class RetainerTaskExecutor
         return CraftingTasks.TaskResult.Retry;
     }
 
-    private List<WithdrawTarget> BuildItemListForRetainer(uint sortedIndex)
+    private List<WithdrawTarget> BuildItemListForRetainer(ulong retainerId)
     {
         var list = new List<WithdrawTarget>();
-        if (!_perRetainerPlan.TryGetValue(sortedIndex, out var items))
+        if (!_perRetainerPlan.TryGetValue(retainerId, out var items))
             return list;
 
         foreach (var (itemId, amounts) in items.OrderByDescending(kv => kv.Value.NeedHQ > 0 ? 1 : 0))
@@ -906,20 +908,44 @@ internal unsafe class RetainerTaskExecutor
                 list.Add(new WithdrawTarget(itemId, amounts.NeedHQ, amounts.NeedNQ));
         }
 
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Built item list for retainer {sortedIndex}: {list.Count} item(s)");
+        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Built item list for retainer {retainerId}: {list.Count} item(s)");
         return list;
     }
 
-    private static IGameObject? FindNearestBell()
+    private static HashSet<ulong> GetRetainerIdsFromManager()
     {
-        var player = Dalamud.ClientState.LocalPlayer;
+        var retainerIds = new HashSet<ulong>();
+        var retainerMgr = RetainerManager.Instance();
+        if (retainerMgr == null)
+            return retainerIds;
+
+        for (uint i = 0; i < retainerMgr->GetRetainerCount(); i++)
+        {
+            var retainer = retainerMgr->GetRetainerBySortedIndex(i);
+            if (retainer == null || retainer->RetainerId == 0)
+                continue;
+
+            retainerIds.Add(retainer->RetainerId);
+        }
+
+        if (retainerIds.Count > 0)
+            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Falling back to RetainerManager ids for {retainerIds.Count} retainer(s)");
+
+        return retainerIds;
+    }
+
+    public static IGameObject? FindNearestBellForNavigation()
+    {
+        var player = Dalamud.Objects.LocalPlayer;
         if (player == null) return null;
 
         var bellName = GetBellName();
+        IGameObject? nearest = null;
+        float nearestDistance = float.MaxValue;
 
         foreach (var obj in Dalamud.Objects)
         {
-            if (obj.ObjectKind != ObjectKind.Housing && obj.ObjectKind != ObjectKind.EventObj)
+            if (obj.ObjectKind != ObjectKind.HousingEventObject && obj.ObjectKind != ObjectKind.EventObj)
                 continue;
 
             var name = obj.Name.TextValue;
@@ -927,7 +953,38 @@ internal unsafe class RetainerTaskExecutor
                 !name.Equals("リテイナーベル", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            float maxDist = obj.ObjectKind == ObjectKind.Housing ? 6.5f : 4.75f;
+            if (!obj.IsTargetable)
+                continue;
+
+            var distance = Vector3.Distance(obj.Position, player.Position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = obj;
+            }
+        }
+
+        return nearest;
+    }
+
+    private static IGameObject? FindNearestBell()
+    {
+        var player = Dalamud.Objects.LocalPlayer;
+        if (player == null) return null;
+
+        var bellName = GetBellName();
+
+        foreach (var obj in Dalamud.Objects)
+        {
+            if (obj.ObjectKind != ObjectKind.HousingEventObject && obj.ObjectKind != ObjectKind.EventObj)
+                continue;
+
+            var name = obj.Name.TextValue;
+            if (!name.Equals(bellName, StringComparison.OrdinalIgnoreCase) &&
+                !name.Equals("リテイナーベル", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            float maxDist = obj.ObjectKind == ObjectKind.HousingEventObject ? 6.5f : 4.75f;
             if (Vector3.Distance(obj.Position, player.Position) > maxDist)
                 continue;
 
@@ -969,133 +1026,40 @@ internal unsafe class RetainerTaskExecutor
         _nextRetry = DateTime.Now.AddMilliseconds(ms);
     }
 
-    internal static unsafe (Dictionary<uint, int> CorrectedMaterials, Dictionary<uint, int> PrecraftItems) PlanRetainerRestock(CraftingListDefinition list, List<CraftingListItem> expandedQueue)
-    {
-        if (!list.SkipIfEnough)
-        {
-            GatherBuddy.Log.Debug("[RetainerTaskExecutor] PlanRetainerRestock: SkipIfEnough=false, pulling leaf materials only (Scenario 1)");
-            return (list.ListMaterials(), new Dictionary<uint, int>());
-        }
 
-        var precraftsTotal       = list.ListPrecrafts();
-        var precraftFromRetainer = new Dictionary<uint, int>();
-        var additionalAvailable  = new Dictionary<uint, int>();
-        var inventoryMgr         = InventoryManager.Instance();
-
-        var qualityTargets = ComputeQualityTargets(
-            precraftsTotal.ToDictionary(kv => kv.Key, kv => kv.Value),
-            expandedQueue);
-
-        foreach (var (precraftItemId, totalNeeded) in precraftsTotal)
-        {
-            int inBagHQ = 0, inBagNQ = 0;
-            if (inventoryMgr != null)
-            {
-                inBagHQ = (int)inventoryMgr->GetInventoryItemCount(precraftItemId, true,  false, false);
-                inBagNQ = (int)inventoryMgr->GetInventoryItemCount(precraftItemId, false, false, false);
-            }
-
-            qualityTargets.TryGetValue(precraftItemId, out var qt);
-            int stillNeeded = (qt.TargetNQ == 0)
-                ? Math.Max(0, totalNeeded - inBagHQ)
-                : Math.Max(0, totalNeeded - inBagHQ - inBagNQ);
-            if (stillNeeded <= 0) continue;
-
-            int hqStillWanted = Math.Max(0, qt.TargetHQ - inBagHQ);
-            int nqStillNeeded = Math.Max(0, qt.TargetNQ - inBagNQ);
-
-            int retainerHQ = (int)RetainerCache.GetRetainerItemCountHQ(precraftItemId);
-            int retainerNQ = (int)RetainerCache.GetRetainerItemCountNQ(precraftItemId);
-
-            int toWithdrawHQ = Math.Min(hqStillWanted, retainerHQ);
-            int toWithdrawNQ;
-            if (qt.IsExplicit)
-            {
-                toWithdrawNQ = Math.Min(nqStillNeeded, retainerNQ);
-            }
-            else
-            {
-                int remaining = Math.Max(0, stillNeeded - toWithdrawHQ);
-                toWithdrawNQ = Math.Min(remaining, retainerNQ);
-            }
-            int toWithdraw = toWithdrawHQ + toWithdrawNQ;
-
-            if (toWithdraw <= 0) continue;
-
-            precraftFromRetainer[precraftItemId] = toWithdraw;
-            additionalAvailable[precraftItemId]  = toWithdraw;
-
-            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Precraft {precraftItemId}: need={stillNeeded}, retainer HQ={retainerHQ} NQ={retainerNQ}, withdrawing {toWithdrawHQ} HQ + {toWithdrawNQ} NQ");
-        }
-
-        foreach (var pulledItemId in precraftFromRetainer.Keys.ToList())
-        {
-            if (!precraftFromRetainer.TryGetValue(pulledItemId, out var pullQty) || pullQty <= 0)
-                continue;
-
-            var pulledRecipe = RecipeManager.GetRecipeForItem(pulledItemId);
-            if (pulledRecipe == null) continue;
-
-            int craftsDisplaced = (int)Math.Ceiling((double)pullQty / pulledRecipe.Value.AmountResult);
-            foreach (var (subItemId, amtPerCraft) in RecipeManager.GetIngredients(pulledRecipe.Value))
-            {
-                if (!precraftFromRetainer.ContainsKey(subItemId)) continue;
-
-                int reduction = amtPerCraft * craftsDisplaced;
-                int newQty    = Math.Max(0, precraftFromRetainer[subItemId] - reduction);
-                GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Sub-precraft {subItemId} pull reduced by {reduction} (displaced by {pullQty}× pulled precraft {pulledItemId}), new qty={newQty}");
-                if (newQty <= 0)
-                {
-                    precraftFromRetainer.Remove(subItemId);
-                    additionalAvailable.Remove(subItemId);
-                }
-                else
-                {
-                    precraftFromRetainer[subItemId] = newQty;
-                    additionalAvailable[subItemId]  = newQty;
-                }
-            }
-        }
-
-        var correctedMaterials = list.ListMaterials(additionalAvailable, qualityTargets);
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] PlanRetainerRestock: {precraftFromRetainer.Count} precraft(s), {correctedMaterials.Count} leaf material(s)");
-        return (correctedMaterials, precraftFromRetainer);
-    }
-
-    internal static Dictionary<uint, (int TargetHQ, int TargetNQ, bool IsExplicit)> ComputeQualityTargets(
+    internal static Dictionary<uint, IngredientQualityDemand> ComputeQualityTargets(
         Dictionary<uint, int> materials,
         List<CraftingListItem> expandedQueue)
     {
-        var targets = new Dictionary<uint, (int TargetHQ, int TargetNQ, bool IsExplicit)>();
+        var targets = materials.Keys.ToDictionary(itemId => itemId, _ => default(IngredientQualityDemand));
+
+        foreach (var queueItem in expandedQueue)
+        {
+            var recipe = RecipeManager.GetRecipe(queueItem.RecipeId);
+            if (recipe == null)
+                continue;
+
+            var qualityPolicy = queueItem.QualityPolicy ?? CraftingQualityPolicyResolver.Resolve(recipe.Value, queueItem.CraftSettings);
+            foreach (var (itemId, _) in RecipeManager.GetIngredients(recipe.Value))
+            {
+                if (!targets.ContainsKey(itemId))
+                    continue;
+
+                targets[itemId] = targets[itemId].Add(qualityPolicy.GetDemand(itemId).Scale(Math.Max(1, queueItem.Quantity)));
+            }
+        }
 
         foreach (var (itemId, totalNeeded) in materials)
         {
-            int aggregateHQWanted = 0;
-            bool hasExplicitPref  = false;
-
-            foreach (var queueItem in expandedQueue)
+            var target = targets[itemId];
+            if (target.Total < totalNeeded)
             {
-                var recipe = RecipeManager.GetRecipe(queueItem.RecipeId);
-                if (recipe == null) continue;
-
-                var ingredients = RecipeManager.GetIngredients(recipe.Value);
-                var ingredientEntry = ingredients.FirstOrDefault(x => x.itemId == itemId);
-                if (ingredientEntry == default) continue;
-                int amtPerCraft = ingredientEntry.amount;
-
-                bool useAllNQ = queueItem.CraftSettings?.UseAllNQ ?? false;
-
-                if (queueItem.IngredientPreferences.TryGetValue(itemId, out var pref))
-                {
-                    aggregateHQWanted += Math.Min(pref, amtPerCraft);
-                    hasExplicitPref = true;
-                }
-                else if (!useAllNQ)
-                    aggregateHQWanted += amtPerCraft;
+                targets[itemId] = target.Add(IngredientQualityDemand.FromPreferHQ(totalNeeded - target.Total));
+                continue;
             }
 
-            aggregateHQWanted = Math.Min(aggregateHQWanted, totalNeeded);
-            targets[itemId] = (aggregateHQWanted, totalNeeded - aggregateHQWanted, hasExplicitPref);
+            if (target.Total > totalNeeded)
+                targets[itemId] = target.ConsumeUnknownQuality(target.Total - totalNeeded, out _);
         }
 
         return targets;

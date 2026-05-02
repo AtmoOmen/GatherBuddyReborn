@@ -183,9 +183,8 @@ public class GameData
             Data.Fish.Apply(this);
             OverriddenFish = Fishes.Values.Count(f => f.HasOverridenData);
 
-            // ÐÞ¸´ÓîÖæµö³¡·¶Î§: [10043, 10192] ã¿ã½Íå+·¨¶÷ÄÈ+¶í„ûË¹
             FishingSpots = DataManager.GetExcelSheet<FishingSpotRow>()
-                .Where(f => (f.PlaceName.RowId != 0 || f.RowId >= 10017) && (f.TerritoryType.RowId > 0 || f.RowId == 10000 || (f.RowId >= 10017 && f.RowId < 10026) || (f.RowId >= 10043 && f.RowId <= 10192)))
+                .Where(f => (f.PlaceName.RowId != 0 || f.RowId >= 10017) && (f.TerritoryType.RowId > 0 || f.RowId == 10000 || f.RowId >= 10017))
                 .Select(f => new FishingSpot(this, f))
                 .Concat(
                     DataManager.GetExcelSheet<SpearfishingNotebook>()
@@ -268,13 +267,13 @@ public class GameData
         {
             var spot = fish.FishData?.FishingSpot.RowId ?? 0u;
             if (set.TryGetValue(spot, out var area))
-                fish.OceanArea = fish.OceanArea == OceanArea.None || fish.OceanArea == area ? area : OceanArea.Unknown;
+                fish.OceanArea = fish.OceanArea is OceanArea.None || fish.OceanArea == area ? area : OceanArea.Unknown;
         }
     }
 
     private static OceanRoute[] SetupOceanRoutes(IDataManager manager, IReadOnlyDictionary<uint, FishingSpot> fishingSpots)
     {
-        var routeSheet = manager.GetExcelSheet<IKDRoute>(ClientLanguage.ChineseSimplified);
+        var routeSheet = manager.GetExcelSheet<IKDRoute>(ClientLanguage.English);
         var spotSheet  = manager.GetExcelSheet<IKDSpot>();
         var ret        = new OceanRoute[routeSheet.Count - 1];
 
@@ -306,7 +305,12 @@ public class GameData
                 SpotDay    = day,
                 SpotSunset = sunset,
                 SpotNight  = night,
-                Area       = i < 13 ? OceanArea.Aldenard : i < 19 ? OceanArea.Othard : OceanArea.Unknown,
+                Area       = i switch
+                {
+                    < 13 => OceanArea.Aldenard,
+                    < 22 => OceanArea.Othard,
+                    _ => OceanArea.Unknown,
+                },
             };
         }
 

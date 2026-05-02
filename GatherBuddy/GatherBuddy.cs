@@ -81,8 +81,12 @@ public partial class GatherBuddy : IDalamudPlugin
     public static Gui.CraftingStatusWindow? CraftingStatusWindow { get; private set; }
     public static Gui.VulcanWindow? VulcanWindow { get; private set; }
     public static Gui.CraftingMaterialsWindow? CraftingMaterialsWindow { get; private set; }
+    public static Gui.VendorBuyListWindow? VendorBuyListWindow { get; private set; }
     public static ControllerSupportManager?      ControllerSupport      { get; private set; }
     public static MarketboardService?             MarketboardService     { get; private set; }
+    public static Vulcan.Vendors.VendorNavigator  VendorNavigator        { get; private set; } = null!;
+    public static Vulcan.Vendors.VendorPurchaseManager VendorPurchaseManager { get; private set; } = null!;
+    public static Vulcan.Vendors.VendorBuyListManager VendorBuyListManager { get; private set; } = null!;
 
 
     internal readonly GatherGroup.GatherGroupManager GatherGroupManager;
@@ -98,6 +102,7 @@ public partial class GatherBuddy : IDalamudPlugin
     internal VulcanWindow?                           _vulcanWindow;
     internal Gui.CraftingStatusWindow?               _craftingStatusWindow;
     internal Gui.CraftingMaterialsWindow?            _craftingMaterialsWindow;
+    internal Gui.VendorBuyListWindow?                _vendorBuyListWindow;
 
     internal readonly GatherBuddyIpc Ipc;
     //    internal readonly WotsitIpc Wotsit;
@@ -143,11 +148,12 @@ public partial class GatherBuddy : IDalamudPlugin
             RaphaelSolveCoordinator = new Crafting.RaphaelSolveCoordinator(Config.RaphaelSolverConfig);
             RecipeBrowserSettings = new Crafting.RecipeBrowserSettings();
             RecipeBrowserSettings.Load();
+            VendorNavigator = new Vulcan.Vendors.VendorNavigator();
+            VendorPurchaseManager = new Vulcan.Vendors.VendorPurchaseManager();
+            VendorBuyListManager = new Vulcan.Vendors.VendorBuyListManager();
             CraftingGameInterop.Initialize();
             CraftingGatherBridge.Initialize(this);
-            RetainerCache.Initialize();
             CraftingGameInterop.CraftFinished += (recipe, cancelled) => CraftingGatherBridge.OnCraftFinished(recipe, cancelled);
-            Dalamud.ClientState.Logout += (a, b) => RetainerCache.OnLogout();
             
             Task.Run(() =>
             {
@@ -177,6 +183,8 @@ public partial class GatherBuddy : IDalamudPlugin
             CraftingStatusWindow = _craftingStatusWindow;
             _craftingMaterialsWindow = new Gui.CraftingMaterialsWindow();
             CraftingMaterialsWindow = _craftingMaterialsWindow;
+            _vendorBuyListWindow = new Gui.VendorBuyListWindow();
+            VendorBuyListWindow = _vendorBuyListWindow;
             WindowSystem.AddWindow(Interface);
             WindowSystem.AddWindow(new GatherWindow(this));
             WindowSystem.AddWindow(new FishTimerWindow(FishRecorder));
@@ -184,6 +192,7 @@ public partial class GatherBuddy : IDalamudPlugin
             WindowSystem.AddWindow(_vulcanWindow);
             WindowSystem.AddWindow(_craftingStatusWindow);
             WindowSystem.AddWindow(_craftingMaterialsWindow);
+            WindowSystem.AddWindow(_vendorBuyListWindow);
             Dalamud.PluginInterface.UiBuilder.Draw         += WindowSystem.Draw;
             Dalamud.PluginInterface.UiBuilder.OpenConfigUi += Interface.Toggle;
             Dalamud.PluginInterface.UiBuilder.OpenMainUi   += Interface.Toggle;
@@ -202,6 +211,7 @@ public partial class GatherBuddy : IDalamudPlugin
                 // Register both windows as managed by ElliCon
                 ControllerSupport.RegisterBlockingWindow("Vulcan - Crafting###VulcanWindow");
                 ControllerSupport.RegisterBlockingWindow("Crafting Status###GatherBuddyCraftingStatus");
+                ControllerSupport.RegisterBlockingWindow(Gui.VendorBuyListWindow.WindowId);
                 
                 // Start in normal mode (blocks everything when windows are focused)
                 ControllerSupport.SetBlockingMode(true, true, true);
@@ -232,7 +242,7 @@ public partial class GatherBuddy : IDalamudPlugin
             {
                 Log.Error("First Party GatherBuddy detected. Please uninstall it to use this version.");
                 Communicator.PrintError(
-                    "[GatherBuddy Reborn] ºÏ≤‚µΩπŸ∑Ω∞Ê GatherBuddy, «Î–∂‘ÿ∫Û÷ÿ∆Ù”Œœ∑“‘ π”√¥À∞Ê±æ°£");
+                    "[GatherBuddy Reborn] Ê£ÄÊµãÂà∞ÂÆòÊñπÁâà GatherBuddy, ËØ∑Âç∏ËΩΩÂêéÈáçÂêØÊ∏∏Êàè‰ª•‰ΩøÁî®Ê≠§ÁâàÊú¨„ÄÇ");
                 break;
             }
         }
@@ -282,6 +292,9 @@ public partial class GatherBuddy : IDalamudPlugin
         {
             CraftingGameInterop.Update();
             CraftingGatherBridge.Update();
+            VendorNavigator.Update();
+            VendorPurchaseManager.Update();
+            VendorBuyListManager.Update();
         }
         catch (Exception e)
         {
@@ -304,13 +317,14 @@ public partial class GatherBuddy : IDalamudPlugin
         RaphaelSolveCoordinator?.Save();
         if (Dalamud.Framework != null)
             Dalamud.Framework.Update -= Update;
-        RetainerCache.Dispose();
         CraftingGameInterop.Dispose();
         FishRecorder?.Dispose();
         ContextMenu?.Dispose();
         UptimeManager?.Dispose();
         AutoGather?.Dispose();
         CollectableManager?.Dispose();
+        VendorBuyListManager?.Dispose();
+        VendorPurchaseManager?.Dispose();
         ControllerSupport?.Dispose();
         Ipc?.Dispose();
         //Wotsit?.Dispose();

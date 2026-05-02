@@ -10,9 +10,16 @@ public class CraftingActionExecutor : IActionExecutor
     public bool CanExecuteAction(VulcanSkill action, CraftState craft, StepState step, string outReason = "")
     {
         if (action == VulcanSkill.None)
+        {
+            GatherBuddy.Log.Debug("[CraftingActionExecutor] Cannot execute VulcanSkill.None recommendation");
             return false;
-        if (step.RemainingCP <= 0)
+        }
+
+        if (!Simulator.CanUseAction(craft, step, action))
+        {
+            GatherBuddy.Log.Debug($"[CraftingActionExecutor] Cannot execute action {action}: {step}");
             return false;
+        }
         return true;
     }
 
@@ -20,7 +27,7 @@ public class CraftingActionExecutor : IActionExecutor
     {
         try
         {
-            var playerJobId = (uint)(Dalamud.ClientState.LocalPlayer?.ClassJob.RowId ?? 0);
+            var playerJobId = (uint)(Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0);
             var actionId = action.ActionId(playerJobId);
             if (actionId == 0)
                 actionId = (uint)action;

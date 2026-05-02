@@ -14,9 +14,13 @@ namespace GatherBuddy.Crafting;
 
 public class CraftingQueueProcessor
 {
+    private static readonly List<CraftingListItem> EmptyQueue = [];
+    private static readonly Dictionary<uint, int> EmptyCounts = [];
+    private static readonly Dictionary<uint, IngredientQualityDemand> EmptyIngredientDemands = [];
     public enum QueueState
     {
         Idle,
+        NavigatingToRetainerBell,
         WithdrawingFromRetainer,
         WaitingForGather,
         WaitingForJobSwitch,
@@ -29,19 +33,15 @@ public class CraftingQueueProcessor
     }
 
     private QueueState _currentState = QueueState.Idle;
-    private List<CraftingListItem> _queue = new();
+    private CraftingExecutionPlan? _executionPlan = null;
     private int _currentQueueIndex = 0;
     private List<Func<CraftingTasks.TaskResult>> _tasks = new();
     private RaphaelSolveCoordinator? _raphaelCoordinator = null;
     private CraftingListConsumableSettings? _listConsumables = null;
     private DateTime _consumableDelayUntil = DateTime.MinValue;
     private bool _retainerRestock = false;
-    private Dictionary<uint, int> _allMaterials = new();
-    private Dictionary<uint, int> _retainerPrecraftItems = new();
-    private Dictionary<uint, int> _retainerSkipAmounts = new();
-    private Dictionary<uint, (int TargetHQ, int TargetNQ, bool IsExplicit)> _precraftQualityTargets = new();
-    private List<CraftingListItem> _expandedQueueForRetainer = new();
     private RetainerTaskExecutor? _retainerExecutor = null;
+    private RetainerBellNavigator? _retainerBellNavigator = null;
 
     private bool _paused = false;
     private bool _pausedDuringGather = false;
@@ -50,13 +50,20 @@ public class CraftingQueueProcessor
     private int _currentProcessedRecipeTotal = 0;
     private DateTime _craftHangSince = DateTime.MinValue;
     private bool _lastCraftWasQuickSynth = false;
-    private Dictionary<uint, RaphaelSolveRequest> _enqueuedRaphaelRequests = new();
+    private Dictionary<string, RaphaelSolveRequest> _enqueuedRaphaelRequests = new();
     private uint _jobSwitchRequestedFor = 0u;
+    private Dictionary<uint, int> _missingIngredientFailures = new();
+
+    private List<CraftingListItem> QueueItems => _executionPlan?.Queue ?? EmptyQueue;
+    private Dictionary<uint, int> MaterialTargets => _executionPlan?.Materials ?? EmptyCounts;
+    private Dictionary<uint, int> RetainerPrecraftTargets => _executionPlan?.RetainerConsumedCraftables ?? EmptyCounts;
+    private Dictionary<uint, IngredientQualityDemand> IngredientDemandTargets => _executionPlan?.IngredientDemands ?? EmptyIngredientDemands;
+    private CraftingListDefinition? PlanningSnapshot => _executionPlan?.PlanningSnapshot;
 
     public QueueState CurrentState => _currentState;
     public int CurrentQueueIndex => _currentQueueIndex;
-    public int QueueCount => _queue.Count;
-    public CraftingListItem? CurrentRecipeItem => _currentQueueIndex < _queue.Count ? _queue[_currentQueueIndex] : null;
+    public int QueueCount => QueueItems.Count;
+    public CraftingListItem? CurrentRecipeItem => _currentQueueIndex < QueueItems.Count ? QueueItems[_currentQueueIndex] : null;
     public bool Paused => _paused;
     public uint CurrentProcessedRecipeId => _currentProcessedRecipeId;
     public int CurrentProcessedRecipeCount => _currentProcessedRecipeCount;
@@ -75,45 +82,55 @@ public class CraftingQueueProcessor
         CraftingGameInterop.QuickSynthProgress += OnQuickSynthProgress;
     }
 
-    public void StartQueue(List<CraftingListItem> queue, CraftingListConsumableSettings? listConsumables = null, RaphaelSolveCoordinator? raphaelCoordinator = null, bool skipIfEnough = false, bool retainerRestock = false, Dictionary<uint, int>? materials = null, Dictionary<uint, int>? retainerPrecraftItems = null)
+    public void StartQueue(CraftingExecutionPlan executionPlan, CraftingListConsumableSettings? listConsumables = null, RaphaelSolveCoordinator? raphaelCoordinator = null)
     {
-        _queue = new List<CraftingListItem>(queue);
+        YesAlready.Lock();
+        _executionPlan = executionPlan;
         _currentQueueIndex = 0;
         _raphaelCoordinator = raphaelCoordinator;
         _listConsumables = listConsumables;
         _consumableDelayUntil = DateTime.MinValue;
         _enqueuedRaphaelRequests.Clear();
         _jobSwitchRequestedFor = 0u;
-        _retainerRestock = retainerRestock;
-        _allMaterials = materials ?? new();
-        _retainerPrecraftItems = retainerPrecraftItems ?? new();
-        _retainerSkipAmounts = new();
-        _precraftQualityTargets = new();
-        _expandedQueueForRetainer = new List<CraftingListItem>(queue);
+        _missingIngredientFailures.Clear();
+        _retainerRestock = executionPlan.RetainerRestock;
         _retainerExecutor = null;
+        _retainerBellNavigator = null;
+        var hasRetainerWork = _retainerRestock && AllaganTools.Enabled
+            && (MaterialTargets.Count > 0 || RetainerPrecraftTargets.Count > 0);
 
-        if (retainerRestock && AllaganTools.Enabled && materials != null && materials.Count > 0)
+        if (hasRetainerWork)
         {
-            GatherBuddy.Log.Information("[CraftingQueueProcessor] Retainer restock enabled, starting withdrawal stage");
-            _currentState = QueueState.WithdrawingFromRetainer;
-            QueueRetainerWithdrawalTasks();
+            GatherBuddy.Log.Information("[CraftingQueueProcessor] Retainer restock enabled");
+            if (GatherBuddy.Config.VulcanRetainerBellConfig.AutoNavigateToRetainerBell)
+            {
+                GatherBuddy.Log.Debug("[CraftingQueueProcessor] Auto-navigation to retainer bell enabled");
+                _currentState = QueueState.NavigatingToRetainerBell;
+                QueueRetainerBellNavigationTasks();
+            }
+            else
+            {
+                GatherBuddy.Log.Debug("[CraftingQueueProcessor] Proceeding directly to retainer withdrawal");
+                _currentState = QueueState.WithdrawingFromRetainer;
+                QueueRetainerWithdrawalTasks();
+            }
         }
         else
         {
             _currentState = QueueState.WaitingForGather;
         }
-        GatherBuddy.Log.Information($"[CraftingQueueProcessor] Starting queue with {_queue.Count} recipes");
+        GatherBuddy.Log.Information($"[CraftingQueueProcessor] Starting queue with {QueueItems.Count} recipes");
         StateChanged?.Invoke(_currentState);
         
         var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
         if (_raphaelCoordinator != null && solverMode == RaphaelSolverMode.PureRaphael)
         {
             GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Building CraftStates to extract accurate stats for Raphael");
-            EnqueueRaphaelSolvesFromCraftStates(_queue);
+            EnqueueRaphaelSolvesFromCraftStates(QueueItems);
         }
         else if (solverMode == RaphaelSolverMode.StandardSolver)
         {
-            var raphaelOverrideItems = _queue.Where(r => r.CraftSettings?.SolverOverride == SolverOverrideMode.RaphaelSolver).ToList();
+            var raphaelOverrideItems = QueueItems.Where(r => r.CraftSettings?.SolverOverride == SolverOverrideMode.RaphaelSolver).ToList();
             if (raphaelOverrideItems.Count > 0 && _raphaelCoordinator != null)
             {
                 GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Enqueuing Raphael solves for {raphaelOverrideItems.Count} override item(s)");
@@ -128,7 +145,7 @@ public class CraftingQueueProcessor
             return;
 
         GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Gather complete, moving to job check");
-        
+        YesAlready.Lock();
         CraftingGatherBridge.DeleteTemporaryGatherList();
         
         _currentState = QueueState.WaitingForJobSwitch;
@@ -147,6 +164,8 @@ public class CraftingQueueProcessor
         switch (_currentState)
         {
             case QueueState.Idle:
+                break;
+            case QueueState.NavigatingToRetainerBell:
                 break;
             case QueueState.WithdrawingFromRetainer:
                 break;
@@ -174,6 +193,8 @@ public class CraftingQueueProcessor
                 }
                 else if (CraftingGameInterop.CurrentState == CraftingGameInterop.CraftState.IdleNormal)
                 {
+                    if (HandlePreparationFailure())
+                        break;
                     if (_craftHangSince == DateTime.MinValue)
                     {
                         GatherBuddy.Log.Debug("[CraftingQueueProcessor] Game returned to IdleNormal while in Crafting state, starting hang watchdog");
@@ -225,25 +246,25 @@ public class CraftingQueueProcessor
 
     private unsafe void UpdateJobSwitch()
     {
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             CompleteQueue();
             return;
         }
 
-        while (_currentQueueIndex < _queue.Count && _queue[_currentQueueIndex].Options.Skipping)
+        while (_currentQueueIndex < QueueItems.Count && QueueItems[_currentQueueIndex].Options.Skipping)
         {
-            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] UpdateJobSwitch: skipping recipe {_queue[_currentQueueIndex].RecipeId}");
+            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] UpdateJobSwitch: skipping recipe {QueueItems[_currentQueueIndex].RecipeId}");
             _currentQueueIndex++;
         }
 
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             CompleteQueue();
             return;
         }
 
-        var recipeItem = _queue[_currentQueueIndex];
+        var recipeItem = QueueItems[_currentQueueIndex];
         var recipe = RecipeManager.GetRecipe(recipeItem.RecipeId);
         if (recipe == null)
         {
@@ -253,7 +274,7 @@ public class CraftingQueueProcessor
         }
 
         var requiredJob = (uint)(recipe.Value.CraftType.RowId + 8);
-        var currentJob = Dalamud.ClientState.LocalPlayer?.ClassJob.RowId ?? 0;
+        var currentJob = Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
 
         if (currentJob != requiredJob)
         {
@@ -269,13 +290,13 @@ public class CraftingQueueProcessor
             {
                 GatherBuddy.Log.Information($"[CraftingQueueProcessor] Job switch needed: {requiredJob}");
                 bool needExitCraft = CraftingGameInterop.CurrentState == CraftingGameInterop.CraftState.IdleBetween;
-                
+
                 if (needExitCraft)
                 {
                     GatherBuddy.Log.Debug("[CraftingQueueProcessor] Queueing TaskExitCraft before job switch");
                     _tasks.Add(() => CraftingTasks.TaskExitCraft());
                 }
-                
+
                 _tasks.Add(() =>
                 {
                     if (Dalamud.Conditions[ConditionFlag.BetweenAreas] || Dalamud.Conditions[ConditionFlag.BetweenAreas51])
@@ -332,8 +353,8 @@ public class CraftingQueueProcessor
         }
 
         var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
-        var itemSolverOverride = _currentQueueIndex < _queue.Count
-            ? (_queue[_currentQueueIndex].CraftSettings?.SolverOverride ?? SolverOverrideMode.Default)
+        var itemSolverOverride = _currentQueueIndex < QueueItems.Count
+            ? (QueueItems[_currentQueueIndex].CraftSettings?.SolverOverride ?? SolverOverrideMode.Default)
             : SolverOverrideMode.Default;
         var useRaphael = itemSolverOverride == SolverOverrideMode.RaphaelSolver
             || (itemSolverOverride == SolverOverrideMode.Default && solverMode == RaphaelSolverMode.PureRaphael);
@@ -346,9 +367,9 @@ public class CraftingQueueProcessor
             return;
         }
 
-        if (_currentQueueIndex < _queue.Count)
+        if (_currentQueueIndex < QueueItems.Count)
         {
-            var currentItem = _queue[_currentQueueIndex];
+            var currentItem = QueueItems[_currentQueueIndex];
             var currentRecipe = RecipeManager.GetRecipe(currentItem.RecipeId);
             if (currentRecipe != null)
             {
@@ -365,37 +386,36 @@ public class CraftingQueueProcessor
             }
         }
 
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             _currentState = QueueState.ReadyForCraft;
             StateChanged?.Invoke(_currentState);
             return;
         }
-        
-        var recipeItem = _queue[_currentQueueIndex];
-        if (_enqueuedRaphaelRequests.TryGetValue(recipeItem.RecipeId, out var enqueuedRequest))
+
+        var recipeItem = QueueItems[_currentQueueIndex];
+        var currentRequest = BuildRaphaelRequestForItem(recipeItem);
+        if (currentRequest != null && !_enqueuedRaphaelRequests.ContainsKey(currentRequest.GetKey()))
         {
-            var currentRequest = BuildRaphaelRequestForRecipe(recipeItem.RecipeId);
-            if (currentRequest != null && enqueuedRequest.GetKey() != currentRequest.GetKey())
-            {
-                GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Stats mismatch for recipe {recipeItem.RecipeId} — saved gearset may be outdated.");
-                GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Enqueued key: {enqueuedRequest.GetKey()}, Current key: {currentRequest.GetKey()}");
-                _enqueuedRaphaelRequests[recipeItem.RecipeId] = currentRequest;
-                _raphaelCoordinator!.EnqueueSolvesFromRequests(new[] { currentRequest });
-                _currentState = QueueState.WaitingForRaphaelSolution;
-                StateChanged?.Invoke(_currentState);
-                return;
-            }
+            if (_enqueuedRaphaelRequests.Values.Any(r => r.RecipeId == currentRequest.RecipeId))
+                GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Enqueuing additional Raphael variant for recipe {currentRequest.RecipeId} (key: {currentRequest.GetKey()})");
+
+            _enqueuedRaphaelRequests[currentRequest.GetKey()] = currentRequest;
+            _raphaelCoordinator!.EnqueueSolvesFromRequests(new[] { currentRequest });
+            _currentState = QueueState.WaitingForRaphaelSolution;
+            StateChanged?.Invoke(_currentState);
+            return;
         }
-        if (IsRaphaelSolutionReady(recipeItem.RecipeId))
+
+        if (IsRaphaelSolutionReady(recipeItem))
         {
             GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Raphael solution ready for recipe {recipeItem.RecipeId}");
             _currentState = QueueState.ReadyForCraft;
             StateChanged?.Invoke(_currentState);
         }
-        else if (IsRaphaelSolutionFailed(recipeItem.RecipeId))
+        else if (IsRaphaelSolutionFailed(recipeItem))
         {
-            SkipFailedRaphaelItem(recipeItem.RecipeId);
+            SkipFailedRaphaelItem(recipeItem);
         }
         else
         {
@@ -404,53 +424,59 @@ public class CraftingQueueProcessor
             StateChanged?.Invoke(_currentState);
         }
     }
-    
+
     private void CheckRaphaelSolutionReady()
     {
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             _currentState = QueueState.ReadyForCraft;
             StateChanged?.Invoke(_currentState);
             return;
         }
-        
-        var recipeItem = _queue[_currentQueueIndex];
-        
-        if (IsRaphaelSolutionReady(recipeItem.RecipeId))
+
+        var recipeItem = QueueItems[_currentQueueIndex];
+
+        if (IsRaphaelSolutionReady(recipeItem))
         {
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Raphael solution ready for recipe {recipeItem.RecipeId}");
             _currentState = QueueState.ReadyForCraft;
             StateChanged?.Invoke(_currentState);
         }
-        else if (IsRaphaelSolutionFailed(recipeItem.RecipeId))
+        else if (IsRaphaelSolutionFailed(recipeItem))
         {
-            SkipFailedRaphaelItem(recipeItem.RecipeId);
+            SkipFailedRaphaelItem(recipeItem);
+        }
+        else
+        {
+            var request = BuildRaphaelRequestForItem(recipeItem);
+            if (request != null && _raphaelCoordinator != null)
+                _raphaelCoordinator.ReenqueueIfMissing(request);
         }
     }
     
-    private bool IsRaphaelSolutionReady(uint recipeId)
+    private bool IsRaphaelSolutionReady(CraftingListItem recipeItem)
     {
         if (_raphaelCoordinator == null)
             return false;
         
-        var request = BuildRaphaelRequestForRecipe(recipeId);
+        var request = BuildRaphaelRequestForItem(recipeItem);
         if (request == null)
             return false;
         
         return _raphaelCoordinator.TryGetSolution(request, out var solution) && solution != null && !solution.IsFailed;
     }
     
-    private bool IsRaphaelSolutionFailed(uint recipeId)
+    private bool IsRaphaelSolutionFailed(CraftingListItem recipeItem)
     {
         if (_raphaelCoordinator == null)
             return false;
-        var request = BuildRaphaelRequestForRecipe(recipeId);
+        var request = BuildRaphaelRequestForItem(recipeItem);
         return request != null && _raphaelCoordinator.HasFailedSolution(request, out _);
     }
 
     private unsafe void StartNextCraft()
     {
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             CompleteQueue();
             return;
@@ -478,7 +504,7 @@ public class CraftingQueueProcessor
             CraftingGameInterop.CurrentState != CraftingGameInterop.CraftState.IdleBetween)
             return;
 
-        var recipeItem = _queue[_currentQueueIndex];
+        var recipeItem = QueueItems[_currentQueueIndex];
 
         if (recipeItem.Options.Skipping)
         {
@@ -520,35 +546,52 @@ public class CraftingQueueProcessor
         var useQuickSynthesis = recipeItem.Options.NQOnly && recipe.Value.CanQuickSynth && hasCraftedBefore;
         if (recipeItem.Options.NQOnly && recipe.Value.CanQuickSynth && !hasCraftedBefore)
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Recipe not yet crafted — using normal craft first: {recipe.Value.ItemResult.Value.Name.ExtractText()}");
+        var qualityPolicy = GetQualityPolicy(recipeItem, recipe.Value);
         uint craftQuantity = (uint)recipeItem.Quantity;
         
         if (useQuickSynthesis)
         {
-            int lastIndex = _queue.FindLastIndex(item => item.RecipeId == recipeItem.RecipeId);
-            if (lastIndex >= _currentQueueIndex)
+            var batchConsumableSettings = consumableSettings;
+            var batchQualityPolicy = qualityPolicy;
+            var maxBatchSize = 1;
+            for (var i = _currentQueueIndex + 1; i < QueueItems.Count && maxBatchSize < 99; i++)
             {
-                craftQuantity = (uint)(lastIndex - _currentQueueIndex + 1);
-                craftQuantity = Math.Min(craftQuantity, 99);
+                var nextItem = QueueItems[i];
+                if (!CanBatchQuickSynth(recipeItem, nextItem, recipe.Value, batchConsumableSettings, batchQualityPolicy))
+                    break;
+                maxBatchSize++;
             }
+
+            craftQuantity = (uint)maxBatchSize;
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Using Quick Synthesis for {recipe.Value.ItemResult.Value.Name.ExtractText()} x{craftQuantity}");
         }
         
         UpdateCurrentRecipeTracking((int)craftQuantity);
-        
-        var useAllNQ = recipeItem.CraftSettings?.UseAllNQ ?? false;
-        var ingredientPrefs = recipeItem.IngredientPreferences;
-        CraftingGameInterop.SetIngredientPreferences(
-            ingredientPrefs.Count > 0 || useAllNQ ? ingredientPrefs : null,
-            useAllNQ);
-        
-        var selectedMacroId = recipeItem.CraftSettings?.SelectedMacroId;
+
+        CraftingGameInterop.SetQualityPolicy(qualityPolicy);
+
+        var forceProgressOnlyUnlockCraft = recipeItem.Options.NQOnly
+            && recipe.Value.CanQuickSynth
+            && !hasCraftedBefore
+            && qualityPolicy.OverrideMode == CraftingQualityOverrideMode.RequireNQOnly;
+
+        if (forceProgressOnlyUnlockCraft)
+        {
+            GatherBuddy.Log.Debug(
+                $"[CraftingQueueProcessor] Forcing ProgressOnly solver for unlock craft of {recipe.Value.ItemResult.Value.Name.ExtractText()} to preserve NQ output");
+        }
+
+        var selectedMacroId = forceProgressOnlyUnlockCraft
+            ? null
+            : recipeItem.CraftSettings?.SelectedMacroId;
         CraftingGameInterop.SetSelectedMacro(selectedMacroId);
         if (!string.IsNullOrEmpty(selectedMacroId))
         {
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Using macro: {selectedMacroId}");
         }
-
-        var craftSolverOverride = recipeItem.CraftSettings?.SolverOverride ?? SolverOverrideMode.Default;
+        var craftSolverOverride = forceProgressOnlyUnlockCraft
+            ? SolverOverrideMode.ProgressOnlySolver
+            : recipeItem.CraftSettings?.SolverOverride ?? SolverOverrideMode.Default;
         var effectiveSolverMode = craftSolverOverride switch
         {
             SolverOverrideMode.StandardSolver     => RaphaelSolverMode.StandardSolver,
@@ -556,14 +599,65 @@ public class CraftingQueueProcessor
             SolverOverrideMode.ProgressOnlySolver => RaphaelSolverMode.ProgressOnly,
             _                                      => GatherBuddy.Config.RaphaelSolverConfig.SolverMode,
         };
-        CraftingGameInterop.ReloadSolversForCraft(effectiveSolverMode);
+        CraftingGameInterop.ReloadSolversForCraft(effectiveSolverMode, !forceProgressOnlyUnlockCraft);
         GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Effective solver mode for this craft: {effectiveSolverMode}");
 
         _lastCraftWasQuickSynth = useQuickSynthesis;
-        GatherBuddy.Log.Information($"[CraftingQueueProcessor] Starting craft {_currentQueueIndex + 1}/{_queue.Count}: {recipe.Value.ItemResult.Value.Name} x{craftQuantity}");
+        GatherBuddy.Log.Information($"[CraftingQueueProcessor] Starting craft {_currentQueueIndex + 1}/{QueueItems.Count}: {recipe.Value.ItemResult.Value.Name} x{craftQuantity}");
         CraftingGameInterop.StartCraft(recipe.Value, craftQuantity, useQuickSynthesis);
         _currentState = QueueState.Crafting;
         StateChanged?.Invoke(_currentState);
+    }
+
+    private bool CanBatchQuickSynth(
+        CraftingListItem currentItem,
+        CraftingListItem nextItem,
+        Recipe recipe,
+        RecipeCraftSettings? currentConsumableSettings,
+        CraftingQualityPolicy currentQualityPolicy)
+    {
+        if (nextItem.Options.Skipping || nextItem.RecipeId != currentItem.RecipeId)
+            return false;
+
+        if (!nextItem.Options.NQOnly || !recipe.CanQuickSynth || !HasRecipeCraftedBefore(recipe))
+            return false;
+
+        var nextConsumableSettings = BuildConsumableSettings(nextItem);
+        if (!AreConsumableSettingsEquivalent(currentConsumableSettings, nextConsumableSettings))
+            return false;
+
+        var nextQualityPolicy = GetQualityPolicy(nextItem, recipe);
+        return AreQualityPoliciesEquivalent(currentQualityPolicy, nextQualityPolicy);
+    }
+
+    private static bool AreConsumableSettingsEquivalent(RecipeCraftSettings? left, RecipeCraftSettings? right)
+    {
+        if (left == null || right == null)
+            return left == right;
+
+        return left.FoodItemId == right.FoodItemId
+            && left.FoodHQ == right.FoodHQ
+            && left.MedicineItemId == right.MedicineItemId
+            && left.MedicineHQ == right.MedicineHQ
+            && left.ManualItemId == right.ManualItemId
+            && left.SquadronManualItemId == right.SquadronManualItemId;
+    }
+
+    private static bool AreQualityPoliciesEquivalent(CraftingQualityPolicy left, CraftingQualityPolicy right)
+    {
+        if (left.OverrideMode != right.OverrideMode || left.HasExplicitHQRequirements != right.HasExplicitHQRequirements)
+            return false;
+
+        if (left.IngredientDemands.Count != right.IngredientDemands.Count)
+            return false;
+
+        foreach (var (itemId, leftDemand) in left.IngredientDemands)
+        {
+            if (!right.IngredientDemands.TryGetValue(itemId, out var rightDemand) || leftDemand != rightDemand)
+                return false;
+        }
+
+        return true;
     }
 
     private RecipeCraftSettings? BuildConsumableSettings(CraftingListItem? recipeItem)
@@ -673,6 +767,9 @@ public class CraftingQueueProcessor
 
         _craftHangSince = DateTime.MinValue;
 
+        if (recipe != null)
+            _missingIngredientFailures.Remove(recipe.Value.RowId);
+
         if (cancelled)
         {
             GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Craft cancelled at index {_currentQueueIndex}");
@@ -690,8 +787,8 @@ public class CraftingQueueProcessor
         {
             GatherBuddy.Log.Debug("[CraftingQueueProcessor] Quick synth batch completed (index already advanced by progress events)");
         }
-        
-        if (_currentQueueIndex >= _queue.Count)
+
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             CompleteQueue();
         }
@@ -702,16 +799,74 @@ public class CraftingQueueProcessor
         }
     }
 
-
-    private void SkipFailedRaphaelItem(uint recipeId)
+    private bool HandlePreparationFailure()
     {
+        if (!CraftingGameInterop.TryConsumePreparationFailure(out var failure))
+            return false;
+
+        if (_currentQueueIndex >= QueueItems.Count)
+            return false;
+
+        var currentRecipeId = QueueItems[_currentQueueIndex].RecipeId;
+        if (failure.RecipeId != currentRecipeId)
+        {
+            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Ignoring stale preparation failure for recipe {failure.RecipeId}; current recipe is {currentRecipeId}");
+            return false;
+        }
+
+        _craftHangSince = DateTime.MinValue;
+        var recipe = RecipeManager.GetRecipe(failure.RecipeId);
+        var itemName = recipe != null ? recipe.Value.ItemResult.Value.Name.ExtractText() : $"Recipe {failure.RecipeId}";
+        var priorFailures = _missingIngredientFailures.GetValueOrDefault(failure.RecipeId);
+        var failureContext = failure.Reason switch
+        {
+            CraftingGameInterop.CraftPreparationFailureReason.MissingMaterialsUnableToQuickSynth => "quick synthesis material pre-check",
+            _ => "RecipeNote ingredient assignment",
+        };
+
+        if (priorFailures == 0)
+        {
+            _missingIngredientFailures[failure.RecipeId] = 1;
+            GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Missing materials caused {failureContext} failure for '{itemName}' (recipe {failure.RecipeId}): {failure.Details}. Retrying once before skipping remaining instances.");
+            _currentState = QueueState.WaitingForJobSwitch;
+            StateChanged?.Invoke(_currentState);
+            return true;
+        }
+        GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Missing materials caused {failureContext} to fail again for '{itemName}' (recipe {failure.RecipeId}): {failure.Details}. Skipping this and remaining instances of the recipe.");
+        SkipRemainingRecipeInstances(failure.RecipeId);
+        return true;
+    }
+
+    private void SkipRemainingRecipeInstances(uint recipeId)
+    {
+        var skippedCount = 0;
+        for (var i = _currentQueueIndex; i < QueueItems.Count; i++)
+        {
+            var queueItem = QueueItems[i];
+            if (queueItem.RecipeId != recipeId || queueItem.Options.Skipping)
+                continue;
+
+            queueItem.Options.Skipping = true;
+            skippedCount++;
+            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Marked queue index {i} for recipe {recipeId} as skipped after repeated missing-material preparation failure");
+        }
+
+        _missingIngredientFailures.Remove(recipeId);
+        GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Marked {skippedCount} remaining instance(s) of recipe {recipeId} to skip");
+        SkipToNextRecipe();
+    }
+
+
+    private void SkipFailedRaphaelItem(CraftingListItem recipeItem)
+    {
+        var recipeId = recipeItem.RecipeId;
         var recipe = RecipeManager.GetRecipe(recipeId);
         var itemName = recipe != null ? recipe.Value.ItemResult.Value.Name.ExtractText() : $"Recipe {recipeId}";
 
         string failureReason = "unknown";
         if (_raphaelCoordinator != null)
         {
-            var request = BuildRaphaelRequestForRecipe(recipeId);
+            var request = BuildRaphaelRequestForItem(recipeItem);
             if (request != null)
                 _raphaelCoordinator.HasFailedSolution(request, out failureReason);
         }
@@ -719,7 +874,7 @@ public class CraftingQueueProcessor
         GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Skipping '{itemName}' (recipe {recipeId}) - Raphael solution failed: {failureReason ?? "unknown"}");
         _currentQueueIndex++;
 
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
             CompleteQueue();
         else
         {
@@ -728,14 +883,14 @@ public class CraftingQueueProcessor
         }
     }
 
-    private RaphaelSolveRequest? BuildRaphaelRequestForRecipe(uint recipeId)
+    private RaphaelSolveRequest? BuildRaphaelRequestForItem(CraftingListItem recipeItem)
     {
+        var recipeId = recipeItem.RecipeId;
         var recipe = RecipeManager.GetRecipe(recipeId);
         if (recipe == null) return null;
 
         var requiredJob = (uint)(recipe.Value.CraftType.RowId + 8);
-        var currentJob = Dalamud.ClientState.LocalPlayer?.ClassJob.RowId ?? 0;
-        var recipeItem = _queue.FirstOrDefault(r => r.RecipeId == recipeId);
+        var currentJob = Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
         var consumableSettings = BuildConsumableSettings(recipeItem);
 
         GameStateBuilder.PlayerStats? stats;
@@ -763,10 +918,8 @@ public class CraftingQueueProcessor
 
         if (stats == null) return null;
 
-        var ingredientPreferences = recipeItem?.IngredientPreferences;
-        int initialQuality = ingredientPreferences != null && ingredientPreferences.Count > 0
-            ? QualityCalculator.CalculateInitialQuality(recipe.Value, ingredientPreferences)
-            : 0;
+        var qualityPolicy = GetQualityPolicy(recipeItem, recipe.Value);
+        var initialQuality = qualityPolicy.CalculateGuaranteedInitialQuality(recipe.Value);
 
         var specialist = GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions && stats.Specialist;
         return new RaphaelSolveRequest(
@@ -784,7 +937,7 @@ public class CraftingQueueProcessor
     private void SkipToNextRecipe()
     {
         _currentQueueIndex++;
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
         {
             CompleteQueue();
         }
@@ -798,6 +951,7 @@ public class CraftingQueueProcessor
     private void CompleteQueue()
     {
         GatherBuddy.Log.Information($"[CraftingQueueProcessor] Queue complete!");
+        YesAlready.Unlock();
         GatherBuddy.AutoGather.Enabled = false;
         
         var craftState = CraftingGameInterop.CurrentState;
@@ -901,9 +1055,8 @@ public class CraftingQueueProcessor
                 if (consumableSettings != null)
                     gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(gearsetStats, consumableSettings);
 
-                int initialQuality = item.IngredientPreferences != null && item.IngredientPreferences.Count > 0
-                    ? QualityCalculator.CalculateInitialQuality(recipe, item.IngredientPreferences)
-                    : 0;
+                var qualityPolicy = GetQualityPolicy(item, recipe);
+                var initialQuality = qualityPolicy.CalculateGuaranteedInitialQuality(recipe);
 
                 var specialist = GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions && gearsetStats.Specialist;
                 var request = new RaphaelSolveRequest(
@@ -918,7 +1071,7 @@ public class CraftingQueueProcessor
                 );
 
                 requests.Add(request);
-                _enqueuedRaphaelRequests.TryAdd(recipe.RowId, request);
+                _enqueuedRaphaelRequests.TryAdd(request.GetKey(), request);
             }
             catch (Exception ex)
             {
@@ -929,6 +1082,7 @@ public class CraftingQueueProcessor
         if (requests.Count > 0)
         {
             GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Enqueuing {requests.Count} requests with effective consumables");
+            _raphaelCoordinator.ClearIfAutoEnabled();
             _raphaelCoordinator.EnqueueSolvesFromRequests(requests);
         }
     }
@@ -938,6 +1092,14 @@ public class CraftingQueueProcessor
         if (recipe.SecretRecipeBook.RowId > 0)
             return true;
         return QuestManager.IsRecipeComplete(recipe.RowId);
+    }
+
+    private static CraftingQualityPolicy GetQualityPolicy(CraftingListItem recipeItem, Lumina.Excel.Sheets.Recipe recipe)
+    {
+        recipeItem.QualityPolicy ??= CraftingQualityPolicyResolver.Resolve(recipe, recipeItem.CraftSettings);
+        if (recipeItem.IngredientPreferences.Count == 0)
+            recipeItem.IngredientPreferences = recipeItem.QualityPolicy.BuildGuaranteedHQPreferences();
+        return recipeItem.QualityPolicy;
     }
 
     private bool NeedsRepair()
@@ -968,7 +1130,7 @@ public class CraftingQueueProcessor
 
         if (prioritizeNPC && preferredNPC != null)
         {
-            if (hasRepairNPC && npc != null && npc.DataId == preferredNPC.DataId)
+            if (hasRepairNPC && npc != null && npc.BaseId == preferredNPC.DataId)
             {
                 var repairPrice = RepairManager.GetNPCRepairPrice();
                 var gilCount = InventoryManager.Instance()->GetInventoryItemCount(1);
@@ -1074,47 +1236,121 @@ public class CraftingQueueProcessor
         _tasks.Add(() => { CompleteQueue(); return CraftingTasks.TaskResult.Abort; });
     }
 
+    private void QueueRetainerBellNavigationTasks()
+    {
+        var bell = RetainerTaskExecutor.FindNearestBellForNavigation();
+        if (bell == null)
+        {
+            GatherBuddy.Log.Warning("[CraftingQueueProcessor] No retainer bell found in current zone, skipping navigation");
+            _currentState = QueueState.WithdrawingFromRetainer;
+            QueueRetainerWithdrawalTasks();
+            return;
+        }
+
+        _retainerBellNavigator = new RetainerBellNavigator();
+        if (!_retainerBellNavigator.StartNavigation(bell))
+        {
+            GatherBuddy.Log.Warning("[CraftingQueueProcessor] Failed to start retainer bell navigation");
+            _currentState = QueueState.WithdrawingFromRetainer;
+            QueueRetainerWithdrawalTasks();
+            return;
+        }
+
+        _tasks.Add(() =>
+        {
+            if (_retainerBellNavigator == null)
+                return CraftingTasks.TaskResult.Done;
+
+            _retainerBellNavigator.Update();
+            if (_retainerBellNavigator.IsComplete)
+            {
+                if (_retainerBellNavigator.IsFailed)
+                    GatherBuddy.Log.Warning("[CraftingQueueProcessor] Retainer bell navigation failed, proceeding to withdrawal anyway");
+                return CraftingTasks.TaskResult.Done;
+            }
+            return CraftingTasks.TaskResult.Retry;
+        });
+
+        _tasks.Add(() =>
+        {
+            _currentState = QueueState.WithdrawingFromRetainer;
+            QueueRetainerWithdrawalTasks();
+            return CraftingTasks.TaskResult.Done;
+        });
+    }
+
     private void QueueRetainerWithdrawalTasks()
     {
-        GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Building retainer withdrawal plan ({_retainerPrecraftItems.Count} precraft(s), {_allMaterials.Count} leaf material(s))");
+        RefreshRetainerRestockPlanForWithdrawal();
+        GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Building retainer withdrawal plan ({RetainerPrecraftTargets.Count} craftable pull target(s), {MaterialTargets.Count} leaf material(s))");
 
-        var combinedItems = new Dictionary<uint, int>(_allMaterials);
-        foreach (var (k, v) in _retainerPrecraftItems)
+        var combinedItems = new Dictionary<uint, int>(MaterialTargets);
+        foreach (var (k, v) in RetainerPrecraftTargets)
         {
             if (combinedItems.ContainsKey(k)) combinedItems[k] += v;
             else combinedItems[k] = v;
         }
 
-        _retainerSkipAmounts = new Dictionary<uint, int>(_retainerPrecraftItems);
-        foreach (var (pulledItemId, pullQty) in _retainerPrecraftItems)
-        {
-            var pulledRecipe = RecipeManager.GetRecipeForItem(pulledItemId);
-            if (pulledRecipe == null) continue;
-            int craftsDisplaced = (int)Math.Ceiling((double)pullQty / pulledRecipe.Value.AmountResult);
-            foreach (var (subItemId, amtPerCraft) in RecipeManager.GetIngredients(pulledRecipe.Value))
-            {
-                if (!_retainerSkipAmounts.ContainsKey(subItemId)) continue;
-                _retainerSkipAmounts[subItemId] += amtPerCraft * craftsDisplaced;
-                GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Skip plan: restored {amtPerCraft * craftsDisplaced} to {subItemId} (displaced by {pullQty}× {pulledItemId}), total={_retainerSkipAmounts[subItemId]}");
-            }
-        }
+        var qualityTargets = _executionPlan?.BuildQualityTargetsForItems(combinedItems) ?? new Dictionary<uint, IngredientQualityDemand>();
+        _retainerExecutor = new RetainerTaskExecutor(combinedItems, qualityTargets, RetainerPrecraftTargets.Keys.ToHashSet());
 
-        var qualityTargets = RetainerTaskExecutor.ComputeQualityTargets(combinedItems, _expandedQueueForRetainer);
-        _precraftQualityTargets = qualityTargets
-            .Where(kv => _retainerPrecraftItems.ContainsKey(kv.Key))
-            .ToDictionary(kv => kv.Key, kv => kv.Value);
-        _retainerExecutor = new RetainerTaskExecutor(combinedItems, qualityTargets);
+        QueueRetainerWithdrawalExecutionTasks();
+    }
+
+    private void RefreshRetainerRestockPlanForWithdrawal()
+    {
+        if (!_retainerRestock || !AllaganTools.Enabled || _executionPlan == null)
+            return;
+
+        var previousMaterials = new Dictionary<uint, int>(MaterialTargets);
+        var previousPrecraftItems = new Dictionary<uint, int>(RetainerPrecraftTargets);
+        var previousQueueCount = QueueItems.Count;
+        _executionPlan.RefreshForRetainerWithdrawal();
+
+        LogRetainerPlanDifferences("leaf material", previousMaterials, MaterialTargets);
+        LogRetainerPlanDifferences("craftable pull", previousPrecraftItems, RetainerPrecraftTargets);
+
+        if (previousQueueCount != QueueItems.Count)
+        {
+            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Retainer queue plan refreshed: {previousQueueCount} -> {QueueItems.Count} crafts");
+        }
+    }
+
+    private static void LogRetainerPlanDifferences(string label, Dictionary<uint, int> previousPlan, Dictionary<uint, int> refreshedPlan)
+    {
+        var changes = previousPlan.Keys
+            .Union(refreshedPlan.Keys)
+            .Select(itemId => (ItemId: itemId, PreviousAmount: previousPlan.GetValueOrDefault(itemId), RefreshedAmount: refreshedPlan.GetValueOrDefault(itemId)))
+            .Where(change => change.PreviousAmount != change.RefreshedAmount)
+            .OrderBy(change => change.ItemId)
+            .ToList();
+
+        if (changes.Count == 0)
+            return;
+
+        GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Retainer {label} plan refreshed with {changes.Count} change(s)");
+        foreach (var change in changes)
+            GatherBuddy.Log.Debug($"[CraftingQueueProcessor]   {label}: item {change.ItemId} {change.PreviousAmount} -> {change.RefreshedAmount}");
+    }
+
+    private void QueueRetainerWithdrawalExecutionTasks()
+    {
+        if (_retainerExecutor == null)
+        {
+            GatherBuddy.Log.Warning("[CraftingQueueProcessor] Retainer withdrawal executor unavailable, proceeding to gather stage");
+            TransitionFromRetainerWithdrawComplete();
+            return;
+        }
 
         _tasks.Add(() =>
         {
             if (_retainerExecutor == null)
                 return CraftingTasks.TaskResult.Done;
-
             var result = _retainerExecutor.Tick();
             if (result == CraftingTasks.TaskResult.Done)
             {
                 if (_retainerExecutor.IsAborted)
-                    GatherBuddy.Log.Warning("[CraftingQueueProcessor] Retainer withdrawal aborted, proceeding with original materials");
+                    GatherBuddy.Log.Warning("[CraftingQueueProcessor] Retainer withdrawal aborted, rebuilding from current inventory");
                 else
                     GatherBuddy.Log.Information("[CraftingQueueProcessor] Retainer withdrawal complete");
             }
@@ -1130,11 +1366,12 @@ public class CraftingQueueProcessor
 
     private unsafe void TransitionFromRetainerWithdrawComplete()
     {
+        RebuildQueueAndMaterialsFromCurrentInventory();
         GatherBuddy.Log.Debug("[CraftingQueueProcessor] Computing remaining materials after retainer withdrawal");
 
         int stillGatherCount = 0;
         var inventoryMgr = FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance();
-        foreach (var (itemId, totalNeeded) in _allMaterials)
+        foreach (var (itemId, totalNeeded) in MaterialTargets)
         {
             int inBag = 0;
             if (inventoryMgr != null)
@@ -1146,38 +1383,18 @@ public class CraftingQueueProcessor
 
         GatherBuddy.Log.Information($"[CraftingQueueProcessor] After retainer withdrawal: {stillGatherCount} item(s) still need gathering");
 
-        ApplyPostWithdrawalSkips();
-
         _currentState = QueueState.WaitingForGather;
         StateChanged?.Invoke(_currentState);
-
-        CraftingGatherBridge.CreateGatherListForMissingIngredients(_allMaterials);
+        CraftingGatherBridge.CreateGatherListForMissingIngredients(MaterialTargets);
     }
-
-    private void ApplyPostWithdrawalSkips()
+    private void RebuildQueueAndMaterialsFromCurrentInventory()
     {
-        if (_retainerSkipAmounts.Count == 0) return;
-        if (_retainerExecutor?.IsAborted == true) return;
+        if (_executionPlan == null)
+            return;
 
-        var skipRemaining = new Dictionary<uint, int>(_retainerSkipAmounts);
-        foreach (var queueItem in _queue)
-        {
-            if (queueItem.Options.Skipping) continue;
-
-            var recipe = RecipeManager.GetRecipe(queueItem.RecipeId);
-            if (recipe == null) continue;
-
-            var resultItemId = recipe.Value.ItemResult.RowId;
-            if (!skipRemaining.TryGetValue(resultItemId, out var remaining) || remaining <= 0) continue;
-
-            int amountPerCraft = (int)recipe.Value.AmountResult;
-            if (remaining >= amountPerCraft)
-            {
-                queueItem.Options.Skipping = true;
-                skipRemaining[resultItemId] = remaining - amountPerCraft;
-                GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Post-withdrawal skip: recipe {queueItem.RecipeId} result={resultItemId} (skip remaining={skipRemaining[resultItemId]})");
-            }
-        }
+        GatherBuddy.Log.Debug("[CraftingQueueProcessor] Rebuilding queue and materials from current inventory after retainer stage");
+        _executionPlan.RefreshFromCurrentInventory();
+        GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Rebuilt post-retainer queue with {QueueItems.Count} craft(s) and {MaterialTargets.Count} leaf material(s)");
     }
 
     private void TransitionFromRepairComplete()
@@ -1265,7 +1482,7 @@ public class CraftingQueueProcessor
     private RepairNPCData? FindNearestRepairNPCInCurrentZone()
     {
         var currentTerritory = Dalamud.ClientState.TerritoryType;
-        var playerPos = Dalamud.ClientState.LocalPlayer?.Position;
+        var playerPos = Dalamud.Objects.LocalPlayer?.Position;
         
         if (playerPos == null)
             return null;
@@ -1295,7 +1512,14 @@ public class CraftingQueueProcessor
 
         GatherBuddy.Log.Information("[CraftingQueueProcessor] Pausing queue");
         _paused = true;
+        if (_currentState == QueueState.NavigatingToRetainerBell)
+        {
+            GatherBuddy.Log.Debug("[CraftingQueueProcessor] Pausing retainer bell navigation");
+            _retainerBellNavigator?.Stop();
+            _retainerBellNavigator = null;
+        }
         _tasks.Clear();
+        YesAlready.Unlock();
         
         if (_currentState == QueueState.WaitingForGather)
         {
@@ -1318,6 +1542,24 @@ public class CraftingQueueProcessor
 
         GatherBuddy.Log.Information("[CraftingQueueProcessor] Resuming queue");
         _paused = false;
+        YesAlready.Lock();
+
+        if (_currentState == QueueState.NavigatingToRetainerBell)
+        {
+            GatherBuddy.Log.Debug("[CraftingQueueProcessor] Resuming retainer bell navigation");
+            QueueRetainerBellNavigationTasks();
+            return;
+        }
+
+        if (_currentState == QueueState.WithdrawingFromRetainer)
+        {
+            GatherBuddy.Log.Debug("[CraftingQueueProcessor] Resuming retainer withdrawal");
+            if (_retainerExecutor == null)
+                QueueRetainerWithdrawalTasks();
+            else
+                QueueRetainerWithdrawalExecutionTasks();
+            return;
+        }
         
         if (_pausedDuringGather && _currentState == QueueState.WaitingForGather)
         {
@@ -1348,6 +1590,9 @@ public class CraftingQueueProcessor
         GatherBuddy.Log.Information("[CraftingQueueProcessor] Stopping queue");
         _paused = false;
         _tasks.Clear();
+        _retainerBellNavigator?.Stop();
+        _retainerBellNavigator = null;
+        YesAlready.Unlock();
         
         GatherBuddy.AutoGather.Enabled = false;
         CraftingGatherBridge.DeleteTemporaryGatherList();
@@ -1357,10 +1602,10 @@ public class CraftingQueueProcessor
 
     private void UpdateCurrentRecipeTracking(int batchSize = 1)
     {
-        if (_currentQueueIndex >= _queue.Count)
+        if (_currentQueueIndex >= QueueItems.Count)
             return;
         
-        var currentRecipeId = _queue[_currentQueueIndex].RecipeId;
+        var currentRecipeId = QueueItems[_currentQueueIndex].RecipeId;
         if (_currentProcessedRecipeId != currentRecipeId)
         {
             _currentProcessedRecipeId = currentRecipeId;
@@ -1375,7 +1620,8 @@ public class CraftingQueueProcessor
     
     public void Reset()
     {
-        _queue.Clear();
+        YesAlready.Unlock();
+        _executionPlan = null;
         _currentQueueIndex = 0;
         _currentState = QueueState.Idle;
         _tasks.Clear();
@@ -1383,18 +1629,19 @@ public class CraftingQueueProcessor
         _currentProcessedRecipeCount = 0;
         _currentProcessedRecipeTotal = 0;
         _craftHangSince = DateTime.MinValue;
+        _missingIngredientFailures.Clear();
         _enqueuedRaphaelRequests.Clear();
         _jobSwitchRequestedFor = 0u;
         _retainerRestock = false;
-        _allMaterials = new();
-        _retainerPrecraftItems = new();
-        _expandedQueueForRetainer = new();
         _retainerExecutor = null;
+        _retainerBellNavigator?.Stop();
+        _retainerBellNavigator = null;
     }
     
     public void TestRepair()
     {
         GatherBuddy.Log.Information("[CraftingQueueProcessor] Testing repair system...");
+        YesAlready.Lock();
         _currentState = QueueState.Repairing;
         StateChanged?.Invoke(_currentState);
         QueueRepairTasks();

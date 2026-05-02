@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Lumina.Excel.Sheets;
+using Newtonsoft.Json;
 
 namespace GatherBuddy.Crafting;
 
@@ -91,6 +92,7 @@ public class CraftingListItem
     public CraftingListConsumableOverrides ConsumableOverrides { get; set; } = new();
     public bool IsOriginalRecipe { get; set; } = false;
     public RecipeCraftSettings? CraftSettings { get; set; }
+    [JsonIgnore] public CraftingQualityPolicy? QualityPolicy { get; set; }
 
     public CraftingListItem(uint recipeId, int quantity)
     {
@@ -114,85 +116,51 @@ public class CraftingListQueue
         }
     }
 
-    public void AddRecipe(uint recipeId, int quantity)
+    public void AddRecipe(uint recipeId, int quantity, bool isOriginalRecipe)
     {
-        var existing = Recipes.FirstOrDefault(r => r.RecipeId == recipeId);
+        var existing = Recipes.FirstOrDefault(r => r.RecipeId == recipeId && r.IsOriginalRecipe == isOriginalRecipe);
         if (existing != null)
         {
             existing.Quantity += quantity;
         }
         else
         {
-            Recipes.Add(new CraftingListItem(recipeId, quantity));
+            Recipes.Add(new CraftingListItem(recipeId, quantity)
+            {
+                IsOriginalRecipe = isOriginalRecipe,
+            });
         }
     }
 
-    public void AddRecipeWithPrecrafts(uint recipeId, int quantity, bool skipIfEnough = false)
+    public void AddFromList(IEnumerable<CraftingListItem> items, bool skipIfEnough = false, bool skipFinalIfEnough = false)
     {
-        var recipe = RecipeManager.GetRecipe(recipeId);
-        if (recipe == null)
-            return;
+        Clear();
 
-        OriginalRecipes.Add(new CraftingListItem(recipeId, quantity));
-        var neededAmounts = new Dictionary<uint, int>();
-        CollectIngredientsNeeded(recipe.Value, quantity, neededAmounts, skipIfEnough);
-        
-        foreach (var kvp in neededAmounts)
+        var list = new CraftingListDefinition
         {
-            var subRecipe = RecipeManager.GetRecipe(kvp.Key);
-            if (subRecipe != null)
-            {
-                var quantityToCraft = (int)System.Math.Ceiling((double)kvp.Value / subRecipe.Value.AmountResult);
-                AddRecipe(kvp.Key, quantityToCraft);
-            }
-        }
-        
-        AddRecipe(recipeId, quantity);
-    }
-
-    private unsafe void CollectIngredientsNeeded(Recipe recipe, int multiplier, Dictionary<uint, int> neededAmounts, bool skipIfEnough = false)
-    {
-        var ingredients = RecipeManager.GetIngredients(recipe);
-        
-        foreach (var (itemId, amount) in ingredients)
-        {
-            var subRecipe = RecipeManager.GetRecipeForItem(itemId);
-            if (subRecipe.HasValue)
-            {
-                var actualAmount = amount * multiplier;
-                var quantityNeeded = actualAmount;
-                
-                if (skipIfEnough)
+            SkipIfEnough = skipIfEnough,
+            SkipFinalIfEnough = skipFinalIfEnough,
+            Recipes = items
+                .Select(item => new CraftingListItem(item.RecipeId, item.Quantity)
                 {
-                    try
+                    Options = new ListItemOptions
                     {
-                        var inventory = FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance();
-                        if (inventory != null)
-                        {
-                            var resultItemId = subRecipe.Value.ItemResult.RowId;
-                            var nqCount = inventory->GetInventoryItemCount(resultItemId, false, false, false);
-                            var hqCount = inventory->GetInventoryItemCount(resultItemId, true, false, false);
-                            var totalInInventory = nqCount + hqCount;
-                            
-                            if (totalInInventory >= actualAmount)
-                            {
-                                continue;
-                            }
-                            
-                            quantityNeeded = actualAmount - totalInInventory;
-                        }
-                    }
-                    catch { }
-                }
-                
-                if (neededAmounts.ContainsKey(subRecipe.Value.RowId))
-                    neededAmounts[subRecipe.Value.RowId] += quantityNeeded;
-                else
-                    neededAmounts[subRecipe.Value.RowId] = quantityNeeded;
-                
-                CollectIngredientsNeeded(subRecipe.Value, quantityNeeded, neededAmounts, skipIfEnough);
-            }
-        }
+                        Skipping = item.Options.Skipping,
+                        NQOnly = item.Options.NQOnly,
+                    },
+                })
+                .ToList(),
+        };
+
+        var plan = list.CreatePlan();
+        OriginalRecipes.AddRange(plan.OriginalRecipes.Select(item => new CraftingListItem(item.RecipeId, item.Quantity)
+        {
+            IsOriginalRecipe = true,
+        }));
+        Recipes.AddRange(plan.Recipes.Select(item => new CraftingListItem(item.RecipeId, item.Quantity)
+        {
+            IsOriginalRecipe = item.IsOriginalRecipe,
+        }));
     }
 
     public void Clear()

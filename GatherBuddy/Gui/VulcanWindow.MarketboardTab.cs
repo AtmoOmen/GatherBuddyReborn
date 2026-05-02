@@ -35,7 +35,7 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null && !_mbRequestFocus)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("ÊĞ³¡°å##marketboardTab", 7, 8);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("å¸‚åœºæ¿##marketboardTab", 8, 9);
             tabItem = handle;
             tabOpen = handle;
         }
@@ -45,11 +45,11 @@ public partial class VulcanWindow
             if (_mbRequestFocus)
             {
                 bool dummy = true;
-                handle = ImRaii.TabItem("ÊĞ³¡°å##marketboardTab", ref dummy, ImGuiTabItemFlags.SetSelected);
+                handle = ImRaii.TabItem("å¸‚åœºæ¿##marketboardTab", ref dummy, ImGuiTabItemFlags.SetSelected);
             }
             else
             {
-                handle = ImRaii.TabItem("ÊĞ³¡°å##marketboardTab");
+                handle = ImRaii.TabItem("å¸‚åœºæ¿##marketboardTab");
             }
             tabItem = handle;
             tabOpen = handle.Success;
@@ -64,7 +64,7 @@ public partial class VulcanWindow
             var svc = GatherBuddy.MarketboardService;
             if (svc == null)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "ÊĞ³¡°æ·şÎñ²»¿ÉÓÃ¡£");
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "å¸‚åœºæ¿æœåŠ¡ä¸å¯ç”¨");
                 return;
             }
 
@@ -78,7 +78,7 @@ public partial class VulcanWindow
             if ((DateTime.UtcNow - _mbScopeRefresh).TotalMinutes > 5 || _mbScopeOptions.Count == 0)
                 RefreshScopeOptions(svc);
 
-            if (ImGui.SmallButton("È«²¿Çå¿Õ##mbclear"))
+            if (ImGui.SmallButton("å…¨éƒ¨æ¸…ç©º##mbclear"))
             {
                 svc.Clear();
                 _mbSelectedItemId   = 0;
@@ -88,7 +88,7 @@ public partial class VulcanWindow
                 _mbFilteredSnapshot = new();
             }
             ImGui.SameLine(0, 6);
-            if (ImGui.SmallButton("È«²¿Ë¢ĞÂ##mbrefreshall"))
+            if (ImGui.SmallButton("å…¨éƒ¨åˆ·æ–°##mbrefreshall"))
                 svc.RefreshAll();
 
             ImGui.Separator();
@@ -150,16 +150,16 @@ public partial class VulcanWindow
     private void DrawMarketboardHistoryList(MarketboardService svc)
     {
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextWithHint("##mbsearch", "ËÑË÷...", ref _mbSearch, 128))
+        if (ImGui.InputTextWithHint("##mbsearch", "æœç´¢...", ref _mbSearch, 128))
             _mbFilterDirty = true;
 
         ImGui.Spacing();
 
         if (_mbHistorySnapshot.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "ÉĞÎŞÈÎºÎ²éÑ¯¡£");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "ÔÚ²ÄÁÏ´°¿ÚÖĞÓÒ¼üµã»÷ÈÎÒâÎïÆ·");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "¼´¿É½øĞĞËÑË÷¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "è¿˜æ²¡æœ‰ä»»ä½•æŸ¥è¯¢");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "åœ¨ææ–™çª—å£ä¸­å³é”®ç‰©å“");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "å³å¯æŸ¥è¯¢å¸‚åœºæ¿");
             return;
         }
 
@@ -167,7 +167,7 @@ public partial class VulcanWindow
 
         if (_mbFilteredSnapshot.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Ã»ÓĞ·ûºÏËÑË÷Ìõ¼şµÄ½á¹û¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "æ²¡æœ‰ç¬¦åˆæœç´¢æ¡ä»¶çš„ç»“æœ");
             return;
         }
 
@@ -219,7 +219,7 @@ public partial class VulcanWindow
             }
             else
             {
-                statusLabel = $"  {data.MinPrice:N0}½ğ±Ò";
+                statusLabel = $"  {data.MinPrice:N0}é‡‘å¸";
                 statusColor = new Vector4(0.4f, 1f, 0.4f, 1f);
             }
 
@@ -233,7 +233,7 @@ public partial class VulcanWindow
                 : ImGui.BeginPopupContextItem($"##mbctx_{itemId}");
             if (isCtxOpen)
             {
-                if (ImGui.Selectable("´ÓÀúÊ·¼ÇÂ¼ÖĞÒÆ³ı"))
+                if (ImGui.Selectable("ä»å†å²è®°å½•ä¸­ç§»é™¤"))
                 {
                     svc.RemoveFromHistory(itemId);
                     if (_mbSelectedItemId == itemId) { _mbSelectedItemId = 0; _mbDetailLastItemId = 0; }
@@ -256,7 +256,7 @@ public partial class VulcanWindow
             var h = ImGui.GetContentRegionAvail().Y;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Ñ¡ÔñÒ»¸öÎïÆ·²é¿´¼Û¸ñ¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "é€‰æ‹©ä¸€ä¸ªç‰©å“æŸ¥çœ‹ä»·æ ¼");
             return;
         }
 
@@ -295,14 +295,14 @@ public partial class VulcanWindow
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (largeIcon.Y - lineH * 2f) / 2f);
         ImGui.TextColored(ImGuiColors.ParsedGold, name);
 
-        var currentScopeLabel = (isDcScope ? $"Êı¾İÖĞĞÄ: " : string.Empty) + scope;
+        var currentScopeLabel = (isDcScope ? $"æ•°æ®ä¸­å¿ƒ: " : string.Empty) + scope;
         ImGui.SetNextItemWidth(160f);
         if (ImGui.BeginCombo("##mbdetailscope", currentScopeLabel))
         {
             for (var i = 0; i < _mbScopeOptions.Count; i++)
             {
                 var isdc = i < _mbScopeIsDc.Count && _mbScopeIsDc[i];
-                var lbl  = isdc ? $"Êı¾İÖĞĞÄ: {_mbScopeOptions[i]}" : _mbScopeOptions[i];
+                var lbl  = isdc ? $"æ•°æ®ä¸­å¿ƒ: {_mbScopeOptions[i]}" : _mbScopeOptions[i];
                 if (ImGui.Selectable(lbl, _mbDetailScopeIndex == i) && _mbDetailScopeIndex != i)
                 {
                     _mbDetailScopeIndex = i;
@@ -313,15 +313,15 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine(0, 8);
-        if (ImGui.SmallButton("Ë¢ĞÂ##mbrefresh"))
+        if (ImGui.SmallButton("åˆ·æ–°##mbrefresh"))
             svc.ForceRefresh(itemId, scope);
         ImGui.SameLine(0, 4);
         if (ImGui.SmallButton("Universalis##mbweb"))
         {
             try { Process.Start(new ProcessStartInfo($"https://universalis.app/market/{itemId}") { UseShellExecute = true }); }
-            catch (Exception ex) { GatherBuddy.Log.Warning($"[ÊĞ³¡°å] ´ò¿ª Universalis Á´½ÓÊ§°Ü: {ex.Message}"); }
+            catch (Exception ex) { GatherBuddy.Log.Warning($"[å¸‚åœºæ¿] æ‰“å¼€ Universalis å¤±è´¥: {ex.Message}"); }
         }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"´ò¿ª https://universalis.app/market/{itemId}");
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"æ‰“å¼€ https://universalis.app/market/{itemId}");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -329,15 +329,15 @@ public partial class VulcanWindow
 
         if (pending)
         {
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "ÕıÔÚ»ñÈ¡ÊĞ³¡Êı¾İ...");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "æ­£åœ¨è·å–å¸‚åœºæ•°æ®...");
             return;
         }
 
         if (hasErr || data == null)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Ã»ÓĞ¿ÉÓÃµÄÊĞ³¡Êı¾İ¡£");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "ÎïÆ·¿ÉÄÜ²»¿É½»Ò×,");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "»òÕßÇëÇóÊ§°Ü¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "æ²¡æœ‰å¯ç”¨çš„å¸‚åœºæ•°æ®");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "ç‰©å“å¯èƒ½ä¸å¯äº¤æ˜“,");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "æˆ–è¯·æ±‚å¤±è´¥");
         }
         else
         {
@@ -349,11 +349,11 @@ public partial class VulcanWindow
 
             var fetchTime = svc.GetFetchTime(itemId, scope);
             var age       = DateTime.UtcNow - fetchTime;
-            var ageText   = age.TotalSeconds < 60 ? "¸Õ¸Õ¸üĞÂ"
-                : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} ·ÖÖÓÇ°"
-                : $"{(int)age.TotalHours} Ğ¡Ê±Ç°";
+            var ageText   = age.TotalSeconds < 60 ? "åˆšåˆšæ›´æ–°"
+                : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} åˆ†é’Ÿå‰"
+                : $"{(int)age.TotalHours} å°æ—¶å‰";
 
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"¸üĞÂÊ±¼ä: {ageText}");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"æ›´æ–°æ—¶é—´: {ageText}");
         }
     }
 
@@ -388,7 +388,7 @@ public partial class VulcanWindow
 
         if (items.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "  ÎŞÉÏ¼Ü¼ÇÂ¼¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "  æ— ä¸Šæ¶è®°å½•");
             return;
         }
 
@@ -397,10 +397,10 @@ public partial class VulcanWindow
         if (!ImGui.BeginTable($"##mb{label}tbl", colCount, tableFlags, new Vector2(-1, 0)))
             return;
 
-        ImGui.TableSetupColumn("¼Û¸ñ", ImGuiTableColumnFlags.WidthFixed,   120f);
-        ImGui.TableSetupColumn("ÊıÁ¿",   ImGuiTableColumnFlags.WidthFixed,    55f);
+        ImGui.TableSetupColumn("ä»·æ ¼", ImGuiTableColumnFlags.WidthFixed,   120f);
+        ImGui.TableSetupColumn("æ•°é‡",   ImGuiTableColumnFlags.WidthFixed,    55f);
         if (showWorld)
-            ImGui.TableSetupColumn("·şÎñÆ÷", ImGuiTableColumnFlags.WidthStretch, 1f);
+            ImGui.TableSetupColumn("æœåŠ¡å™¨", ImGuiTableColumnFlags.WidthStretch, 1f);
         ImGui.TableHeadersRow();
 
         var count = Math.Min(items.Count, maxCount);
@@ -409,7 +409,7 @@ public partial class VulcanWindow
             var l = items[i];
             ImGui.TableNextRow();
             ImGui.TableSetColumnIndex(0);
-            ImGui.TextColored(i == 0 ? ColGold : priceColor, $"{l.PricePerUnit:N0} ½ğ±Ò");
+            ImGui.TextColored(i == 0 ? ColGold : priceColor, $"{l.PricePerUnit:N0} é‡‘å¸");
             ImGui.TableSetColumnIndex(1);
             ImGui.TextColored(ColGrey, $"\u00d7{l.Quantity}");
             if (showWorld)

@@ -91,7 +91,7 @@ public partial class Interface
                 => 50 * ImGuiHelpers.GlobalScale;
 
             public override int Compare(FishRecord lhs, FishRecord rhs)
-                => lhs.Perception.CompareTo(rhs.Perception); // Bug: 修复排序崩溃，估计写错了
+                => lhs.Perception.CompareTo(rhs.Perception);
             public override void DrawColumn(FishRecord record, int _)
                 => ImGuiUtil.RightAlign(ToName(record));
         }

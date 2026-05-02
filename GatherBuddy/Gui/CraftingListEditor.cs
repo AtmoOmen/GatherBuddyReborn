@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Inventory;
+using Dalamud.Game.Inventory.InventoryEventArgTypes;
 using Dalamud.Interface.Colors;
 using Lumina.Excel.Sheets;
 using ElliLib;
@@ -49,29 +51,87 @@ public class CraftingListEditor
     private CancellationTokenSource? _materialsCancellationSource = null;
     private bool _isGeneratingMaterials = false;
     
-    private Dictionary<uint, int> _cachedInventoryCounts = new();
+    private Dictionary<uint, (int NQ, int HQ)> _cachedInventorySplitCounts = new();
     private Dictionary<uint, DateTime> _inventoryRefreshTimes = new();
-    private Dictionary<uint, int> _cachedRetainerCounts = new();
-    private Dictionary<uint, DateTime> _retainerRefreshTimes = new();
+    private RetainerItemSnapshot _cachedRetainerSnapshot = RetainerItemSnapshot.Empty;
+    private uint[] _cachedRetainerSnapshotItemIds = [];
+    private DateTime _cachedRetainerSnapshotAt = DateTime.MinValue;
+    private readonly HashSet<uint> _watchedInventoryItemIds = new();
+    private readonly HashSet<uint> _watchedOriginalResultItemIds = new();
+    private readonly HashSet<uint> _watchedPrecraftResultItemIds = new();
+    private readonly object _inventoryChangeLock = new();
+    private DateTime _lastGraphAffectingInventoryChange = DateTime.MinValue;
+    private string _watchedInventoryHash = string.Empty;
+    private bool _pendingQueueRefreshFromInventory;
+    private bool _pendingMaterialsRefreshFromInventory;
     private const double InventoryRefreshIntervalSeconds = 0.5;
+    private const double RetainerSnapshotRetryIntervalSeconds = 1.0;
+    private const double InventoryChangeDebounceSeconds = 0.2;
     
     private RecipeCraftSettingsPopup _craftSettingsPopup = new();
     private CraftingListConsumablesPopup _consumablesPopup = new();
     
     private int _editingQuantityIndex = -1;
     private int _tempQuantityInput = 0;
+    private readonly HashSet<int> _selectedRecipeIndices = new();
+    private int _lastClickedRecipeIndex = -1;
     private Dictionary<uint, int>? _cachedPrecraftMaterials = null;
+    private Dictionary<uint, IngredientQualityDemand>? _cachedIngredientDemands = null;
+    private Dictionary<uint, IngredientQualityDemand>? _cachedCraftMaterialDemands = null;
     private string _cachedPrecraftMaterialsHash = string.Empty;
+    private Dictionary<uint, int>? _cachedDisplayMaterials = null;
+    private Dictionary<uint, int>? _cachedDisplayPrecraftMaterials = null;
+    private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayIngredientDemands = null;
+    private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayCraftMaterialDemands = null;
+    private string _cachedDisplayMaterialsHash = string.Empty;
+    private sealed class QueueDisplayRow
+    {
+        public int QueueIndex { get; init; }
+        public int Quantity { get; init; }
+        public bool IsOriginalRecipe { get; init; }
+        public Recipe Recipe { get; init; }
+        public string ItemName { get; init; } = string.Empty;
+        public string Label { get; init; } = string.Empty;
+        public Vector4 BaseTextColor { get; init; }
+        public bool EffectiveQuickSynth { get; init; }
+        public bool ForceQuickSynth { get; init; }
+        public MacroValidationResult? Validation { get; init; }
+    }
+
+    private sealed class RecipeDisplayRow
+    {
+        public int ListIndex { get; init; }
+        public Recipe Recipe { get; init; }
+        public string ItemName { get; init; } = string.Empty;
+        public string Label { get; init; } = string.Empty;
+        public Vector4 TextColor { get; init; }
+        public MacroValidationResult? Validation { get; init; }
+    }
+
+    private List<QueueDisplayRow>? _cachedQueueDisplayRows = null;
+    private List<QueueDisplayRow>? _cachedOriginalQueueDisplayRows = null;
+    private string _cachedQueueDisplayRowsHash = string.Empty;
+    private bool _cachedQueueDisplayRowsValid = false;
+    private List<RecipeDisplayRow>? _cachedRecipeDisplayRows = null;
+    private bool _cachedRecipeDisplayRowsValid = false;
+    private (int HardFails, int Warnings) _cachedValidationIssueCounts;
+    private string _cachedValidationIssueCountsHash = string.Empty;
+    private bool _cachedValidationIssueCountsValid = false;
 
     private string _editingName        = string.Empty;
     private string _editingDescription = string.Empty;
     private bool   _nameConflict       = false;
     private bool   _editingDescActive  = false;
     private bool   _focusDescNext      = false;
+    private long _materialCacheVersion;
     
     internal bool HasCachedMaterials    => _cachedMaterials != null;
+    internal bool HasCachedDisplayMaterials => _cachedDisplayMaterials != null;
     internal bool IsGeneratingMaterials => _isGeneratingMaterials;
-    internal string ListName            => _list.Name;
+    internal string ListName            => GetPlanningList().Name;
+    internal bool SkipIfEnoughEnabled   => GetPlanningList().SkipIfEnough;
+    internal bool RetainerRestockEnabled => GetPlanningList().RetainerRestock;
+    internal long MaterialCacheVersion  => Interlocked.Read(ref _materialCacheVersion);
     
     public Action<CraftingListDefinition>? OnStartCrafting { get; set; }
 
@@ -80,12 +140,58 @@ public class CraftingListEditor
         _list               = list;
         _editingName        = list.Name;
         _editingDescription = list.Description;
+        _craftSettingsPopup.OnSaved = HandleEditorSettingsSaved;
+        _consumablesPopup.OnSaved = HandleEditorSettingsSaved;
         RefreshInventoryCounts();
+        Dalamud.GameInventory.InventoryChanged += OnInventoryChanged;
         TriggerQueueRegeneration();
+    }
+
+    private CraftingExecutionPlan? GetActiveExecutionPlan()
+        => CraftingGatherBridge.GetActiveExecutionPlan(_list.ID);
+
+    private CraftingListDefinition GetPlanningList()
+        => GetActiveExecutionPlan()?.PlanningSnapshot ?? _list;
+
+    private bool TryCacheActiveExecutionPlan(string hash)
+    {
+        var activeExecutionPlan = GetActiveExecutionPlan();
+        if (activeExecutionPlan == null)
+            return false;
+
+        if (!_cachedQueueValid || _cachedSortedQueue == null || _cachedListHash != hash)
+        {
+            _cachedSortedQueue = BuildDisplayQueue(activeExecutionPlan.ResolvedPlan);
+            _cachedListHash = hash;
+            _cachedQueueValid = true;
+        }
+
+        if (!_cachedMaterialsValid || _cachedMaterials == null || _cachedMaterialsHash != hash
+         || _cachedPrecraftMaterials == null || _cachedPrecraftMaterialsHash != hash
+         || _cachedIngredientDemands == null || _cachedCraftMaterialDemands == null)
+        {
+            _cachedMaterials = activeExecutionPlan.Materials;
+            _cachedIngredientDemands = activeExecutionPlan.IngredientDemands;
+            _cachedPrecraftMaterials = BuildCraftPanelMaterials(activeExecutionPlan.ResolvedPlan);
+            _cachedCraftMaterialDemands = BuildCraftPanelDemands(activeExecutionPlan.ResolvedPlan, _cachedPrecraftMaterials);
+            _cachedMaterialsHash = hash;
+            _cachedPrecraftMaterialsHash = hash;
+            _cachedMaterialsValid = true;
+        }
+
+        if (_cachedDisplayMaterials == null || _cachedDisplayMaterialsHash != hash
+         || _cachedDisplayPrecraftMaterials == null
+         || _cachedDisplayIngredientDemands == null
+         || _cachedDisplayCraftMaterialDemands == null)
+        {
+            CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), hash);
+        }
+        return true;
     }
     
     public void Dispose()
     {
+        Dalamud.GameInventory.InventoryChanged -= OnInventoryChanged;
         _queueCancellationSource?.Cancel();
         _queueCancellationSource?.Dispose();
         _materialsCancellationSource?.Cancel();
@@ -94,13 +200,54 @@ public class CraftingListEditor
     
     public void RefreshInventoryCounts()
     {
-        _cachedInventoryCounts.Clear();
+        _cachedInventorySplitCounts.Clear();
         _inventoryRefreshTimes.Clear();
-        _cachedRetainerCounts.Clear();
-        _retainerRefreshTimes.Clear();
+        InvalidateRetainerSnapshot();
+    }
+
+    internal void RefreshFromExternalListChange()
+    {
+        GatherBuddy.Log.Debug($"[CraftingListEditor] Refreshing cached queue/materials for externally modified list '{_list.Name}'");
+        _selectedRecipeIndices.Clear();
+        _lastClickedRecipeIndex = -1;
+        _cachedQueueValid = false;
+        InvalidateMaterialCaches();
+        InvalidatePresentationCaches();
+        TriggerQueueRegeneration();
+        TriggerMaterialsRegeneration();
+        if (!_editingDescActive)
+            _editingDescription = _list.Description;
+    }
+
+    private void HandleEditorSettingsSaved()
+    {
+        GatherBuddy.Log.Debug($"[CraftingListEditor] Refreshing presentation caches after settings change for list '{_list.Name}'");
+        InvalidatePresentationCaches();
+        _cachedQueueValid = false;
+        InvalidateMaterialCaches();
+        TriggerQueueRegeneration();
+        TriggerMaterialsRegeneration();
+    }
+    private void InvalidateQueuePresentationCaches()
+    {
+        _cachedQueueDisplayRows = null;
+        _cachedOriginalQueueDisplayRows = null;
+        _cachedQueueDisplayRowsHash = string.Empty;
+        _cachedQueueDisplayRowsValid = false;
+        _cachedValidationIssueCounts = default;
+        _cachedValidationIssueCountsHash = string.Empty;
+        _cachedValidationIssueCountsValid = false;
+    }
+
+    private void InvalidatePresentationCaches()
+    {
+        InvalidateQueuePresentationCaches();
+        _cachedRecipeDisplayRows = null;
+        _cachedRecipeDisplayRowsValid = false;
     }
     public void Draw()
     {
+        ProcessPendingInventoryChanges();
         var availableWidth = ImGui.GetContentRegionAvail().X;
         var availableHeight = ImGui.GetContentRegionAvail().Y;
         
@@ -109,7 +256,8 @@ public class CraftingListEditor
         
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
         {
-            ImGui.BeginChild("LeftPane", new Vector2(leftPaneWidth, availableHeight), true);
+            ImGui.BeginChild("LeftPane", new Vector2(leftPaneWidth, availableHeight), true,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             DrawQueuePane();
             ImGui.EndChild();
         }
@@ -127,196 +275,368 @@ public class CraftingListEditor
         _consumablesPopup.Draw();
     }
 
+    private void OnInventoryChanged(IReadOnlyCollection<InventoryEventArgs> events)
+    {
+        EnsureWatchedInventoryItems();
+        var changedItemIds = new HashSet<uint>();
+        var planningList = GetPlanningList();
+
+        var graphAffected = false;
+        foreach (var inventoryEvent in events)
+        {
+            foreach (var itemId in GetAffectedTrackedInventoryItemIds(inventoryEvent))
+            {
+                if (itemId == 0 || !_watchedInventoryItemIds.Contains(itemId))
+                    continue;
+
+                changedItemIds.Add(itemId);
+
+                if ((planningList.SkipIfEnough && _watchedPrecraftResultItemIds.Contains(itemId))
+                 || (planningList.SkipIfEnough && planningList.SkipFinalIfEnough && _watchedOriginalResultItemIds.Contains(itemId)))
+                {
+                    graphAffected = true;
+                }
+            }
+        }
+
+        if (changedItemIds.Count == 0)
+            return;
+
+        foreach (var itemId in changedItemIds)
+        {
+            _cachedInventorySplitCounts.Remove(itemId);
+            _inventoryRefreshTimes.Remove(itemId);
+        }
+
+        Interlocked.Increment(ref _materialCacheVersion);
+
+        if (!graphAffected)
+            return;
+
+        lock (_inventoryChangeLock)
+        {
+            _pendingQueueRefreshFromInventory = true;
+            _pendingMaterialsRefreshFromInventory = true;
+            _lastGraphAffectingInventoryChange = DateTime.Now;
+        }
+    }
+
+    private static IEnumerable<uint> GetAffectedTrackedInventoryItemIds(InventoryEventArgs inventoryEvent)
+    {
+        switch (inventoryEvent)
+        {
+            case InventoryComplexEventArgs complexEvent:
+            {
+                if (IsTrackedInventoryContainer(complexEvent.SourceInventory))
+                {
+                    var sourceItemId = complexEvent.SourceEvent.Item.BaseItemId;
+                    if (sourceItemId > 0)
+                        yield return sourceItemId;
+                }
+
+                if (IsTrackedInventoryContainer(complexEvent.TargetInventory))
+                {
+                    var targetItemId = complexEvent.TargetEvent.Item.BaseItemId;
+                    if (targetItemId > 0)
+                        yield return targetItemId;
+                }
+
+                yield break;
+            }
+            case InventoryItemAddedArgs addedEvent when IsTrackedInventoryContainer(addedEvent.Inventory):
+            {
+                var itemId = addedEvent.Item.BaseItemId;
+                if (itemId > 0)
+                    yield return itemId;
+                yield break;
+            }
+            case InventoryItemRemovedArgs removedEvent when IsTrackedInventoryContainer(removedEvent.Inventory):
+            {
+                var itemId = removedEvent.Item.BaseItemId;
+                if (itemId > 0)
+                    yield return itemId;
+                yield break;
+            }
+            case InventoryItemChangedArgs changedEvent when IsTrackedInventoryContainer(changedEvent.Inventory):
+            {
+                var oldItemId = changedEvent.OldItemState.BaseItemId;
+                if (oldItemId > 0)
+                    yield return oldItemId;
+
+                var itemId = changedEvent.Item.BaseItemId;
+                if (itemId > 0 && itemId != oldItemId)
+                    yield return itemId;
+                yield break;
+            }
+            default:
+            {
+                if (!IsTrackedInventoryContainer(inventoryEvent.Item.ContainerType))
+                    yield break;
+
+                var itemId = inventoryEvent.Item.BaseItemId;
+                if (itemId > 0)
+                    yield return itemId;
+                yield break;
+            }
+        }
+    }
+
+    private void ProcessPendingInventoryChanges()
+    {
+        bool refreshQueue;
+        bool refreshMaterials;
+        lock (_inventoryChangeLock)
+        {
+            if (!_pendingQueueRefreshFromInventory && !_pendingMaterialsRefreshFromInventory)
+                return;
+
+            if ((DateTime.Now - _lastGraphAffectingInventoryChange).TotalSeconds < InventoryChangeDebounceSeconds)
+                return;
+
+            refreshQueue = _pendingQueueRefreshFromInventory;
+            refreshMaterials = _pendingMaterialsRefreshFromInventory;
+            _pendingQueueRefreshFromInventory = false;
+            _pendingMaterialsRefreshFromInventory = false;
+        }
+
+        if (refreshQueue)
+        {
+            _cachedQueueValid = false;
+            InvalidateQueuePresentationCaches();
+            TriggerQueueRegeneration();
+        }
+
+        if (refreshMaterials)
+        {
+            InvalidateMaterialCaches();
+            TriggerMaterialsRegeneration();
+        }
+    }
+
+    private void EnsureWatchedInventoryItems()
+    {
+        var currentHash = ComputeListHash();
+        if (currentHash == _watchedInventoryHash)
+            return;
+
+        _watchedInventoryItemIds.Clear();
+        _watchedOriginalResultItemIds.Clear();
+        _watchedPrecraftResultItemIds.Clear();
+
+        var visitedRecipes = new HashSet<uint>();
+        foreach (var item in GetPlanningList().Recipes)
+        {
+            if (item.Options.Skipping || item.Quantity <= 0)
+                continue;
+
+            var recipe = RecipeManager.GetRecipe(item.RecipeId);
+            if (recipe == null)
+                continue;
+
+            CollectWatchedInventoryItems(recipe.Value, true, visitedRecipes);
+        }
+
+        _watchedInventoryHash = currentHash;
+    }
+
+    private void CollectWatchedInventoryItems(Recipe recipe, bool isOriginalRecipe, HashSet<uint> visitedRecipes)
+    {
+        var resultItemId = recipe.ItemResult.RowId;
+        if (resultItemId > 0)
+        {
+            _watchedInventoryItemIds.Add(resultItemId);
+            if (isOriginalRecipe)
+                _watchedOriginalResultItemIds.Add(resultItemId);
+            else
+                _watchedPrecraftResultItemIds.Add(resultItemId);
+        }
+
+        if (!visitedRecipes.Add(recipe.RowId))
+            return;
+
+        foreach (var (itemId, _) in RecipeManager.GetIngredients(recipe))
+        {
+            if (itemId > 0)
+                _watchedInventoryItemIds.Add(itemId);
+
+            var subRecipe = RecipeManager.GetRecipeForItem(itemId);
+            if (subRecipe.HasValue)
+                CollectWatchedInventoryItems(subRecipe.Value, false, visitedRecipes);
+        }
+    }
+
+    private static bool IsTrackedInventoryContainer(GameInventoryType inventoryType)
+        => inventoryType is GameInventoryType.Inventory1
+            or GameInventoryType.Inventory2
+            or GameInventoryType.Inventory3
+            or GameInventoryType.Inventory4
+            or GameInventoryType.Crystals;
+
     private void DrawQueuePane()
     {
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "ÖÆ×÷¶ÓÁÐ");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "Craft Queue");
         ImGui.Separator();
         ImGui.Spacing();
-
-        if (_list.Recipes.Count == 0)
+        var planningList = GetPlanningList();
+        var activeExecutionPlan = GetActiveExecutionPlan();
+        if (planningList.Recipes.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "¶ÓÁÐÖÐÎÞÅä·½¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "No recipes in queue.");
             ImGui.Spacing();
-            ImGui.TextWrapped("ÇëÊ¹ÓÃÓÒ²àÃæ°åÌí¼ÓÅä·½¡£");
+            ImGui.TextWrapped("Add recipes using the panel on the right.");
             return;
         }
 
-        var sortedQueue  = GetSortedQueue();
-        var displayQueue = _showPrecrafts
-            ? sortedQueue
-            : _list.Recipes.Select(r => new CraftingListItem(r.RecipeId, r.Quantity)).ToList();
 
         var lineH   = ImGui.GetTextLineHeightWithSpacing();
         var spacing = ImGui.GetStyle().ItemSpacing.Y;
-        var bottomH = lineH * 3 + spacing * 3    // 3 checkboxes
-                    + 22f * 2  + spacing * 2     // Start + gather/materials row
-                    + spacing * 2 + 6f;          // separator + padding
+        var frameH  = ImGui.GetFrameHeightWithSpacing();
+        var footerRows = 7 + (_list.QuickSynthAll ? 2 : 0) + (_list.SkipIfEnough ? 1 : 0);
+        var bottomH = frameH * footerRows + spacing * 2;
         var queueH  = Math.Max(ImGui.GetContentRegionAvail().Y - bottomH, lineH * 3);
 
         ImGui.BeginChild("QueueList", new Vector2(-1, queueH), false);
 
         if (_isGeneratingQueue)
         {
-            ImGui.TextColored(ImGuiColors.DalamudYellow, "ÕýÔÚ¼ÆËãÖÆ×÷¶ÓÁÐ...");
-        }
-        else if (displayQueue.Count == 0)
-        {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "¶ÓÁÐÎª¿Õ");
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "Calculating craft queue...");
         }
         else
         {
-            var originalRecipes = new HashSet<uint>(_list.Recipes.Select(r => r.RecipeId));
-
-            void DrawQueueItem(int idx)
+            var displayRows = GetDisplayQueueRows(planningList, activeExecutionPlan);
+            if (displayRows.Count == 0)
             {
-                var queueItem  = displayQueue[idx];
-                var recipeData = RecipeManager.GetRecipe(queueItem.RecipeId);
-                if (recipeData == null) return;
-
-                var itemName = recipeData.Value.ItemResult.Value.Name.ExtractText();
-                var jobName  = GetCraftingJobName(recipeData.Value.CraftType.RowId);
-
-                var isOriginalRecipe = originalRecipes.Contains(queueItem.RecipeId);
-                var willBeSkipped    = _list.SkipIfEnough && WillBeSkippedDueToInventory(recipeData.Value, queueItem.Quantity);
-                var recipeOptions    = _list.GetRecipeOptions(queueItem.RecipeId);
-                var quickSynthPrefix = recipeOptions.NQOnly ? "[¼òÒ×ÖÆ×÷] " : "";
-
-                Vector4 textColor;
-                if (willBeSkipped)
-                    textColor = new Vector4(1, 0.3f, 0.3f, 1);
-                else if (recipeOptions.NQOnly)
-                    textColor = new Vector4(0.3f, 0.9f, 0.9f, 1);
-                else if (isOriginalRecipe)
-                    textColor = new Vector4(1, 1, 1, 1);
-                else
-                    textColor = new Vector4(0.7f, 0.7f, 0.7f, 1);
-
-                var queueItemCraftSettings = isOriginalRecipe
-                    ? _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId)?.CraftSettings
-                    : _list.PrecraftCraftSettings.GetValueOrDefault(queueItem.RecipeId);
-                var queueItemValidation = MacroValidator.GetOrCompute(queueItem.RecipeId, ResolveEffectiveMacroId(queueItemCraftSettings, !isOriginalRecipe), queueItemCraftSettings, _list.Consumables);
-                if (queueItemValidation != null)
-                {
-                    var dotColor = queueItemValidation.IsValid
-                        ? new Vector4(0.30f, 0.70f, 0.30f, 1f)
-                        : (queueItemValidation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
-                            ? new Vector4(0.78f, 0.62f, 0.15f, 1f)
-                            : new Vector4(0.78f, 0.25f, 0.25f, 1f));
-                    ImGui.TextColored(dotColor, "\u25cf");
-                    if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip(queueItemValidation.IsValid
-                            ? $"ºê: Í¨¹ý\n½øÕ¹: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}\nÆ·ÖÊ: {queueItemValidation.FinalQuality}\nÄÍ¾Ã: {queueItemValidation.FinalDurability}"
-                            : $"ºê: {queueItemValidation.Failure} ÓÚ²½Öè {queueItemValidation.FailedAtStep}\n½øÕ¹: {queueItemValidation.FinalProgress}/{queueItemValidation.RequiredProgress}");
-                    ImGui.SameLine();
-                }
-
-                ImGui.PushStyleColor(ImGuiCol.Text, textColor);
-                var isSelected = _selectedQueueIndex == idx;
-                var label      = $"{quickSynthPrefix}{idx + 1}. {itemName} x{queueItem.Quantity} ({jobName})";
-                if (ImGui.Selectable(label, isSelected))
-                    _selectedQueueIndex = idx;
-                ImGui.PopStyleColor();
-
-                var isPopupOpen = GatherBuddy.ControllerSupport != null
-                    ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"queue_ctx_{idx}", Dalamud.GamepadState)
-                    : ImGui.BeginPopupContextItem($"queue_ctx_{idx}");
-
-                if (isPopupOpen)
-                {
-                    if (ImGui.MenuItem("ÖÆ×÷ÉèÖÃ..."))
-                    {
-                        if (isOriginalRecipe)
-                        {
-                            var listItem = _list.Recipes.FirstOrDefault(r => r.RecipeId == queueItem.RecipeId);
-                            if (listItem != null)
-                                _craftSettingsPopup.OpenForListItem(listItem, _list, itemName);
-                        }
-                        else
-                        {
-                            _craftSettingsPopup.OpenForPrecraft(queueItem.RecipeId, itemName, _list);
-                        }
-                    }
-
-                    ImGui.Separator();
-
-                    if (recipeData.Value.CanQuickSynth)
-                    {
-                        var useQuickSynth = recipeOptions.NQOnly;
-                        if (ImGui.MenuItem("¼òÒ×ÖÆ×÷", "", useQuickSynth))
-                        {
-                            _list.SetRecipeQuickSynth(queueItem.RecipeId, !useQuickSynth);
-                            GatherBuddy.CraftingListManager.SaveList(_list);
-                            _cachedQueueValid    = false;
-                            _cachedMaterialsValid = false;
-                            TriggerQueueRegeneration();
-                        }
-                        if (ImGui.IsItemHovered())
-                            ImGui.SetTooltip("Îª´ËÅä·½Ê¹ÓÃ¼òÒ×ÖÆ×÷ (½öÆÕÍ¨Æ·ÖÊ)");
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled("¼òÒ×ÖÆ×÷²»¿ÉÓÃ");
-                        if (ImGui.IsItemHovered())
-                            ImGui.SetTooltip("Åä·½±ØÐë½âËø²¢ÖÁÉÙÖÆ×÷¹ýÒ»´Î²ÅÄÜÊ¹ÓÃ¼òÒ×ÖÆ×÷");
-                    }
-
-                    ImGui.EndPopup();
-                }
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "é˜Ÿåˆ—ä¸ºç©º");
             }
-
-            for (int i = 0; i < displayQueue.Count; i++)
-                DrawQueueItem(i);
+            else
+            {
+                var clipper = ImGui.ImGuiListClipper();
+                clipper.Begin(displayRows.Count);
+                while (clipper.Step())
+                {
+                    for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                        DrawQueueRow(displayRows[i], planningList);
+                }
+                clipper.End();
+                clipper.Destroy();
+            }
         }
 
         ImGui.EndChild();
 
+        ImGui.BeginChild("QueueFooter", new Vector2(-1, 0), false,
+            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.Checkbox("ÏÔÊ¾°ë³ÉÆ·ÖÆ×÷##sp", ref _showPrecrafts);
+        ImGui.Checkbox("Show Precrafts##sp", ref _showPrecrafts);
 
         var skipIfEnough = _list.SkipIfEnough;
-        if (ImGui.Checkbox("Ìø¹ýÒÑ¾­×ã¹»µÄÎïÆ·##sie", ref skipIfEnough))
+        if (ImGui.Checkbox("Skip if Already Have Enough##sie", ref skipIfEnough))
         {
             _list.SkipIfEnough    = skipIfEnough;
             _cachedQueueValid     = false;
-            _cachedMaterialsValid = false;
+            InvalidateMaterialCaches();
+            InvalidatePresentationCaches();
             GatherBuddy.CraftingListManager.SaveList(_list);
             TriggerQueueRegeneration();
             RefreshInventoryCounts();
         }
 
+        if (_list.SkipIfEnough)
+        {
+            ImGui.Indent();
+            var skipFinalIfEnough = _list.SkipFinalIfEnough;
+            if (ImGui.Checkbox("Include Final Crafts##sife", ref skipFinalIfEnough))
+            {
+                _list.SkipFinalIfEnough = skipFinalIfEnough;
+                _cachedQueueValid       = false;
+                InvalidatePresentationCaches();
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                TriggerQueueRegeneration();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Also reduce final crafts based on how many you already have. Useful for resuming an interrupted list.");
+            ImGui.Unindent();
+        }
+
         var quickSynthAll = _list.QuickSynthAll;
-        if (ImGui.Checkbox("¼òÒ×ÖÆ×÷È«²¿##qsa", ref quickSynthAll))
+        if (ImGui.Checkbox("Quick Synth All##qsa", ref quickSynthAll))
         {
             _list.QuickSynthAll = quickSynthAll;
             GatherBuddy.CraftingListManager.SaveList(_list);
+            _cachedQueueValid     = false;
+            InvalidateMaterialCaches();
+            InvalidatePresentationCaches();
+            TriggerQueueRegeneration();
+            TriggerMaterialsRegeneration();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Ç¿ÖÆÇåµ¥ÖÐËùÓÐ¿ÉÓÃÎïÆ·Ê¹ÓÃ¼òÒ×ÖÆ×÷, ¸²¸ÇÃ¿¸öÎïÆ·µÄÇó½âÆ÷ÉèÖÃ¡£");
+            ImGui.SetTooltip("å¼ºåˆ¶æ¸…å•ä¸­æ‰€æœ‰å¯ç®€æ˜“åˆ¶ä½œçš„ç‰©å“ä½¿ç”¨ç®€æ˜“åˆ¶ä½œ, å¯ç”¨åŽä¸‹æ–¹æ˜¾ç¤ºé¢å¤–è¦†ç›–é€‰é¡¹");
+
+        if (_list.QuickSynthAll)
+        {
+            ImGui.Indent();
+
+            var quickSynthAllPreferNQ = _list.QuickSynthAllPreferNQ;
+            if (ImGui.Checkbox("ä¼˜å…ˆ NQ##qsapnq", ref quickSynthAllPreferNQ))
+            {
+                _list.QuickSynthAllPreferNQ = quickSynthAllPreferNQ;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid     = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+                TriggerMaterialsRegeneration();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Override ingredient quality preferences for affected crafts and prefer NQ materials unless HQ is required as fallback.");
+
+            var quickSynthAllPrecraftsOnly = _list.QuickSynthAllPrecraftsOnly;
+            if (ImGui.Checkbox("Precrafts Only##qsapo", ref quickSynthAllPrecraftsOnly))
+            {
+                _list.QuickSynthAllPrecraftsOnly = quickSynthAllPrecraftsOnly;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid     = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+                TriggerMaterialsRegeneration();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("ä»…å¯¹ç”Ÿæˆçš„åŠæˆå“åº”ç”¨å…¨éƒ¨ç®€æ˜“åˆ¶ä½œå’Œä¼˜å…ˆ NQ è¦†ç›–, ä¸å½±å“æœ€ç»ˆæ¸…å•ç‰©å“");
+
+            ImGui.Unindent();
+        }
 
         var allaganEnabled = AllaganTools.Enabled;
         using (ImRaii.Disabled(!allaganEnabled))
         {
             var retainerRestock = _list.RetainerRestock;
-            if (ImGui.Checkbox("´Ó¹ÍÔ±²¹»õ##rrr", ref retainerRestock))
+            if (ImGui.Checkbox("Restock from Retainers##rrr", ref retainerRestock))
             {
                 _list.RetainerRestock = retainerRestock;
                 GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+                TriggerMaterialsRegeneration();
             }
         }
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip(allaganEnabled
-                ? "ÔÚÉú³É×Ô¶¯²É¼¯ÁÐ±íÇ°, ´Ó¹ÍÔ±´¦È¡³öÐèÒªµÄ²ÄÁÏ, ×ñÑ­ HQ/NQ Æ«ºÃÉèÖÃ¡£"
-                : "ÐèÒª°²×°²¢ÆôÓÃ Allagan Tools ²å¼þ¡£");
+                ? "Withdraw needed materials from retainers before generating the gather list. Respects HQ/NQ preferences."
+                : "Requires Allagan Tools to be installed and enabled.");
 
 
         ImGui.Spacing();
 
         if (IPCSubscriber.IsReady("Artisan"))
         {
-            ImGuiUtil.DrawDisabledButton("¼ì²âµ½ Artisan", new Vector2(-1, 22),
-                "Artisan ²å¼þÒÑ¼ÓÔØ, ÇëÐ¶ÔØ Artisan ÒÔÊ¹ÓÃ Vulcan µÄÖÆ×÷ÏµÍ³¡£", true);
+            ImGuiUtil.DrawDisabledButton("Artisan Detected", new Vector2(-1, 22),
+                "Artisan plugin is loaded. Please unload Artisan to use Vulcan's crafting system.", true);
         }
         else
         {
@@ -326,7 +646,7 @@ public class CraftingListEditor
             else if (warnings > 0)
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.40f, 0.05f, 1f));
 
-            if (ImGui.Button("¿ªÊ¼ ²É¼¯/ÖÆ×÷", new Vector2(-1, 22)))
+            if (ImGui.Button("Start Gather/Crafting", new Vector2(-1, 22)))
             {
                 if (hardFails > 0)
                     ImGui.OpenPopup("ConfirmFailedMacros##startCraft");
@@ -339,60 +659,62 @@ public class CraftingListEditor
                 ImGui.PopStyleColor();
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(hardFails > 0
-                        ? $"{hardFails} ¸öºêÔ¤¼Æ»áÔÚ±¾´ÎÖÆ×÷ÖÐÊ§°Ü, µã»÷È·ÈÏÈÔÈ»¿ªÊ¼¡£"
-                        : $"{warnings} ¸öºê´æÔÚ¾¯¸æ¡£");
+                        ? $"{hardFails} macro(s) will fail this craft. Click to confirm and start anyway."
+                        : $"{warnings} macro(s) have warnings.");
             }
 
             if (ImGui.BeginPopupModal("ConfirmFailedMacros##startCraft", ImGuiWindowFlags.AlwaysAutoResize))
             {
-                ImGui.TextColored(new Vector4(0.78f, 0.25f, 0.25f, 1f), $"{hardFails} ¸öºêÔ¤¼Æ»áÖÆ×÷Ê§°Ü¡£");
-                ImGui.TextWrapped("ÕâÐ©ÎïÆ·¿ÉÄÜÎÞ·¨Íê³É, ÊÇ·ñÈÔÒª¿ªÊ¼ÖÆ×÷?");
+                ImGui.TextColored(new Vector4(0.78f, 0.25f, 0.25f, 1f), $"{hardFails} macro(s) are predicted to FAIL their craft.");
+                ImGui.TextWrapped("These items may not be completed. Start crafting anyway?");
                 ImGui.Spacing();
-                if (ImGui.Button("ÈÔÈ»¿ªÊ¼", new Vector2(120, 0)))
+                if (ImGui.Button("Start Anyway", new Vector2(120, 0)))
                 {
                     OnStartCrafting?.Invoke(_list);
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("È¡Ïû", new Vector2(80, 0)))
+                if (ImGui.Button("Cancel", new Vector2(80, 0)))
                     ImGui.CloseCurrentPopup();
                 ImGui.EndPopup();
             }
         }
 
         var halfW = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2f;
-        if (ImGui.Button("Éú³É×Ô¶¯²É¼¯ÁÐ±í##gatherList", new Vector2(halfW, 22)))
+        if (ImGui.Button("Gather List##gatherList", new Vector2(halfW, 22)))
         {
-            var materials = _list.ListMaterials();
+            var materials = new Dictionary<uint, int>(GetCachedMaterials());
             CraftingGatherBridge.CreatePersistentGatherList($"{_list.Name}...Auto-Generated", materials);
         }
         ImGui.SameLine();
-        var matsBtnLabel = GatherBuddy.CraftingMaterialsWindow?.IsOpen == true ? "Òþ²Ø²ÄÁÏ±í" : "²é¿´²ÄÁÏ±í";
+        var matsBtnLabel = GatherBuddy.CraftingMaterialsWindow?.IsOpen == true ? "Hide Materials" : "View Materials";
         if (ImGui.Button($"{matsBtnLabel}##viewMats", new Vector2(-1, 22)) && GatherBuddy.CraftingMaterialsWindow != null)
             GatherBuddy.CraftingMaterialsWindow.IsOpen = !GatherBuddy.CraftingMaterialsWindow.IsOpen;
+
+        ImGui.EndChild();
     }
     
     private void DrawDetailsPane()
     {
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "ÖÆ×÷Çåµ¥ÏêÇé");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "List Info");
         ImGui.Separator();
         ImGui.Spacing();
         DrawListInfoSection();
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "ÖÆ×÷Çåµ¥ÏûºÄÆ·");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "List Consumables");
         ImGui.Separator();
         ImGui.Spacing();
         DrawListConsumablesSection();
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Ìí¼ÓÅä·½");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "Add Recipe");
         ImGui.Separator();
         ImGui.Spacing();
         DrawAddRecipeSection();
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Åä·½Çåµ¥");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "Recipe List");
         ImGui.Separator();
         ImGui.Spacing();
         DrawRecipeListSection();
@@ -426,10 +748,10 @@ public class CraftingListEditor
         }
 
         if (_nameConflict)
-            ImGui.TextColored(ImGuiColors.DalamudRed, "ÒÑ´æÔÚÍ¬ÃûµÄÖÆ×÷Çåµ¥¡£");
+            ImGui.TextColored(ImGuiColors.DalamudRed, "A list with that name already exists.");
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "±¸×¢"); // Notes
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Notes");
 
         if (_editingDescActive)
         {
@@ -452,11 +774,10 @@ public class CraftingListEditor
         {
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.18f, 1f)))
             {
-                ImGui.BeginChild("##notesDisplay", new Vector2(-1, 60f), true,
-                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+                ImGui.BeginChild("##notesDisplay", new Vector2(-1, 60f), true);
 
                 if (string.IsNullOrEmpty(_editingDescription))
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, "µã»÷Ìí¼Ó±¸×¢...");
+                    ImGui.TextColored(ImGuiColors.DalamudGrey, "Click to add notes...");
                 else
                 {
                     using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey3))
@@ -472,6 +793,37 @@ public class CraftingListEditor
                 ImGui.EndChild();
             }
         }
+
+        ImGui.Spacing();
+        var buttonWidth = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2f;
+        if (ImGui.Button("Export List##exportList", new Vector2(buttonWidth, 0)))
+        {
+            var exported = GatherBuddy.CraftingListManager.ExportList(_list.ID);
+            if (exported != null)
+            {
+                ImGui.SetClipboardText(exported);
+                GatherBuddy.Log.Information($"[CraftingListEditor] Exported list '{_list.Name}' to clipboard");
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Copy GatherBuddy's list export string to the clipboard.");
+
+        ImGui.SameLine();
+        if (ImGui.Button("TeamCraft Export##teamCraftExport", new Vector2(-1, 0)))
+        {
+            var (exported, error) = GatherBuddy.CraftingListManager.ExportListToTeamCraft(_list.ID);
+            if (exported != null)
+            {
+                ImGui.SetClipboardText(exported);
+                GatherBuddy.Log.Information($"[CraftingListEditor] Exported list '{_list.Name}' to TeamCraft and copied the link to the clipboard");
+            }
+            else if (!string.IsNullOrEmpty(error))
+            {
+                GatherBuddy.Log.Warning($"[CraftingListEditor] Failed to export '{_list.Name}' to TeamCraft: {error}");
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Copy a TeamCraft import link built from this list's Recipe List entries.");
     }
 
     private void DrawListConsumablesSection()
@@ -482,37 +834,37 @@ public class CraftingListEditor
 
         if (_list.Consumables.FoodItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Ê³Îï:");
+            ImGui.TextColored(labelColor, "Food:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.FoodItemId.Value, _list.Consumables.FoodHQ));
             hasAny = true;
         }
         if (_list.Consumables.MedicineItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Ò©Ë®:");
+            ImGui.TextColored(labelColor, "Medicine:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.MedicineItemId.Value, _list.Consumables.MedicineHQ));
             hasAny = true;
         }
         if (_list.Consumables.ManualItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Ö¸ÄÏ:");
+            ImGui.TextColored(labelColor, "Manual:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.ManualItemId.Value, false));
             hasAny = true;
         }
         if (_list.Consumables.SquadronManualItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "¾üÓÃÖ¸ÄÏ:");
+            ImGui.TextColored(labelColor, "Squadron:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false));
             hasAny = true;
         }
         if (!hasAny)
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "ÎÞÉèÖÃ");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "None set.");
 
         ImGui.Spacing();
-        if (ImGui.Button("±à¼­ ÏûºÄÆ· & ºê##editConsumables", new Vector2(0, 0)))
+        if (ImGui.Button("Edit Consumables & Macros##editConsumables", new Vector2(0, 0)))
             _consumablesPopup.OpenListDefaults(_list);
     }
     
@@ -531,7 +883,7 @@ public class CraftingListEditor
 
         using (ImRaii.Disabled(_selectedRecipe == null))
         {
-            var clicked = ImGui.Button("Ìí¼Óµ½Çåµ¥##addRecipeBtn", new Vector2(0, 0));
+            var clicked = ImGui.Button("Add to List##addRecipeBtn", new Vector2(0, 0));
             if (!clicked && ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                 clicked = true;
             if (clicked && _selectedRecipe != null)
@@ -539,7 +891,8 @@ public class CraftingListEditor
                 _list.AddRecipe(_selectedRecipe.Value.RowId, _searchQuantity);
                 GatherBuddy.CraftingListManager.SaveList(_list);
                 _cachedQueueValid     = false;
-                _cachedMaterialsValid = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
                 _selectedRecipe = null;
                 _searchQuantity = 1;
@@ -547,16 +900,16 @@ public class CraftingListEditor
         }
 
         if (ImGui.IsItemHovered() && _selectedRecipe != null)
-            ImGui.SetTooltip($"Ìí¼Ó {_recipeLabels[_selectedRecipe.Value.RowId]} x{_searchQuantity} µ½Çåµ¥");
+            ImGui.SetTooltip($"Add {_recipeLabels[_selectedRecipe.Value.RowId]} x{_searchQuantity} to list");
     }
 
     private void DrawRecipeComboWithKeywordFilter()
     {
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("##recipeComboCustom", _selectedRecipe.HasValue ? _recipeLabels.GetValueOrDefault(_selectedRecipe.Value.RowId, "Ñ¡ÔñÅä·½") : "Ñ¡ÔñÅä·½"))
+        if (ImGui.BeginCombo("##recipeComboCustom", _selectedRecipe.HasValue ? _recipeLabels.GetValueOrDefault(_selectedRecipe.Value.RowId, "Select recipe") : "Select recipe"))
         {
             ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextWithHint("##filterRecipes", "ÊäÈëÒÔÉ¸Ñ¡...", ref _lastComboFilter, 256);
+            ImGui.InputTextWithHint("##filterRecipes", "Type to filter...", ref _lastComboFilter, 256);
 
             var filterKeywords = _lastComboFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(k => k.ToLowerInvariant())
@@ -630,13 +983,298 @@ public class CraftingListEditor
     {
         if (_list.Recipes.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "ÉÐÎ´Ìí¼ÓÈÎºÎÅä·½¡£");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "No recipes added yet.");
             return;
         }
 
-        int indexToRemove = -1;
-        
-        for (int i = 0; i < _list.Recipes.Count; i++)
+        var indicesToRemove = new List<int>();
+
+        if (_selectedRecipeIndices.Count > 1)
+        {
+            if (ImGui.Button($"Remove Selected ({_selectedRecipeIndices.Count})##removeSelected"))
+                indicesToRemove.AddRange(_selectedRecipeIndices);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Remove the {_selectedRecipeIndices.Count} selected recipes from this list.");
+        }
+        var recipeRows = GetRecipeDisplayRows();
+        var clipper = ImGui.ImGuiListClipper();
+        clipper.Begin(recipeRows.Count);
+        while (clipper.Step())
+        {
+            for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                DrawRecipeListRow(recipeRows[i], indicesToRemove);
+        }
+        clipper.End();
+        clipper.Destroy();
+
+        if (indicesToRemove.Count > 0)
+        {
+            foreach (var idx in indicesToRemove.Distinct().OrderByDescending(x => x))
+                _list.Recipes.RemoveAt(idx);
+            _selectedRecipeIndices.Clear();
+            _lastClickedRecipeIndex = -1;
+            GatherBuddy.CraftingListManager.SaveList(_list);
+            _cachedQueueValid = false;
+            InvalidateMaterialCaches();
+            InvalidatePresentationCaches();
+            TriggerQueueRegeneration();
+        }
+    }
+
+    private IReadOnlyList<QueueDisplayRow> GetDisplayQueueRows(CraftingListDefinition planningList, CraftingExecutionPlan? activeExecutionPlan)
+    {
+        EnsureQueueDisplayRows(planningList, activeExecutionPlan);
+        return _showPrecrafts
+            ? (IReadOnlyList<QueueDisplayRow>)(_cachedQueueDisplayRows ?? new List<QueueDisplayRow>())
+            : (IReadOnlyList<QueueDisplayRow>)(_cachedOriginalQueueDisplayRows ?? new List<QueueDisplayRow>());
+    }
+
+    private void EnsureQueueDisplayRows(CraftingListDefinition planningList, CraftingExecutionPlan? activeExecutionPlan)
+    {
+        if (!_cachedQueueValid || _cachedSortedQueue == null)
+            return;
+
+        var currentHash = ComputeListHash();
+        if (_cachedQueueDisplayRowsValid && _cachedQueueDisplayRowsHash == currentHash
+         && _cachedQueueDisplayRows != null && _cachedOriginalQueueDisplayRows != null)
+            return;
+
+        try
+        {
+            var sortedQueue = GetSortedQueue();
+            _cachedQueueDisplayRows = BuildQueueDisplayRows(sortedQueue, planningList);
+            IReadOnlyList<CraftingListItem> originalQueue = activeExecutionPlan != null
+                ? activeExecutionPlan.OriginalRecipesView
+                : sortedQueue
+                    .Where(queueItem => queueItem.IsOriginalRecipe)
+                    .Select(queueItem => new CraftingListItem(queueItem.RecipeId, queueItem.Quantity)
+                    {
+                        IsOriginalRecipe = true,
+                    })
+                    .ToList();
+            _cachedOriginalQueueDisplayRows = BuildQueueDisplayRows(originalQueue, planningList);
+            _cachedQueueDisplayRowsHash = currentHash;
+            _cachedQueueDisplayRowsValid = true;
+            _cachedValidationIssueCountsHash = string.Empty;
+            _cachedValidationIssueCountsValid = false;
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Error($"[CraftingListEditor] Failed to rebuild queue display cache for list '{_list.Name}': {ex.Message}");
+            _cachedQueueDisplayRows = new List<QueueDisplayRow>();
+            _cachedOriginalQueueDisplayRows = new List<QueueDisplayRow>();
+            _cachedQueueDisplayRowsHash = currentHash;
+            _cachedQueueDisplayRowsValid = true;
+            _cachedValidationIssueCountsHash = string.Empty;
+            _cachedValidationIssueCountsValid = false;
+        }
+    }
+
+    private List<QueueDisplayRow> BuildQueueDisplayRows(IReadOnlyList<CraftingListItem> sourceQueue, CraftingListDefinition planningList)
+    {
+        var rows = new List<QueueDisplayRow>(sourceQueue.Count);
+        for (var i = 0; i < sourceQueue.Count; i++)
+        {
+            var queueItem = sourceQueue[i];
+            var recipeData = RecipeManager.GetRecipe(queueItem.RecipeId);
+            if (recipeData == null)
+                continue;
+
+            var itemName = recipeData.Value.ItemResult.Value.Name.ExtractText();
+            var jobName = GetCraftingJobName(recipeData.Value.CraftType.RowId);
+            var recipeOptions = planningList.GetRecipeOptions(queueItem.RecipeId, queueItem.IsOriginalRecipe);
+            var effectiveQuickSynth = recipeOptions.NQOnly || planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
+            var forceQuickSynth = planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
+            var queueItemCraftSettings = GetEffectiveCraftSettings(queueItem.RecipeId, queueItem.IsOriginalRecipe);
+            var validation = WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe)
+                ? null
+                : MacroValidator.GetOrCompute(queueItem.RecipeId,
+                    ResolveEffectiveMacroId(queueItemCraftSettings, !queueItem.IsOriginalRecipe),
+                    queueItemCraftSettings,
+                    planningList.Consumables);
+            rows.Add(new QueueDisplayRow
+            {
+                QueueIndex = i,
+                Quantity = queueItem.Quantity,
+                IsOriginalRecipe = queueItem.IsOriginalRecipe,
+                Recipe = recipeData.Value,
+                ItemName = itemName,
+                Label = $"{(effectiveQuickSynth ? "[ç®€æ˜“åˆ¶ä½œ] " : string.Empty)}{i + 1}. {itemName} x{queueItem.Quantity} ({jobName})",
+                BaseTextColor = effectiveQuickSynth
+                    ? new Vector4(0.3f, 0.9f, 0.9f, 1f)
+                    : queueItem.IsOriginalRecipe
+                        ? new Vector4(1f, 1f, 1f, 1f)
+                        : new Vector4(0.7f, 0.7f, 0.7f, 1f),
+                EffectiveQuickSynth = effectiveQuickSynth,
+                ForceQuickSynth = forceQuickSynth,
+                Validation = validation,
+            });
+        }
+
+        return rows;
+    }
+
+    private void DrawQueueRow(QueueDisplayRow row, CraftingListDefinition planningList)
+    {
+        var willBeSkipped = planningList.SkipIfEnough
+            && (!row.IsOriginalRecipe
+                ? WillBeSkippedDueToInventory(row.Recipe)
+                : planningList.SkipFinalIfEnough && row.Quantity == 0);
+        var textColor = willBeSkipped
+            ? new Vector4(1f, 0.3f, 0.3f, 1f)
+            : row.BaseTextColor;
+
+        if (row.Validation != null)
+            DrawValidationMarker(row.Validation);
+
+        ImGui.PushStyleColor(ImGuiCol.Text, textColor);
+        var isSelected = _selectedQueueIndex == row.QueueIndex;
+        if (ImGui.Selectable(row.Label, isSelected))
+            _selectedQueueIndex = row.QueueIndex;
+        ImGui.PopStyleColor();
+
+        var isPopupOpen = GatherBuddy.ControllerSupport != null
+            ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"queue_ctx_{row.QueueIndex}", Dalamud.GamepadState)
+            : ImGui.BeginPopupContextItem($"queue_ctx_{row.QueueIndex}");
+
+        if (!isPopupOpen)
+            return;
+
+        if (ImGui.MenuItem("Craft Settings..."))
+        {
+            if (row.IsOriginalRecipe)
+            {
+                var listItem = _list.Recipes.FirstOrDefault(recipeItem => recipeItem.RecipeId == row.Recipe.RowId);
+                if (listItem != null)
+                    _craftSettingsPopup.OpenForListItem(listItem, _list, row.ItemName);
+            }
+            else
+            {
+                _craftSettingsPopup.OpenForPrecraft(row.Recipe.RowId, row.ItemName, _list);
+            }
+        }
+
+        var resultItemId = row.Recipe.ItemResult.RowId;
+        var altRecipes = RecipeManager.GetRecipesForItem(resultItemId);
+        if (altRecipes.Count > 1 && ImGui.BeginMenu("Change Job..."))
+        {
+            if (row.IsOriginalRecipe)
+            {
+                foreach (var alt in altRecipes)
+                {
+                    var altJob = GetCraftingJobName(alt.CraftType.RowId);
+                    var isCurrent = alt.RowId == row.Recipe.RowId;
+                    if (ImGui.MenuItem(altJob, string.Empty, isCurrent) && !isCurrent)
+                    {
+                        var listItem = _list.Recipes.FirstOrDefault(recipeItem => recipeItem.RecipeId == row.Recipe.RowId);
+                        if (listItem != null)
+                        {
+                            listItem.RecipeId = alt.RowId;
+                            GatherBuddy.CraftingListManager.SaveList(_list);
+                            _cachedQueueValid = false;
+                            InvalidateMaterialCaches();
+                            InvalidatePresentationCaches();
+                            TriggerQueueRegeneration();
+                            TriggerMaterialsRegeneration();
+                        }
+                    }
+                }
+            }
+            else
+            {
+                var activeRecipeId = _list.PrecraftRecipeOverrides.TryGetValue(resultItemId, out var overrideRecipeId)
+                    ? overrideRecipeId
+                    : altRecipes[0].RowId;
+                foreach (var alt in altRecipes)
+                {
+                    var altJob = GetCraftingJobName(alt.CraftType.RowId);
+                    var isCurrent = alt.RowId == activeRecipeId;
+                    if (ImGui.MenuItem(altJob, string.Empty, isCurrent) && !isCurrent)
+                    {
+                        _list.PrecraftRecipeOverrides[resultItemId] = alt.RowId;
+                        GatherBuddy.CraftingListManager.SaveList(_list);
+                        _cachedQueueValid = false;
+                        InvalidateMaterialCaches();
+                        InvalidatePresentationCaches();
+                        TriggerQueueRegeneration();
+                        TriggerMaterialsRegeneration();
+                    }
+                }
+                if (_list.PrecraftRecipeOverrides.ContainsKey(resultItemId))
+                {
+                    ImGui.Separator();
+                    if (ImGui.MenuItem("Reset to Default"))
+                    {
+                        _list.PrecraftRecipeOverrides.Remove(resultItemId);
+                        GatherBuddy.CraftingListManager.SaveList(_list);
+                        _cachedQueueValid = false;
+                        InvalidateMaterialCaches();
+                        InvalidatePresentationCaches();
+                        TriggerQueueRegeneration();
+                        TriggerMaterialsRegeneration();
+                    }
+                }
+            }
+            ImGui.EndMenu();
+        }
+
+        ImGui.Separator();
+
+        var recipeOptions = planningList.GetRecipeOptions(row.Recipe.RowId, row.IsOriginalRecipe);
+        if (row.Recipe.CanQuickSynth)
+        {
+            using (ImRaii.Disabled(row.ForceQuickSynth))
+            {
+                if (ImGui.MenuItem("Quick Synthesis", "", row.EffectiveQuickSynth))
+                {
+                    _list.SetRecipeQuickSynth(row.Recipe.RowId, !recipeOptions.NQOnly, row.IsOriginalRecipe);
+                    GatherBuddy.CraftingListManager.SaveList(_list);
+                    _cachedQueueValid = false;
+                    InvalidateMaterialCaches();
+                    InvalidatePresentationCaches();
+                    TriggerQueueRegeneration();
+                    TriggerMaterialsRegeneration();
+                }
+            }
+            if (ImGui.IsItemHovered(row.ForceQuickSynth ? ImGuiHoveredFlags.AllowWhenDisabled : ImGuiHoveredFlags.None))
+                ImGui.SetTooltip(row.ForceQuickSynth
+                    ? "Forced on by Quick Synth All for this recipe. Disable the list-level override to edit the per-item quick synth setting."
+                    : "Use quick synthesis for this recipe (NQ only)");
+        }
+        else
+        {
+            ImGui.TextDisabled("Quick Synthesis not available");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Recipe must be unlocked and previously crafted to use Quick Synthesis");
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private IReadOnlyList<RecipeDisplayRow> GetRecipeDisplayRows()
+    {
+        if (_cachedRecipeDisplayRowsValid && _cachedRecipeDisplayRows != null)
+            return _cachedRecipeDisplayRows;
+
+        try
+        {
+            _cachedRecipeDisplayRows = BuildRecipeDisplayRows();
+            _cachedRecipeDisplayRowsValid = true;
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Error($"[CraftingListEditor] Failed to rebuild recipe display cache for list '{_list.Name}': {ex.Message}");
+            _cachedRecipeDisplayRows = new List<RecipeDisplayRow>();
+            _cachedRecipeDisplayRowsValid = true;
+        }
+
+        return _cachedRecipeDisplayRows;
+    }
+
+    private List<RecipeDisplayRow> BuildRecipeDisplayRows()
+    {
+        var rows = new List<RecipeDisplayRow>(_list.Recipes.Count);
+        for (var i = 0; i < _list.Recipes.Count; i++)
         {
             var item = _list.Recipes[i];
             var recipe = RecipeManager.GetRecipe(item.RecipeId);
@@ -645,112 +1283,305 @@ public class CraftingListEditor
 
             var itemName = recipe.Value.ItemResult.Value.Name.ExtractText();
             var jobName = GetCraftingJobName(recipe.Value.CraftType.RowId);
-            
-            var skipIndicator = item.Options.Skipping ? "[Ìø¹ý] " : "";
-            var hqIndicator = (item.IngredientPreferences.Count > 0 || item.CraftSettings?.IngredientPreferences.Count > 0) ? "[HQ] " : "";
-            var quickSynthIndicator = item.Options.NQOnly ? "[¼òÒ×ÖÆ×÷] " : "";
-            var craftSettingsIndicator = item.CraftSettings?.HasAnySettings() == true ? "[ÉèÖÃ] " : "";
-            var textColor = item.Options.Skipping ? new Vector4(0.7f, 0.7f, 0.7f, 1) : new Vector4(1, 1, 1, 1);
-
-            var validation = MacroValidator.GetOrCompute(item.RecipeId, ResolveEffectiveMacroId(item.CraftSettings, false), item.CraftSettings, _list.Consumables);
-            if (validation != null)
+            var effectiveCraftSettings = GetEffectiveCraftSettings(item.RecipeId, true);
+            var effectiveQuickSynth = IsEffectivelyQuickSynth(recipe.Value, item.RecipeId, true);
+            var validation = WillUseQuickSynth(recipe.Value, item.RecipeId, true)
+                ? null
+                : MacroValidator.GetOrCompute(item.RecipeId,
+                    ResolveEffectiveMacroId(effectiveCraftSettings, false),
+                    effectiveCraftSettings,
+                    _list.Consumables);
+            rows.Add(new RecipeDisplayRow
             {
-                var dotColor = validation.IsValid
-                    ? new Vector4(0.30f, 0.70f, 0.30f, 1f)
-                    : (validation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
-                        ? new Vector4(0.78f, 0.62f, 0.15f, 1f)
-                        : new Vector4(0.78f, 0.25f, 0.25f, 1f));
-                ImGui.TextColored(dotColor, "\u25cf");
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip(validation.IsValid
-                        ? $"ºê: Í¨¹ý\n½øÕ¹: {validation.FinalProgress}/{validation.RequiredProgress}\nÆ·ÖÊ: {validation.FinalQuality}\nÄÍ¾Ã: {validation.FinalDurability}"
-                        : $"ºê: {validation.Failure} ÓÚ²½Öè {validation.FailedAtStep}\n½øÕ¹: {validation.FinalProgress}/{validation.RequiredProgress}");
-                ImGui.SameLine();
-            }
-
-            ImGui.PushStyleColor(ImGuiCol.Text, textColor);
-            ImGui.Selectable($"{quickSynthIndicator}{craftSettingsIndicator}{hqIndicator}{skipIndicator}{itemName} x{item.Quantity} ({jobName})##recipe_{i}", false);
-            ImGui.PopStyleColor();
-            
-            var isPopupOpen = GatherBuddy.ControllerSupport != null
-                ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"context_{i}", Dalamud.GamepadState)
-                : ImGui.BeginPopupContextItem($"context_{i}");
-            
-            if (isPopupOpen)
-            {
-                if (ImGui.MenuItem("ÖÆ×÷ÉèÖÃ..."))
-                {
-                    _craftSettingsPopup.OpenForListItem(item, _list, itemName);
-                }
-                
-                ImGui.Separator();
-                
-                ImGui.Text("ÊýÁ¿:");
-                ImGui.SetNextItemWidth(100);
-                if (_editingQuantityIndex != i)
-                {
-                    _tempQuantityInput = item.Quantity;
-                    _editingQuantityIndex = i;
-                }
-                
-                if (ImGui.InputInt($"##qty_{i}", ref _tempQuantityInput, 1))
-                {
-                    if (_tempQuantityInput < 1)
-                        _tempQuantityInput = 1;
-                }
-                
-                if (ImGui.IsItemDeactivatedAfterEdit() && _tempQuantityInput != item.Quantity)
-                {
-                    _list.UpdateRecipeQuantity(item.RecipeId, _tempQuantityInput);
-                    GatherBuddy.CraftingListManager.SaveList(_list);
-                    _cachedQueueValid = false;
-                    _cachedMaterialsValid = false;
-                    TriggerQueueRegeneration();
-                }
-                
-                ImGui.Separator();
-                
-                if (ImGui.MenuItem(item.Options.Skipping ? "ÆôÓÃ" : "Ìø¹ý"))
-                {
-                    item.Options.Skipping = !item.Options.Skipping;
-                    GatherBuddy.CraftingListManager.SaveList(_list);
-                    _cachedQueueValid = false;
-                    _cachedMaterialsValid = false;
-                    TriggerQueueRegeneration();
-                }
-                
-                if (ImGui.MenuItem("ÒÆ³ý"))
-                {
-                    indexToRemove = i;
-                }
-                
-                ImGui.EndPopup();
-            }
-            else if (_editingQuantityIndex == i)
-            {
-                _editingQuantityIndex = -1;
-            }
+                ListIndex = i,
+                Recipe = recipe.Value,
+                ItemName = itemName,
+                Label = $"{(effectiveQuickSynth ? "[ç®€æ˜“åˆ¶ä½œ] " : string.Empty)}{(item.CraftSettings?.HasAnySettings() == true ? "[è®¾ç½®] " : string.Empty)}{(effectiveCraftSettings?.IngredientPreferences.Count > 0 ? "[HQ] " : string.Empty)}{(item.Options.Skipping ? "[è·³è¿‡] " : string.Empty)}{itemName} x{item.Quantity} ({jobName})##recipe_{i}",
+                TextColor = item.Options.Skipping
+                    ? new Vector4(0.7f, 0.7f, 0.7f, 1f)
+                    : effectiveQuickSynth
+                        ? new Vector4(0.3f, 0.9f, 0.9f, 1f)
+                        : new Vector4(1f, 1f, 1f, 1f),
+                Validation = validation,
+            });
         }
 
-        if (indexToRemove >= 0)
+        return rows;
+    }
+
+    private void DrawRecipeListRow(RecipeDisplayRow row, List<int> indicesToRemove)
+    {
+        if (row.ListIndex >= _list.Recipes.Count)
+            return;
+
+        var item = _list.Recipes[row.ListIndex];
+        if (row.Validation != null)
+            DrawValidationMarker(row.Validation);
+
+        var isSelected = _selectedRecipeIndices.Contains(row.ListIndex);
+        ImGui.PushStyleColor(ImGuiCol.Text, row.TextColor);
+        var clicked = ImGui.Selectable(row.Label, isSelected);
+        ImGui.PopStyleColor();
+
+        if (clicked)
         {
-            _list.Recipes.RemoveAt(indexToRemove);
-            GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid = false;
-            _cachedMaterialsValid = false;
-            TriggerQueueRegeneration();
+            if (ImGui.GetIO().KeyShift && _lastClickedRecipeIndex >= 0)
+            {
+                if (!ImGui.GetIO().KeyCtrl)
+                    _selectedRecipeIndices.Clear();
+                var min = Math.Min(_lastClickedRecipeIndex, row.ListIndex);
+                var max = Math.Max(_lastClickedRecipeIndex, row.ListIndex);
+                for (var i = min; i <= max; i++)
+                    _selectedRecipeIndices.Add(i);
+            }
+            else if (ImGui.GetIO().KeyCtrl)
+            {
+                if (!_selectedRecipeIndices.Remove(row.ListIndex))
+                    _selectedRecipeIndices.Add(row.ListIndex);
+                _lastClickedRecipeIndex = row.ListIndex;
+            }
+            else
+            {
+                _selectedRecipeIndices.Clear();
+                _selectedRecipeIndices.Add(row.ListIndex);
+                _lastClickedRecipeIndex = row.ListIndex;
+            }
         }
+
+        var isPopupOpen = GatherBuddy.ControllerSupport != null
+            ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"context_{row.ListIndex}", Dalamud.GamepadState)
+            : ImGui.BeginPopupContextItem($"context_{row.ListIndex}");
+
+        if (isPopupOpen)
+        {
+            if (ImGui.MenuItem("Craft Settings..."))
+                _craftSettingsPopup.OpenForListItem(item, _list, row.ItemName);
+
+            var resultItemId = row.Recipe.ItemResult.RowId;
+            var altRecipes = RecipeManager.GetRecipesForItem(resultItemId);
+            if (altRecipes.Count > 1 && ImGui.BeginMenu("Change Job..."))
+            {
+                foreach (var alt in altRecipes)
+                {
+                    var altJob = GetCraftingJobName(alt.CraftType.RowId);
+                    var isCurrent = alt.RowId == item.RecipeId;
+                    if (ImGui.MenuItem(altJob, string.Empty, isCurrent) && !isCurrent)
+                    {
+                        item.RecipeId = alt.RowId;
+                        GatherBuddy.CraftingListManager.SaveList(_list);
+                        _cachedQueueValid = false;
+                        InvalidateMaterialCaches();
+                        InvalidatePresentationCaches();
+                        TriggerQueueRegeneration();
+                        TriggerMaterialsRegeneration();
+                    }
+                }
+                ImGui.EndMenu();
+            }
+
+            ImGui.Separator();
+
+            ImGui.Text("Quantity:");
+            ImGui.SetNextItemWidth(100);
+            if (_editingQuantityIndex != row.ListIndex)
+            {
+                _tempQuantityInput = item.Quantity;
+                _editingQuantityIndex = row.ListIndex;
+            }
+
+            if (ImGui.InputInt($"##qty_{row.ListIndex}", ref _tempQuantityInput, 1))
+            {
+                if (_tempQuantityInput < 1)
+                    _tempQuantityInput = 1;
+            }
+
+            if (ImGui.IsItemDeactivatedAfterEdit() && _tempQuantityInput != item.Quantity)
+            {
+                _list.UpdateRecipeQuantity(item.RecipeId, _tempQuantityInput);
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.MenuItem(item.Options.Skipping ? "Enable" : "Skip"))
+            {
+                item.Options.Skipping = !item.Options.Skipping;
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+            }
+
+            if (_selectedRecipeIndices.Count > 1 && _selectedRecipeIndices.Contains(row.ListIndex))
+            {
+                if (ImGui.MenuItem($"Remove Selected ({_selectedRecipeIndices.Count})"))
+                    indicesToRemove.AddRange(_selectedRecipeIndices);
+            }
+            else
+            {
+                if (ImGui.MenuItem("Remove"))
+                    indicesToRemove.Add(row.ListIndex);
+            }
+
+            ImGui.EndPopup();
+        }
+        else if (_editingQuantityIndex == row.ListIndex)
+        {
+            _editingQuantityIndex = -1;
+        }
+    }
+
+    private static void DrawValidationMarker(MacroValidationResult validation)
+    {
+        var dotColor = validation.IsValid
+            ? new Vector4(0.30f, 0.70f, 0.30f, 1f)
+            : (validation.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable
+                ? new Vector4(0.78f, 0.62f, 0.15f, 1f)
+                : new Vector4(0.78f, 0.25f, 0.25f, 1f));
+        ImGui.TextColored(dotColor, "\u25cf");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(validation.IsValid
+                ? $"Macro: PASS\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}\nQuality: {validation.FinalQuality}\nDurability: {validation.FinalDurability}"
+                : $"Macro: {validation.Failure} at step {validation.FailedAtStep}\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}");
+        ImGui.SameLine();
     }
 
     private string ComputeListHash()
     {
+        var activeExecutionPlan = GetActiveExecutionPlan();
+        var planningList = activeExecutionPlan?.PlanningSnapshot ?? _list;
         var hashParts = new List<string>();
-        hashParts.Add($"SkipIfEnough:{_list.SkipIfEnough}");
-        foreach (var item in _list.Recipes)
+        hashParts.Add($"SkipIfEnough:{planningList.SkipIfEnough}");
+        hashParts.Add($"SkipFinalIfEnough:{planningList.SkipFinalIfEnough}");
+        hashParts.Add($"RetainerRestock:{planningList.RetainerRestock}");
+        foreach (var item in planningList.Recipes)
         {
             hashParts.Add($"{item.RecipeId}:{item.Quantity}:{item.Options.Skipping}");
         }
+        if (activeExecutionPlan != null)
+            hashParts.Add($"ExecutionPlanVersion:{activeExecutionPlan.Version}");
         return string.Join("|", hashParts);
+    }
+
+    private void InvalidateMaterialCaches()
+    {
+        _cachedMaterialsValid = false;
+        _cachedMaterials = null;
+        _cachedMaterialsHash = string.Empty;
+        _cachedPrecraftMaterials = null;
+        _cachedPrecraftMaterialsHash = string.Empty;
+        _cachedIngredientDemands = null;
+        _cachedCraftMaterialDemands = null;
+        _cachedDisplayMaterials = null;
+        _cachedDisplayPrecraftMaterials = null;
+        _cachedDisplayIngredientDemands = null;
+        _cachedDisplayCraftMaterialDemands = null;
+        _cachedDisplayMaterialsHash = string.Empty;
+        Interlocked.Increment(ref _materialCacheVersion);
+    }
+
+    private void CacheMaterialPlan(CraftingListPlan plan, string hash)
+    {
+        _cachedMaterials = plan.Materials;
+        _cachedPrecraftMaterials = BuildCraftPanelMaterials(plan);
+        _cachedIngredientDemands = plan.IngredientDemands;
+        _cachedCraftMaterialDemands = BuildCraftPanelDemands(plan, _cachedPrecraftMaterials);
+        _cachedMaterialsHash = hash;
+        _cachedPrecraftMaterialsHash = hash;
+        _cachedMaterialsValid = true;
+    }
+
+    private void CacheDisplayMaterialPlan(CraftingListPlan plan, string hash)
+    {
+        _cachedDisplayMaterials = plan.Materials;
+        _cachedDisplayPrecraftMaterials = BuildCraftPanelMaterials(plan, GetPlanningList().Recipes);
+        _cachedDisplayIngredientDemands = plan.IngredientDemands;
+        _cachedDisplayCraftMaterialDemands = BuildCraftPanelDemands(plan, _cachedDisplayPrecraftMaterials, GetPlanningList().Recipes);
+        _cachedDisplayMaterialsHash = hash;
+    }
+
+    private CraftingListPlan CreateDisplayMaterialPlan()
+    {
+        var displayList = GetPlanningList().CreateRetainerPlanningSnapshot();
+        var useRetainers = displayList.SkipIfEnough && displayList.RetainerRestock && AllaganTools.Enabled;
+        return CraftingListPlanner.Build(displayList, new CraftingListPlannerOptions(
+            UseRetainerCraftableAvailability: useRetainers,
+            ConsumeIntermediateAvailability: true,
+            ConsumeFinalAvailability: true));
+    }
+
+    private Dictionary<uint, int> BuildCraftPanelMaterials(CraftingListPlan plan, IEnumerable<CraftingListItem>? finalSourceRecipes = null)
+    {
+        var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
+        var craftPanelMaterials = new Dictionary<uint, int>();
+
+        foreach (var (itemId, quantity) in plan.Precrafts)
+        {
+            if (quantity <= 0)
+                continue;
+
+            if (itemSheet != null && itemSheet.TryGetRow(itemId, out var item) && IsEquippableCraftPanelItem(item))
+                continue;
+
+            craftPanelMaterials[itemId] = quantity;
+        }
+
+        foreach (var originalRecipe in finalSourceRecipes ?? plan.OriginalRecipes)
+        {
+            if (originalRecipe.Options.Skipping || originalRecipe.Quantity <= 0)
+                continue;
+            var recipe = RecipeManager.GetRecipe(originalRecipe.RecipeId);
+            if (recipe == null)
+                continue;
+
+            var resultItem = recipe.Value.ItemResult.Value;
+            if (IsEquippableCraftPanelItem(resultItem))
+                continue;
+
+            var resultItemId = resultItem.RowId;
+            var finalItemCount = originalRecipe.Quantity * (int)recipe.Value.AmountResult;
+            if (craftPanelMaterials.TryGetValue(resultItemId, out var existingCount))
+                craftPanelMaterials[resultItemId] = existingCount + finalItemCount;
+            else
+                craftPanelMaterials[resultItemId] = finalItemCount;
+        }
+
+        return craftPanelMaterials;
+    }
+
+    private static bool IsEquippableCraftPanelItem(Item item)
+        => item.RowId > 0 && item.EquipSlotCategory.RowId > 0;
+
+    private static Dictionary<uint, IngredientQualityDemand> BuildCraftPanelDemands(CraftingListPlan plan, IReadOnlyDictionary<uint, int> craftPanelMaterials, IEnumerable<CraftingListItem>? finalSourceRecipes = null)
+    {
+        var demands = plan.IngredientDemands
+            .Where(kvp => craftPanelMaterials.ContainsKey(kvp.Key))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        foreach (var originalRecipe in finalSourceRecipes ?? plan.OriginalRecipes)
+        {
+            if (originalRecipe.Options.Skipping || originalRecipe.Quantity <= 0)
+                continue;
+            var recipe = RecipeManager.GetRecipe(originalRecipe.RecipeId);
+            if (recipe == null)
+                continue;
+
+            var resultItemId = recipe.Value.ItemResult.RowId;
+            if (!craftPanelMaterials.ContainsKey(resultItemId))
+                continue;
+
+            var finalItemCount = originalRecipe.Quantity * (int)recipe.Value.AmountResult;
+            var finalDemand = IngredientQualityDemand.FromPreferNQ(finalItemCount);
+            demands[resultItemId] = demands.TryGetValue(resultItemId, out var existing)
+                ? existing.Add(finalDemand)
+                : finalDemand;
+        }
+
+        return demands;
     }
     
     private void TriggerQueueRegeneration()
@@ -758,6 +1589,16 @@ public class CraftingListEditor
         var currentHash = ComputeListHash();
         if (_cachedQueueValid && _cachedSortedQueue != null && currentHash == _cachedListHash)
         {
+            return;
+        }
+
+        if (TryCacheActiveExecutionPlan(currentHash))
+        {
+            _queueCancellationSource?.Cancel();
+            _queueCancellationSource?.Dispose();
+            _queueCancellationSource = null;
+            _queueGenerationTask = null;
+            _isGeneratingQueue = false;
             return;
         }
         
@@ -795,29 +1636,28 @@ public class CraftingListEditor
         }, token);
     }
     
-    private static Dictionary<uint, int>? BuildRetainerAdditionalAvailable(CraftingListDefinition list)
+    private bool ShouldUseRetainerCraftablePlanning()
     {
-        if (!list.RetainerRestock || !AllaganTools.Enabled)
-            return null;
-
-        var precrafts = list.ListPrecrafts();
-        if (precrafts.Count == 0) return null;
-
-        var available = new Dictionary<uint, int>();
-        foreach (var (itemId, needed) in precrafts)
-        {
-            var inRetainer = (int)RetainerCache.GetRetainerItemCount(itemId);
-            if (inRetainer > 0)
-                available[itemId] = Math.Min(needed, inRetainer);
-        }
-        return available.Count > 0 ? available : null;
+        var planningList = GetPlanningList();
+        return planningList.SkipIfEnough && planningList.RetainerRestock && AllaganTools.Enabled;
     }
 
     internal void TriggerMaterialsRegeneration()
     {
+        ProcessPendingInventoryChanges();
         var currentHash = ComputeListHash();
         if (_cachedMaterialsValid && _cachedMaterials != null && currentHash == _cachedMaterialsHash)
         {
+            return;
+        }
+
+        if (TryCacheActiveExecutionPlan(currentHash))
+        {
+            _materialsCancellationSource?.Cancel();
+            _materialsCancellationSource?.Dispose();
+            _materialsCancellationSource = null;
+            _materialsGenerationTask = null;
+            _isGeneratingMaterials = false;
             return;
         }
         
@@ -834,15 +1674,13 @@ public class CraftingListEditor
             try
             {
                 if (token.IsCancellationRequested) return;
-
-                var additionalAvailable = BuildRetainerAdditionalAvailable(_list);
-                var materials = _list.ListMaterials(additionalAvailable);
+                var plan = GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning());
+                var displayPlan = CreateDisplayMaterialPlan();
                 
                 if (!token.IsCancellationRequested)
                 {
-                    _cachedMaterials = materials;
-                    _cachedMaterialsHash = hash;
-                    _cachedMaterialsValid = true;
+                    CacheMaterialPlan(plan, hash);
+                    CacheDisplayMaterialPlan(displayPlan, hash);
                 }
             }
             catch (Exception ex)
@@ -858,6 +1696,7 @@ public class CraftingListEditor
     
     private List<CraftingListItem> GetSortedQueue()
     {
+        ProcessPendingInventoryChanges();
         if (_cachedSortedQueue != null && _cachedQueueValid)
         {
             return _cachedSortedQueue;
@@ -867,109 +1706,118 @@ public class CraftingListEditor
     
     private List<CraftingListItem> GenerateSortedQueueSync()
     {
-        var queue = new CraftingListQueue();
-        foreach (var item in _list.Recipes)
-        {
-            if (!item.Options.Skipping)
-            {
-                queue.AddRecipeWithPrecrafts(item.RecipeId, item.Quantity, _list.SkipIfEnough);
-            }
-        }
-        
-        var originalRecipes = new HashSet<uint>();
-        foreach (var item in _list.Recipes)
-        {
-            originalRecipes.Add(item.RecipeId);
-        }
-        
-        var precrafts = new List<CraftingListItem>();
-        var finalProducts = new List<CraftingListItem>();
-        
-        foreach (var recipe in queue.Recipes)
-        {
-            if (originalRecipes.Contains(recipe.RecipeId))
-            {
-                finalProducts.Add(recipe);
-            }
-            else
-            {
-                precrafts.Add(recipe);
-            }
-        }
-        
-        var precraftsByJob = precrafts
-            .GroupBy(r => RecipeManager.GetRecipe(r.RecipeId)?.CraftType.RowId ?? uint.MaxValue)
-            .OrderBy(g => g.Key);
-        
-        var sortedPrecrafts = new List<CraftingListItem>();
-        var processedPrecrafts = new HashSet<uint>();
-        
-        foreach (var jobGroup in precraftsByJob)
-        {
-            var jobRecipes = jobGroup.ToList();
-            foreach (var recipeItem in jobRecipes)
-            {
-                ProcessPrecraftWithDependencies(recipeItem, queue.Recipes, processedPrecrafts, sortedPrecrafts);
-            }
-        }
-        
-        var sortedFinalProducts = finalProducts
-            .GroupBy(r => RecipeManager.GetRecipe(r.RecipeId)?.CraftType.RowId ?? uint.MaxValue)
-            .OrderBy(g => g.Key)
-            .SelectMany(g => g)
-            .ToList();
-        
-        var result = new List<CraftingListItem>();
-        result.AddRange(sortedPrecrafts);
-        result.AddRange(sortedFinalProducts);
-        
-        return result;
+        var activeExecutionPlan = GetActiveExecutionPlan();
+        if (activeExecutionPlan != null)
+            return BuildDisplayQueue(activeExecutionPlan.ResolvedPlan);
+
+        var plan = GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning());
+        return BuildDisplayQueue(plan);
+    }
+
+    private List<CraftingListItem> BuildDisplayQueue(CraftingListPlan plan)
+        => CraftingListQueueBuilder.CreateGroupedQueue(plan);
+
+    private RecipeCraftSettings? GetEffectiveCraftSettings(uint recipeId, bool isOriginalRecipe)
+    {
+        var planningList = GetPlanningList();
+        var sourceSettings = isOriginalRecipe
+            ? planningList.Recipes.FirstOrDefault(r => r.RecipeId == recipeId)?.CraftSettings
+            : planningList.PrecraftCraftSettings.GetValueOrDefault(recipeId);
+        return sourceSettings?.Clone();
+    }
+
+    private bool IsEffectivelyQuickSynth(Recipe recipe, uint recipeId, bool isOriginalRecipe)
+    {
+        var planningList = GetPlanningList();
+        var recipeOptions = planningList.GetRecipeOptions(recipeId, isOriginalRecipe);
+        return recipeOptions.NQOnly || planningList.ShouldForceQuickSynth(recipe, isOriginalRecipe);
+    }
+
+    private bool WillUseQuickSynth(Recipe recipe, uint recipeId, bool isOriginalRecipe)
+        => IsEffectivelyQuickSynth(recipe, recipeId, isOriginalRecipe) && recipe.CanQuickSynth && HasRecipeCraftedBefore(recipe);
+
+    private static bool HasRecipeCraftedBefore(Recipe recipe)
+    {
+        if (recipe.SecretRecipeBook.RowId > 0)
+            return true;
+
+        return FFXIVClientStructs.FFXIV.Client.Game.QuestManager.IsRecipeComplete(recipe.RowId);
     }
     
     internal Dictionary<uint, int> GetCachedMaterials()
     {
+        ProcessPendingInventoryChanges();
         var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedMaterials!;
         if (_cachedMaterialsValid && _cachedMaterials != null && currentHash == _cachedMaterialsHash)
         {
             return _cachedMaterials;
         }
+        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
 
-        var additionalAvailable = BuildRetainerAdditionalAvailable(_list);
-        _cachedMaterials = _list.ListMaterials(additionalAvailable);
-        _cachedMaterialsHash = currentHash;
-        _cachedMaterialsValid = true;
-
-        return _cachedMaterials;
+        return _cachedMaterials!;
     }
 
     internal Dictionary<uint, int> GetCachedPrecraftMaterials()
     {
+        ProcessPendingInventoryChanges();
         var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedPrecraftMaterials!;
         if (_cachedPrecraftMaterials != null && currentHash == _cachedPrecraftMaterialsHash)
             return _cachedPrecraftMaterials;
-
-        var allPrecrafts = _list.ListPrecrafts();
-
-        if (_list.RetainerRestock && _list.SkipIfEnough && AllaganTools.Enabled)
-        {
-            var adjusted = new Dictionary<uint, int>();
-            foreach (var (itemId, needed) in allPrecrafts)
-            {
-                var inBag      = GetInventoryCount(itemId);
-                var inRetainer = GetRetainerCount(itemId);
-                var stillNeeded = Math.Max(0, needed - inBag - inRetainer);
-                if (stillNeeded > 0)
-                    adjusted[itemId] = stillNeeded;
-            }
-            _cachedPrecraftMaterials = adjusted;
-        }
-        else
-        {
-            _cachedPrecraftMaterials = allPrecrafts;
-        }
-
+        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
         _cachedPrecraftMaterialsHash = currentHash;
-        return _cachedPrecraftMaterials;
+        return _cachedPrecraftMaterials!;
+    }
+
+    internal Dictionary<uint, int> GetDisplayMaterials()
+    {
+        ProcessPendingInventoryChanges();
+        var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedDisplayMaterials!;
+        if (_cachedDisplayMaterials != null && currentHash == _cachedDisplayMaterialsHash)
+            return _cachedDisplayMaterials;
+        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
+        return _cachedDisplayMaterials!;
+    }
+
+    internal Dictionary<uint, int> GetDisplayPrecraftMaterials()
+    {
+        ProcessPendingInventoryChanges();
+        var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedDisplayPrecraftMaterials!;
+        if (_cachedDisplayPrecraftMaterials != null && currentHash == _cachedDisplayMaterialsHash)
+            return _cachedDisplayPrecraftMaterials;
+        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
+        return _cachedDisplayPrecraftMaterials!;
+    }
+
+    internal IReadOnlyDictionary<uint, IngredientQualityDemand> GetCachedIngredientDemands()
+    {
+        ProcessPendingInventoryChanges();
+        var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedIngredientDemands!;
+        if (_cachedIngredientDemands != null && currentHash == _cachedMaterialsHash)
+            return _cachedIngredientDemands;
+        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
+        return _cachedIngredientDemands!;
+    }
+
+    internal IReadOnlyDictionary<uint, IngredientQualityDemand> GetDisplayIngredientDemands()
+    {
+        ProcessPendingInventoryChanges();
+        var currentHash = ComputeListHash();
+        if (TryCacheActiveExecutionPlan(currentHash))
+            return _cachedDisplayIngredientDemands!;
+        if (_cachedDisplayIngredientDemands != null && currentHash == _cachedDisplayMaterialsHash)
+            return _cachedDisplayIngredientDemands;
+        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
+        return _cachedDisplayIngredientDemands!;
     }
 
     private static string GetConsumableSummary(CraftingListConsumableSettings settings)
@@ -996,62 +1844,140 @@ public class CraftingListEditor
         return itemId.ToString();
     }
     
-    internal unsafe int GetInventoryCount(uint itemId)
+    internal int GetInventoryCount(uint itemId)
+    {
+        var (nqCount, hqCount) = GetInventorySplitCounts(itemId);
+        return nqCount + hqCount;
+    }
+
+    internal unsafe (int NQ, int HQ) GetInventorySplitCounts(uint itemId)
     {
         var now = DateTime.Now;
         
         if (_inventoryRefreshTimes.TryGetValue(itemId, out var lastRefresh))
         {
-            if ((now - lastRefresh).TotalSeconds < InventoryRefreshIntervalSeconds)
-            {
-                return _cachedInventoryCounts.GetValueOrDefault(itemId, 0);
-            }
+            if ((now - lastRefresh).TotalSeconds < InventoryRefreshIntervalSeconds
+             && _cachedInventorySplitCounts.TryGetValue(itemId, out var cachedCounts))
+                return cachedCounts;
         }
         
         try
         {
             var inventory = FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance();
             if (inventory == null)
-                return 0;
+                return (0, 0);
             
-            var count = inventory->GetInventoryItemCount(itemId, false, false, false)
-                      + inventory->GetInventoryItemCount(itemId, true, false, false);
-            _cachedInventoryCounts[itemId] = count;
+            var counts = (
+                (int)inventory->GetInventoryItemCount(itemId, false, false, false),
+                (int)inventory->GetInventoryItemCount(itemId, true, false, false));
+            _cachedInventorySplitCounts[itemId] = counts;
             _inventoryRefreshTimes[itemId] = now;
-            return count;
+            return counts;
         }
         catch
         {
-            return 0;
+            return (0, 0);
         }
     }
 
-    internal int GetRetainerCount(uint itemId)   => (int)RetainerCache.GetRetainerItemCount(itemId);
-    internal int GetRetainerCountNQ(uint itemId) => (int)RetainerCache.GetRetainerItemCountNQ(itemId);
-    internal int GetRetainerCountHQ(uint itemId) => (int)RetainerCache.GetRetainerItemCountHQ(itemId);
-    
-    private unsafe bool WillBeSkippedDueToInventory(Recipe recipe, int quantityToCraft)
+    internal int GetRetainerCount(uint itemId)
+        => RetainerItemQuery.GetTotalCount(itemId);
+    internal void InvalidateRetainerSnapshot()
     {
-        try
+        _cachedRetainerSnapshot = RetainerItemSnapshot.Empty;
+        _cachedRetainerSnapshotItemIds = [];
+        _cachedRetainerSnapshotAt = DateTime.MinValue;
+        Interlocked.Increment(ref _materialCacheVersion);
+    }
+
+    internal RetainerItemSnapshot GetRetainerSnapshot(IEnumerable<uint> itemIds, bool forceRefresh = false)
+    {
+        if (!AllaganTools.Enabled)
+            return RetainerItemSnapshot.Empty;
+
+        var snapshotItemIds = itemIds
+            .Where(id => id > 0)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+
+        if (snapshotItemIds.Length == 0)
+            return RetainerItemSnapshot.Empty;
+
+        if (!forceRefresh && _cachedRetainerSnapshotItemIds.SequenceEqual(snapshotItemIds))
         {
-            var inventory = FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance();
-            if (inventory == null)
-                return false;
-            
-            var resultItemId = recipe.ItemResult.RowId;
-            var amountPerCraft = recipe.AmountResult;
-            var totalNeeded = quantityToCraft * amountPerCraft;
-            
-            var nqCount = inventory->GetInventoryItemCount(resultItemId, false, false, false);
-            var hqCount = inventory->GetInventoryItemCount(resultItemId, true, false, false);
-            var totalCount = nqCount + hqCount;
-            
-            return totalCount >= totalNeeded;
+            if (_cachedRetainerSnapshot.IsComplete)
+                return _cachedRetainerSnapshot;
+
+            if ((DateTime.Now - _cachedRetainerSnapshotAt).TotalSeconds < RetainerSnapshotRetryIntervalSeconds)
+                return _cachedRetainerSnapshot;
         }
-        catch
-        {
+
+        _cachedRetainerSnapshot = RetainerItemQuery.CreateSnapshot(snapshotItemIds);
+        _cachedRetainerSnapshotItemIds = snapshotItemIds;
+        _cachedRetainerSnapshotAt = DateTime.Now;
+        return _cachedRetainerSnapshot;
+    }
+
+    internal int GetQualityAwareAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
+        => GetQualityAwareAvailableCount(itemId, GetIngredientDemand(itemId), retNQ, retHQ, countRetainersTowardNeed);
+
+    internal int GetCraftMaterialAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
+    {
+        var demand = _cachedCraftMaterialDemands != null && _cachedCraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
+            ? craftDemand
+            : GetIngredientDemand(itemId);
+        return GetQualityAwareAvailableCount(itemId, demand, retNQ, retHQ, countRetainersTowardNeed);
+    }
+
+    internal int GetDisplayMaterialAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
+        => GetQualityAwareAvailableCount(itemId, GetDisplayIngredientDemand(itemId), retNQ, retHQ, countRetainersTowardNeed);
+
+    internal int GetDisplayCraftMaterialAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
+    {
+        var demand = _cachedDisplayCraftMaterialDemands != null && _cachedDisplayCraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
+            ? craftDemand
+            : GetDisplayIngredientDemand(itemId);
+        return GetQualityAwareAvailableCount(itemId, demand, retNQ, retHQ, countRetainersTowardNeed);
+    }
+
+    private int GetQualityAwareAvailableCount(uint itemId, IngredientQualityDemand demand, int retNQ, int retHQ, bool countRetainersTowardNeed)
+    {
+        var (inventoryNQ, inventoryHQ) = GetInventorySplitCounts(itemId);
+        var availableNQ = inventoryNQ + (countRetainersTowardNeed ? retNQ : 0);
+        var availableHQ = inventoryHQ + (countRetainersTowardNeed ? retHQ : 0);
+        if (demand.Total <= 0)
+            return availableNQ + availableHQ;
+
+        var remaining = demand.ConsumeSplit(availableNQ, availableHQ, out _, out _);
+        return demand.Total - remaining.Total;
+    }
+
+    private IngredientQualityDemand GetIngredientDemand(uint itemId)
+    {
+        var ingredientDemands = GetCachedIngredientDemands();
+        return ingredientDemands.TryGetValue(itemId, out var demand)
+            ? demand
+            : default;
+    }
+
+    private IngredientQualityDemand GetDisplayIngredientDemand(uint itemId)
+    {
+        var ingredientDemands = GetDisplayIngredientDemands();
+        return ingredientDemands.TryGetValue(itemId, out var demand)
+            ? demand
+            : default;
+    }
+    
+
+    private bool WillBeSkippedDueToInventory(Recipe recipe)
+    {
+        var demand = GetIngredientDemand(recipe.ItemResult.RowId);
+        if (demand.Total <= 0)
             return false;
-        }
+
+        var (nqCount, hqCount) = GetInventorySplitCounts(recipe.ItemResult.RowId);
+        return demand.ConsumeSplit(nqCount, hqCount, out _, out _).Total == 0;
     }
 
     private void ProcessPrecraftWithDependencies(CraftingListItem recipeItem, List<CraftingListItem> allRecipes, HashSet<uint> processed, List<CraftingListItem> result)
@@ -1069,7 +1995,7 @@ public class CraftingListEditor
             var depRecipe = RecipeManager.GetRecipeForItem(itemId);
             if (depRecipe.HasValue)
             {
-                var depItem = allRecipes.FirstOrDefault(r => r.RecipeId == depRecipe.Value.RowId);
+                var depItem = allRecipes.FirstOrDefault(r => r.RecipeId == depRecipe.Value.RowId && !r.IsOriginalRecipe);
                 if (depItem != null)
                 {
                     ProcessPrecraftWithDependencies(depItem, allRecipes, processed, result);
@@ -1083,57 +2009,64 @@ public class CraftingListEditor
     
     private string? ResolveEffectiveMacroId(RecipeCraftSettings? settings, bool isPrecraft)
     {
-        var isSpecific = settings?.MacroMode == MacroOverrideMode.Specific
-            || (settings?.MacroMode == MacroOverrideMode.Inherit && !string.IsNullOrEmpty(settings?.SelectedMacroId));
+        var planningList = GetPlanningList();
+        var isSpecific = settings != null
+            && (settings.MacroMode == MacroOverrideMode.Specific
+                || (settings.MacroMode == MacroOverrideMode.Inherit
+                    && (!string.IsNullOrEmpty(settings.SelectedMacroId) || settings.SolverOverride != SolverOverrideMode.Default)));
         if (isSpecific)
-            return settings?.SelectedMacroId;
-        return isPrecraft ? _list.DefaultPrecraftMacroId : _list.DefaultFinalMacroId;
+            return settings?.SolverOverride == SolverOverrideMode.Default ? settings?.SelectedMacroId : null;
+        var defaultSolverOverride = isPrecraft ? planningList.DefaultPrecraftSolverOverride : planningList.DefaultFinalSolverOverride;
+        if (defaultSolverOverride != SolverOverrideMode.Default)
+            return null;
+        return isPrecraft ? planningList.DefaultPrecraftMacroId : planningList.DefaultFinalMacroId;
     }
 
     private (int hardFails, int warnings) CountValidationIssues()
     {
+        ProcessPendingInventoryChanges();
+
+        var currentHash = ComputeListHash();
+        if (_cachedValidationIssueCountsValid && _cachedValidationIssueCountsHash == currentHash)
+            return _cachedValidationIssueCounts;
+
         var hardFails = 0;
         var warnings  = 0;
 
-        foreach (var item in _list.Recipes)
-        {
-            var macroId = ResolveEffectiveMacroId(item.CraftSettings, false);
-            if (string.IsNullOrEmpty(macroId))
-                continue;
-            var result = MacroValidator.GetOrCompute(item.RecipeId, macroId, item.CraftSettings, _list.Consumables);
-            if (result == null || result.Failure == MacroValidationFailure.NoStats)
-                continue;
-            if (!result.IsValid)
-            {
-                if (result.Failure is MacroValidationFailure.CPExhausted or MacroValidationFailure.DurabilityFailed)
-                    hardFails++;
-                else
-                    warnings++;
-            }
-        }
+        foreach (var row in GetRecipeDisplayRows())
+            AccumulateValidationIssue(row.Validation, ref hardFails, ref warnings);
 
-        var originalRecipeIds = new HashSet<uint>(_list.Recipes.Select(r => r.RecipeId));
-        foreach (var queueItem in GetSortedQueue())
+        if (_cachedQueueValid && _cachedSortedQueue != null)
         {
-            if (originalRecipeIds.Contains(queueItem.RecipeId))
-                continue;
-            var craftSettings = _list.PrecraftCraftSettings.GetValueOrDefault(queueItem.RecipeId);
-            var macroId = ResolveEffectiveMacroId(craftSettings, true);
-            if (string.IsNullOrEmpty(macroId))
-                continue;
-            var result = MacroValidator.GetOrCompute(queueItem.RecipeId, macroId, craftSettings, _list.Consumables);
-            if (result == null || result.Failure == MacroValidationFailure.NoStats)
-                continue;
-            if (!result.IsValid)
+            EnsureQueueDisplayRows(GetPlanningList(), GetActiveExecutionPlan());
+            if (_cachedQueueDisplayRows != null)
             {
-                if (result.Failure is MacroValidationFailure.CPExhausted or MacroValidationFailure.DurabilityFailed)
-                    hardFails++;
-                else
-                    warnings++;
+                foreach (var row in _cachedQueueDisplayRows)
+                {
+                    if (row.IsOriginalRecipe)
+                        continue;
+
+                    AccumulateValidationIssue(row.Validation, ref hardFails, ref warnings);
+                }
             }
+
+            _cachedValidationIssueCounts = (hardFails, warnings);
+            _cachedValidationIssueCountsHash = currentHash;
+            _cachedValidationIssueCountsValid = true;
         }
 
         return (hardFails, warnings);
+    }
+
+    private static void AccumulateValidationIssue(MacroValidationResult? validation, ref int hardFails, ref int warnings)
+    {
+        if (validation == null || validation.IsValid || validation.Failure == MacroValidationFailure.NoStats)
+            return;
+
+        if (validation.Failure is MacroValidationFailure.CPExhausted or MacroValidationFailure.DurabilityFailed)
+            hardFails++;
+        else
+            warnings++;
     }
 
     private string GetCraftingJobName(uint craftTypeId)
@@ -1144,8 +2077,8 @@ public class CraftingListEditor
             var classJobId = craftTypeId + 8;
             var classJob = classJobSheet.GetRow(classJobId);
             if (classJob.RowId > 0)
-                return classJob.Name.ExtractText(); // Ä¬ÈÏ Abbreviation£¬ÐÞ¸ÄÒÔÏÔÊ¾È«³Æ
+                return classJob.Abbreviation.ExtractText();
         }
-        return "Î´Öª";
+        return "Unknown";
     }
 }

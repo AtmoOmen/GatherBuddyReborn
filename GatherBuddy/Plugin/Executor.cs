@@ -105,7 +105,7 @@ public class Executor
             _visitedLocations.Clear();
         _keepVisitedLocations = true;
         if (_item == null)
-            Communicator.Print("Ã»ÓĞ¿ÉÓÃµÄÉÏÒ»´ÎµÄ²É¼¯Ö¸Áî¡£");
+            Communicator.Print("æ²¡æœ‰å¯ç”¨çš„ä¸Šä¸€æ¬¡çš„é‡‡é›†æŒ‡ä»¤ã€‚");
     }
 
     private void DoIdentify()
@@ -215,13 +215,13 @@ public class Executor
         };
         if (set == null)
         {
-            Communicator.PrintError("´ËÎ»ÖÃÃ»ÓĞ¹ØÁªÈÎºÎÖ°Òµ: ", _location.Name, GatherBuddy.Config.SeColorArguments, ".");
+            Communicator.PrintError("æ­¤ä½ç½®æ²¡æœ‰å…³è”ä»»ä½•èŒä¸š: ", _location.Name, GatherBuddy.Config.SeColorArguments, ".");
             return;
         }
 
         if (set.Length == 0)
         {
-            Communicator.PrintError("Î´ÉèÖÃÈÎºÎÌ××°: ", _location.GatheringType.ToString(), GatherBuddy.Config.SeColorArguments,
+            Communicator.PrintError("æœªè®¾ç½®ä»»ä½•å¥—è£…: ", _location.GatheringType.ToString(), GatherBuddy.Config.SeColorArguments,
                 "");
             return;
         }
@@ -306,16 +306,15 @@ public class Executor
             return;
         }
 
-        var time = DateTime.UtcNow.AddSeconds(30);
+        Dalamud.ClientState.TerritoryChanged += DoWaymarkOnArrival;
+        return;
 
-        void DoWaymarkOnArrival(ushort t)
+        void DoWaymarkOnArrival(uint t)
         {
             if (territory == t)
                 GatherBuddy.WaymarkManager.SetWaymarks(markers);
             Dalamud.ClientState.TerritoryChanged -= DoWaymarkOnArrival;
         }
-
-        Dalamud.ClientState.TerritoryChanged += DoWaymarkOnArrival;
     }
 
     public bool DoCommand(string argument)
@@ -347,15 +346,15 @@ public class Executor
                 return true;
             case GatherBuddy.AutoCommand:
                 GatherBuddy.AutoGather.Enabled = !GatherBuddy.AutoGather.Enabled;
-                Communicator.Print(GatherBuddy.AutoGather.Enabled ? "ÆôÓÃ×Ô¶¯²É¼¯" : "½ûÓÃ×Ô¶¯²É¼¯");
+                Communicator.Print(GatherBuddy.AutoGather.Enabled ? "å¯ç”¨è‡ªåŠ¨é‡‡é›†" : "ç¦ç”¨è‡ªåŠ¨é‡‡é›†");
                 return true;
             case GatherBuddy.AutoOnCommand:
                 GatherBuddy.AutoGather.Enabled = true;
-                Communicator.Print("ÆôÓÃ×Ô¶¯²É¼¯");
+                Communicator.Print("å¯ç”¨è‡ªåŠ¨é‡‡é›†");
                 return true;
             case GatherBuddy.AutoOffCommand:
                 GatherBuddy.AutoGather.Enabled = false;
-                Communicator.Print("½ûÓÃ×Ô¶¯²É¼¯");
+                Communicator.Print("ç¦ç”¨è‡ªåŠ¨é‡‡é›†");
                 return true;
             default: return false;
         }
@@ -433,14 +432,14 @@ public class Executor
     {
         if (territory.Aetherytes.Count == 0)
         {
-            Communicator.PrintError(string.Empty, territory.Name, GatherBuddy.Config.SeColorArguments, " Ã»ÓĞ¿É´«ËÍµÄÒÔÌ«Ö®¹â¡£");
+            Communicator.PrintError(string.Empty, territory.Name, GatherBuddy.Config.SeColorArguments, " æ²¡æœ‰å¯ä¼ é€çš„ä»¥å¤ªä¹‹å…‰ã€‚");
             return;
         }
 
         var aetheryte = territory.Aetherytes.FirstOrDefault(a => Teleporter.IsAttuned(a.Id));
         if (aetheryte == null)
         {
-            Communicator.PrintError("Ã»ÓĞÓë´ËÇøÓòµÄÈÎºÎÒÔÌ«Ö®¹â½øĞĞ¹²Ãù: ", territory.Name, GatherBuddy.Config.SeColorArguments, ".");
+            Communicator.PrintError("æ²¡æœ‰ä¸æ­¤åŒºåŸŸçš„ä»»ä½•ä»¥å¤ªä¹‹å…‰è¿›è¡Œå…±é¸£: ", territory.Name, GatherBuddy.Config.SeColorArguments, ".");
             return;
         }
 

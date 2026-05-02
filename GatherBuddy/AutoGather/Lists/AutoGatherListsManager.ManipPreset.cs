@@ -121,41 +121,51 @@ public partial class AutoGatherListsManager
             var fishInList = list.Items.OfType<Fish>().Where(f => !f.IsSpearFish && list.EnabledItems.TryGetValue(f, out var enabled) && enabled).ToList();
             if (fishInList.Count == 0)
                 return true;
-            
+
             static uint GetInventoryItemCount(uint itemRowId)
             {
                 return (uint)FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance()->GetInventoryItemCount(itemRowId < 100000 ? itemRowId : itemRowId - 100000, itemRowId >= 100000);
             }
-            
+
             var missingBaits = new System.Collections.Generic.HashSet<uint>();
             const uint VersatileLureId = 29717;
-            
+            var versatileLureCount = GetInventoryItemCount(VersatileLureId);
+            var customPresetBaitIds = GatherBuddy.Config.AutoGatherConfig.UseExistingAutoHookPresets
+                ? GetCustomPresetBaitIds()
+                : null;
+            var inventoryCounts = new Dictionary<uint, uint>();
+            var stopwatch = Stopwatch.StartNew();
             foreach (var fish in fishInList)
             {
                 var baitId = fish.InitialBait?.Id ?? 0;
                 if (baitId == 0)
                     continue;
-                
-                if (GatherBuddy.Config.AutoGatherConfig.UseExistingAutoHookPresets)
+
+                if (customPresetBaitIds != null && customPresetBaitIds.TryGetValue(fish.ItemId, out var customBaitId))
                 {
-                    var customBaitId = GetCustomPresetBaitId(fish.ItemId);
-                    if (customBaitId.HasValue)
-                    {
-                        baitId = customBaitId.Value;
-                        GatherBuddy.Log.Debug($"[Auto-Gather] Using custom preset bait ID {baitId} for fish {fish.ItemId}");
-                    }
+                    baitId = customBaitId;
+                    GatherBuddy.Log.Debug($"[Auto-Gather] Using custom preset bait ID {baitId} for fish {fish.ItemId}");
                 }
-                
-                if (GetInventoryItemCount(baitId) == 0 && GetInventoryItemCount(VersatileLureId) == 0)
+
+                if (!inventoryCounts.TryGetValue(baitId, out var baitCount))
                 {
-                    missingBaits.Add(baitId);
+                    baitCount = GetInventoryItemCount(baitId);
+                    inventoryCounts[baitId] = baitCount;
                 }
+
+                if (baitCount > 0 || versatileLureCount > 0)
+                    continue;
+
+                missingBaits.Add(baitId);
             }
-            
+
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds >= 10)
+                GatherBuddy.Log.Debug($"[Auto-Gather] Validated fishing bait for list '{list.Name}' in {stopwatch.ElapsedMilliseconds} ms ({fishInList.Count} fish, {inventoryCounts.Count} unique bait IDs).");
             if (missingBaits.Count > 0)
             {
                 var baitIds = string.Join(", ", missingBaits);
-                Communicator.PrintError($"[Auto-Gather] Œﬁ∑®∆Ù”√¡–±Ì: '{list.Name}', »±…Ÿµˆ∂¸ IDs: {baitIds}, ≤¢«“√ª”–ÕÚƒ‹ƒ‚∂¸");
+                Communicator.PrintError($"[Auto-Gather] Êó†Ê≥ïÂêØÁî®ÂàóË°®: '{list.Name}', Áº∫Â∞ëÈíìÈ•µ IDs: {baitIds}, Âπ∂‰∏îÊ≤°Êúâ‰∏áËÉΩÊãüÈ•µ");
                 GatherBuddy.Log.Error($"[Auto-Gather] List '{list.Name}' not enabled: Missing bait IDs {baitIds} and no Versatile Lure");
                 return false;
             }
@@ -186,7 +196,6 @@ public partial class AutoGatherListsManager
             
             if (baitId == 0)
                 return true;
-            
             if (GatherBuddy.Config.AutoGatherConfig.UseExistingAutoHookPresets)
             {
                 var customBaitId = GetCustomPresetBaitId(fish.ItemId);
@@ -196,7 +205,7 @@ public partial class AutoGatherListsManager
             
             if (GetInventoryItemCount(baitId) == 0 && GetInventoryItemCount(VersatileLureId) == 0)
             {
-                Communicator.PrintError($"[Auto-Gather] Œﬁ∑®ÃÌº”/∆Ù”√: {fish.Name[GatherBuddy.Language]}, »±…Ÿµˆ∂¸ ID: {baitId}, ≤¢«“√ª”–ÕÚƒ‹ƒ‚∂¸");
+                Communicator.PrintError($"[Auto-Gather] Êó†Ê≥ïÊ∑ªÂä†/ÂêØÁî®: {fish.Name[GatherBuddy.Language]}, Áº∫Â∞ëÈíìÈ•µ ID: {baitId}, Âπ∂‰∏îÊ≤°Êúâ‰∏áËÉΩÊãüÈ•µ");
                 GatherBuddy.Log.Error($"[Auto-Gather] Fish {fish.ItemId} not enabled: Missing bait ID {baitId} and no Versatile Lure");
                 return false;
             }
@@ -253,8 +262,8 @@ public partial class AutoGatherListsManager
             
             if (insufficientPerception.Count > 0)
             {
-                var itemDetails = string.Join(", ", insufficientPerception.Select(x => $"{x.Name} (–Ë«Û: {x.Required})"));
-                Communicator.PrintError($"[Auto-Gather] Œﬁ∑®∆Ù”√¡–±Ì: '{list.Name}'£¨ º¯±¡¶≤ª◊„ (µ±«∞: {playerPerception}): {itemDetails}");
+                var itemDetails = string.Join(", ", insufficientPerception.Select(x => $"{x.Name} (ÈúÄÊ±Ç: {x.Required})"));
+                Communicator.PrintError($"[Auto-Gather] Êó†Ê≥ïÂêØÁî®ÂàóË°®: '{list.Name}'Ôºå Èâ¥Âà´Âäõ‰∏çË∂≥ (ÂΩìÂâç: {playerPerception}): {itemDetails}");
                 GatherBuddy.Log.Error($"[Auto-Gather] List '{list.Name}' not enabled: Insufficient perception {playerPerception}");
                 return false;
             }
@@ -302,7 +311,7 @@ public partial class AutoGatherListsManager
             
             if (playerPerception < requiredPerception)
             {
-                Communicator.PrintError($"[Auto-Gather] Œﬁ∑®ÃÌº”/∆Ù”√: {gatherable.Name[GatherBuddy.Language]}, º¯±¡¶≤ª◊„ (–Ë«Û: {requiredPerception}, µ±«∞: {playerPerception})");
+                Communicator.PrintError($"[Auto-Gather] Êó†Ê≥ïÊ∑ªÂä†/ÂêØÁî®: {gatherable.Name[GatherBuddy.Language]}, Èâ¥Âà´Âäõ‰∏çË∂≥ (ÈúÄÊ±Ç: {requiredPerception}, ÂΩìÂâç: {playerPerception})");
                 GatherBuddy.Log.Error($"[Auto-Gather] Gatherable {gatherable.ItemId} not enabled: Needs {requiredPerception} perception, current: {playerPerception}");
                 return false;
             }
@@ -316,7 +325,7 @@ public partial class AutoGatherListsManager
         }
     }
     
-    private uint? GetCustomPresetBaitId(uint fishId)
+    private Dictionary<uint, uint>? GetCustomPresetBaitIds()
     {
         try
         {
@@ -335,31 +344,39 @@ public partial class AutoGatherListsManager
             if (customPresets == null)
                 return null;
 
+            var customPresetBaitIds = new Dictionary<uint, uint>();
             foreach (var preset in customPresets)
             {
                 var presetName = preset?["PresetName"]?.ToString();
-                if (presetName != null && presetName.Equals(fishId.ToString(), System.StringComparison.Ordinal))
-                {
-                    var forcedBaitIdToken = preset?["ExtraCfg"]?["ForcedBaitId"];
-                    if (forcedBaitIdToken != null)
-                    {
-                        var forcedBaitId = forcedBaitIdToken.ToObject<uint>();
-                        if (forcedBaitId > 0)
-                        {
-                            GatherBuddy.Log.Debug($"[Auto-Gather] Found custom preset for fish {fishId} with bait ID {forcedBaitId}");
-                            return forcedBaitId;
-                        }
-                    }
-                }
+                if (presetName == null || !uint.TryParse(presetName, out var presetFishId))
+                    continue;
+
+                var forcedBaitIdToken = preset?["ExtraCfg"]?["ForcedBaitId"];
+                if (forcedBaitIdToken == null)
+                    continue;
+
+                var forcedBaitId = forcedBaitIdToken.ToObject<uint>();
+                if (forcedBaitId > 0)
+                    customPresetBaitIds[presetFishId] = forcedBaitId;
             }
 
-            return null;
+            return customPresetBaitIds.Count > 0 ? customPresetBaitIds : null;
         }
         catch (System.Exception ex)
         {
             GatherBuddy.Log.Error($"[Auto-Gather] Error reading AutoHook config for bait validation: {ex.Message}");
             return null;
         }
+    }
+
+    private uint? GetCustomPresetBaitId(uint fishId)
+    {
+        var customPresetBaitIds = GetCustomPresetBaitIds();
+        if (customPresetBaitIds == null || !customPresetBaitIds.TryGetValue(fishId, out var forcedBaitId))
+            return null;
+
+        GatherBuddy.Log.Debug($"[Auto-Gather] Found custom preset for fish {fishId} with bait ID {forcedBaitId}");
+        return forcedBaitId;
     }
 
     public void SetFallback(AutoGatherList list, bool value)

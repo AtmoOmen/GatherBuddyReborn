@@ -17,6 +17,7 @@ public static class CraftingGatherBridge
     private static DateTime _jobSwitchTime = DateTime.MinValue;
     private static bool _waitingForJobSwitch = false;
     private static CraftingQueueProcessor? _queueProcessor = null;
+    private static CraftingExecutionPlan? _activeExecutionPlan = null;
     private static bool _isQueueMode = false;
     private static List<AutoGatherList> _disabledGatherLists = new();
     private static int? _ephemeralListId = null;
@@ -32,6 +33,13 @@ public static class CraftingGatherBridge
     public static bool WaitingForGatherComplete => _waitingForGatherComplete;
     
     public static AutoGatherList? GetTemporaryGatherList() => _gatherList;
+    public static CraftingExecutionPlan? GetActiveExecutionPlan()
+        => _activeExecutionPlan;
+
+    public static CraftingExecutionPlan? GetActiveExecutionPlan(int listId)
+        => _activeExecutionPlan != null && _activeExecutionPlan.MatchesList(listId)
+            ? _activeExecutionPlan
+            : null;
     
     public static void DeleteTemporaryGatherList()
     {
@@ -114,6 +122,7 @@ public static class CraftingGatherBridge
                 RestoreDisabledGatherLists();
                 GatherBuddy.CraftingStatusWindow?.SetQueueProcessor(null);
                 _queueProcessor = null;
+                _activeExecutionPlan = null;
                 _isQueueMode = false;
 
                 if (_ephemeralListId.HasValue)
@@ -154,19 +163,20 @@ public static class CraftingGatherBridge
         CreateGatherListForMissingIngredients(missing);
     }
     
-    public static void StartQueueCraftAndGather(List<CraftingListItem> queue, Dictionary<uint, int> missing, CraftingListConsumableSettings? listConsumables = null, bool skipIfEnough = false, bool retainerRestock = false, Dictionary<uint, int>? retainerPrecraftItems = null, int? ephemeralListId = null)
+    public static void StartQueueCraftAndGather(CraftingExecutionPlan executionPlan, CraftingListConsumableSettings? listConsumables = null, int? ephemeralListId = null)
     {
         _isQueueMode = true;
         _ephemeralListId = ephemeralListId;
+        _activeExecutionPlan = executionPlan;
         _queueProcessor = new CraftingQueueProcessor();
         _queueProcessor.QueueCompleted += OnQueueCompleted;
         _waitingForGatherComplete = true;
-
-        GatherBuddy.Log.Information($"[CraftingGatherBridge] Starting queue automation with {queue.Count} recipes, retainerRestock={retainerRestock}");
-        _queueProcessor.StartQueue(queue, listConsumables, GatherBuddy.RaphaelSolveCoordinator, skipIfEnough, retainerRestock, missing, retainerPrecraftItems);
-
-        if (!retainerRestock || !AllaganTools.Enabled || missing.Count == 0)
-            CreateGatherListForMissingIngredients(missing);
+        GatherBuddy.Log.Information($"[CraftingGatherBridge] Starting queue automation with {executionPlan.QueueView.Count} recipes, retainerRestock={executionPlan.RetainerRestock}");
+        _queueProcessor.StartQueue(executionPlan, listConsumables, GatherBuddy.RaphaelSolveCoordinator);
+        var hasRetainerWork = executionPlan.RetainerRestock && AllaganTools.Enabled
+            && (executionPlan.Materials.Count > 0 || executionPlan.RetainerConsumedCraftables.Count > 0);
+        if (!hasRetainerWork)
+            CreateGatherListForMissingIngredients(executionPlan.Materials);
 
         GatherBuddy.CraftingStatusWindow?.SetQueueProcessor(_queueProcessor);
     }
@@ -177,7 +187,7 @@ public static class CraftingGatherBridge
         {
             if (_plugin != null)
             {
-                var enabledLists = _plugin.AutoGatherListsManager.Lists.Where(l => l.Enabled).ToList();
+                var enabledLists = _plugin.AutoGatherListsManager.Lists.Where(l => l.Enabled && !l.Fallback).ToList();
                 if (enabledLists.Count > 0)
                 {
                     _disabledGatherLists.Clear();
@@ -268,7 +278,7 @@ public static class CraftingGatherBridge
         }
         
         var requiredCraftJob = (uint)(recipe.CraftType.RowId + 8);
-        var currentJob = Dalamud.ClientState.LocalPlayer?.ClassJob.RowId ?? 0;
+        var currentJob = Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
         
         if (currentJob != requiredCraftJob)
         {
@@ -402,6 +412,7 @@ public static class CraftingGatherBridge
             DeleteTemporaryGatherList();
             _queueProcessor.Reset();
             _queueProcessor = null;
+            _activeExecutionPlan = null;
             _isQueueMode = false;
             RestoreDisabledGatherLists();
             GatherBuddy.CraftingStatusWindow?.SetQueueProcessor(null);

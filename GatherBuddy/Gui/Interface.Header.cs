@@ -82,7 +82,7 @@ public partial class Interface
         var alarmData = which ? _plugin.AlarmManager.LastItemAlarm : _plugin.AlarmManager.LastFishAlarm;
         if (alarmData == null)
         {
-            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "µã»÷Ç°Íù²É¼¯´ËÄÖÖÓÎïÆ·", true);
+            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "ç‚¹å‡»å‰å¾€é‡‡é›†æ­¤é—¹é’Ÿç‰©å“", true);
             return;
         }
 
@@ -90,7 +90,7 @@ public partial class Interface
 
         var text = $"{(alarm.Name.Any() ? alarm.Name : alarm.Item.Name[GatherBuddy.Language])}###{(which ? "itemAlarm" : "fishAlarm")}";
         var desc =
-            $"µã»÷Ç°Íù²É¼¯´ËÄÖÖÓÎïÆ·\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "None"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
+            $"ç‚¹å‡»å‰å¾€é‡‡é›†æ­¤é—¹é’Ÿç‰©å“\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "None"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
 
         if (!ImGuiUtil.DrawDisabledButton(text, _headerCache.AlarmButtonSize, desc, false))
             return;
@@ -102,10 +102,10 @@ public partial class Interface
     }
 
     private void DrawLastItemAlarm()
-        => DrawLastAlarm(true, "ÎŞÒÑ´¥·¢µÄ²É¼¯ÄÖÖÓ");
+        => DrawLastAlarm(true, "æ— å·²è§¦å‘çš„é‡‡é›†é—¹é’Ÿ");
 
     private void DrawLastFishAlarm()
-        => DrawLastAlarm(false, "ÎŞÒÑ´¥·¢µÄµöÓãÄÖÖÓ");
+        => DrawLastAlarm(false, "æ— å·²è§¦å‘çš„é’“é±¼é—¹é’Ÿ");
 
 
     private void DrawAlarmRow()
@@ -113,6 +113,27 @@ public partial class Interface
         using var _ = ImRaii.Group();
         ImGui.SameLine();
         ConfigFunctions.DrawAlarmToggle();
+        ImGui.SameLine();
+        var vulcanButtonWidth = Math.Max(95f * Scale, ImGui.CalcTextSize("Vulcan").X + FramePadding.X * 5f);
+        {
+            using var buttonAlign = ImRaii.PushStyle(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
+            using var buttonColor = ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.30f, 0.25f, 0.46f, 1f));
+            using var buttonHoveredColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.36f, 0.30f, 0.55f, 1f));
+            using var buttonActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.24f, 0.20f, 0.38f, 1f));
+            if (ImGui.Button("Vulcan", new Vector2(vulcanButtonWidth, 0f)))
+            {
+                if (GatherBuddy.VulcanWindow == null)
+                {
+                    GatherBuddy.Log.Debug("[Interface] Vulcan header button clicked, but the Vulcan window was unavailable.");
+                }
+                else
+                {
+                    GatherBuddy.Log.Debug("[Interface] Restoring Vulcan from the main header button.");
+                    GatherBuddy.VulcanWindow.RestoreWindow();
+                }
+            }
+        }
+        ImGuiUtil.HoverTooltip("Open the Vulcan crafting window.");
         ImGui.SameLine();
         _headerCache.AlarmButtonSize = (ImGui.GetContentRegionAvail().X - ItemSpacing.X) / 2 * Vector2.UnitX;
         DrawLastItemAlarm();
@@ -126,13 +147,13 @@ public partial class Interface
         if (ImGui.IsItemHovered())
         {
             using var tt = ImRaii.Tooltip();
-            ImGui.TextUnformatted("Èç¹ûÓÎÏ·ÖĞµÄ°¬Å·ÔóÑÇÊ±¼ä²»Ò»ÖÂ£¬ÇëÑéÖ¤ÄúµÄ Windows ÏµÍ³Ê±¼äÊÇ·ñ×¼È·¡£");
+            ImGui.TextUnformatted("å¦‚æœæ¸¸æˆä¸­çš„è‰¾æ¬§æ³½äºšæ—¶é—´ä¸ä¸€è‡´ï¼Œè¯·éªŒè¯æ‚¨çš„ Windows ç³»ç»Ÿæ—¶é—´æ˜¯å¦å‡†ç¡®ã€‚");
             var nearRoute = OceanUptime.NextOceanRoute(OceanArea.Aldenard, TimeStamp.UtcNow);
             var farRoute = OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow);
             ImGui.TextUnformatted(
-                $"ÏÂÒ»½üº£º½Ïß: {nearRoute.Name} ({EnumLocalization.GetFlags(nearRoute.StartTime)})");
+                $"ä¸‹ä¸€è¿‘æµ·èˆªçº¿: {nearRoute.Name} ({EnumLocalization.GetFlags(nearRoute.StartTime)})");
             ImGui.TextUnformatted(
-                $"ÏÂÒ»Ô¶Ñóº½Ïß: {farRoute.Name} ({EnumLocalization.GetFlags(farRoute.StartTime)})");
+                $"ä¸‹ä¸€è¿œæ´‹èˆªçº¿: {farRoute.Name} ({EnumLocalization.GetFlags(farRoute.StartTime)})");
         }
     }
 
@@ -180,7 +201,7 @@ public partial class Interface
         nextHourS    -= nextHourM * RealTime.SecondsPerMinute;
         nextWeatherS -= nextWeatherM * RealTime.SecondsPerMinute;
 
-        var nextWeatherString = $"  {nextWeatherM:D2}:{nextWeatherS:D2} ·ÖÖÓ  ";
+        var nextWeatherString = $"  {nextWeatherM:D2}:{nextWeatherS:D2} åˆ†é’Ÿ  ";
         var width = -(ImGui.CalcTextSize(nextWeatherString).X
           + (WeatherIconSize.X + ItemSpacing.X + FramePadding.X) * 3);
 
@@ -188,7 +209,7 @@ public partial class Interface
         using var _ = ImRaii.Group();
         DrawEorzeaTime($"ET {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
         ImGui.SameLine();
-        DrawNextEorzeaHour($"¾àÏÂÒ»Ğ¡Ê±»¹ÓĞ {nextHourM:D2}:{nextHourS:D2} ·ÖÖÓ", new Vector2(width, WeatherIconSize.Y));
+        DrawNextEorzeaHour($"è·ä¸‹ä¸€å°æ—¶è¿˜æœ‰ {nextHourM:D2}:{nextHourS:D2} åˆ†é’Ÿ", new Vector2(width, WeatherIconSize.Y));
         ImGui.SameLine();
         DrawNextWeather(nextWeatherString);
     }
