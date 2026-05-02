@@ -313,7 +313,7 @@ public partial class VulcanWindow
         
         if (GatherBuddy.ControllerSupport != null && !_recipesTabRequestFocus)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("Recipes##recipesTab", 1, 9);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("配方##recipesTab", 1, 9);
             tabItem = handle;
             tabOpen = handle;
         }
@@ -324,7 +324,7 @@ public partial class VulcanWindow
             {
                 unsafe
                 {
-                    var labelBytes = System.Text.Encoding.UTF8.GetBytes("Recipes##recipesTab\0");
+                    var labelBytes = System.Text.Encoding.UTF8.GetBytes("配方##recipesTab\0");
                     fixed (byte* ptr = labelBytes)
                     {
                         handle = ImRaii.TabItem(ptr, ImGuiTabItemFlags.SetSelected);
@@ -333,7 +333,7 @@ public partial class VulcanWindow
             }
             else
             {
-                handle = ImRaii.TabItem("Recipes##recipesTab");
+                handle = ImRaii.TabItem("配方##recipesTab");
             }
             tabItem = handle;
             tabOpen = handle.Success;

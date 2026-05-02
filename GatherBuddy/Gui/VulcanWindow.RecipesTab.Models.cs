@@ -120,9 +120,9 @@ public partial class VulcanWindow
             using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing * new Vector2(1f, 1.5f));
 
             ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), Name);
-            ImGui.Text($"Recipe ID: {Recipe.RowId}");
-            ImGui.Text($"Level: {Level} {JobAbbreviation}");
-            ImGui.Text($"Yields: {Recipe.AmountResult}x");
+            ImGui.Text($"配方 ID: {Recipe.RowId}");
+            ImGui.Text($"等级: {Level} {JobAbbreviation}");
+            ImGui.Text($"产出: {Recipe.AmountResult}x");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -131,7 +131,7 @@ public partial class VulcanWindow
             var directIngredients = RecipeManager.GetIngredients(Recipe);
             if (directIngredients.Count > 0)
             {
-                ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.6f, 1.0f), "Required Ingredients:");
+                ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.6f, 1.0f), "所需材料:");
                 ImGui.Spacing();
 
                 var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
@@ -163,7 +163,7 @@ public partial class VulcanWindow
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "No materials required");
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "不需要材料");
             }
             
             var settings = GatherBuddy.RecipeBrowserSettings.Get(Recipe.RowId);
@@ -173,20 +173,20 @@ public partial class VulcanWindow
                 ImGui.Separator();
                 ImGui.Spacing();
                 
-                ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "Configured Settings:");
+                ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "已配置设置:");
                 ImGui.Spacing();
                 
                 var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
                 if (itemSheet != null)
                 {
                     if (settings.FoodItemId.HasValue && itemSheet.TryGetRow(settings.FoodItemId.Value, out var food))
-                        ImGui.Text($"Food: {food.Name.ExtractText()}");
+                        ImGui.Text($"食物: {food.Name.ExtractText()}");
                     if (settings.MedicineItemId.HasValue && itemSheet.TryGetRow(settings.MedicineItemId.Value, out var medicine))
-                        ImGui.Text($"Medicine: {medicine.Name.ExtractText()}");
+                        ImGui.Text($"爆发药: {medicine.Name.ExtractText()}");
                     if (settings.ManualItemId.HasValue && itemSheet.TryGetRow(settings.ManualItemId.Value, out var manual))
-                        ImGui.Text($"Manual: {manual.Name.ExtractText()}");
+                        ImGui.Text($"指南: {manual.Name.ExtractText()}");
                     if (settings.SquadronManualItemId.HasValue && itemSheet.TryGetRow(settings.SquadronManualItemId.Value, out var sqManual))
-                        ImGui.Text($"Squadron Manual: {sqManual.Name.ExtractText()}");
+                        ImGui.Text($"冒险者分队指南: {sqManual.Name.ExtractText()}");
                 }
             }
         }
@@ -243,10 +243,10 @@ public partial class VulcanWindow
         private static float _craftedColumnWidth;
         private static float _globalScale;
 
-        private static readonly NameColumn _nameColumn = new() { Label = "Recipe Name..." };
-        private static readonly JobColumn _jobColumn = new() { Label = "Job" };
-        private static readonly LevelColumn _levelColumn = new() { Label = "Level" };
-        private static readonly CraftedColumn _craftedColumn = new() { Label = "Crafted" };
+        private static readonly NameColumn _nameColumn = new() { Label = "配方名称..." };
+        private static readonly JobColumn _jobColumn = new() { Label = "职业" };
+        private static readonly LevelColumn _levelColumn = new() { Label = "等级" };
+        private static readonly CraftedColumn _craftedColumn = new() { Label = "已制作" };
 
         protected override void PreDraw()
         {
@@ -256,7 +256,7 @@ public partial class VulcanWindow
                 _nameColumnWidth = Math.Max(300f, Items.Any() ? Items.Max(i => TextWidth(i.Name)) + ItemSpacing.X + LineIconSize.X : 300f) / Scale;
                 _jobColumnWidth = TextWidth("CRP") / Scale + Table.ArrowWidth;
                 _levelColumnWidth = TextWidth("100") / Scale + Table.ArrowWidth;
-                _craftedColumnWidth = TextWidth("Crafted") / Scale + Table.ArrowWidth;
+                _craftedColumnWidth = TextWidth("已制作") / Scale + Table.ArrowWidth;
             }
         }
 
@@ -319,12 +319,12 @@ public partial class VulcanWindow
                 
                 if (isPopupOpen)
                 {
-                    if (ImGui.MenuItem("Configure Craft Settings"))
+                    if (ImGui.MenuItem("配置制作设置"))
                     {
                         _craftSettingsPopup.Open(item.Recipe.RowId, item.Name);
                     }
                     
-                    if (ImGui.MenuItem("Show Recipe Properties (Debug)"))
+                    if (ImGui.MenuItem("显示配方属性 (调试)"))
                     {
                         GatherBuddy.Log.Information($"=== Recipe Properties for {item.Name} ===");
                         GatherBuddy.Log.Information($"Recipe.RowId: {item.Recipe.RowId}");
@@ -356,7 +356,7 @@ public partial class VulcanWindow
                     
                     if (lists.Count > 0)
                     {
-                        ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.6f, 1.0f), $"Add {item.Name} to list:");
+                        ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.6f, 1.0f), $"将 {item.Name} 加入清单:");
                         ImGui.Separator();
                         
                         foreach (var list in lists)
@@ -373,8 +373,8 @@ public partial class VulcanWindow
                     }
                     else
                     {
-                        ImGui.TextDisabled("No crafting lists available");
-                        ImGui.TextDisabled("Create one in the Crafting Lists tab");
+                        ImGui.TextDisabled("没有可用制作清单");
+                        ImGui.TextDisabled("请在制作清单标签中创建");
                     }
                     
                     ImGui.EndPopup();

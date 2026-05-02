@@ -66,7 +66,7 @@ public class CraftingMaterialsWindow : Window
     private bool _cachedMaterialViewShowRetainer;
     private List<MaterialPanel> _cachedPanels = [];
 
-    public CraftingMaterialsWindow() : base("Materials###CraftingMaterials")
+    public CraftingMaterialsWindow() : base("材料###CraftingMaterials")
     {
         Size           = new Vector2(560, 520);
         SizeCondition  = ImGuiCond.FirstUseEver;
@@ -87,14 +87,14 @@ public class CraftingMaterialsWindow : Window
     public override void PreDraw()
     {
         if (_editor != null)
-            WindowName = $"Materials \u2014 {_editor.ListName}###CraftingMaterials";
+            WindowName = $"材料 - {_editor.ListName}###CraftingMaterials";
     }
 
     public override void Draw()
     {
         if (_editor == null)
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "No list open.");
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "未打开清单");
             return;
         }
 
@@ -105,7 +105,7 @@ public class CraftingMaterialsWindow : Window
 
         if (_editor.IsGeneratingMaterials)
         {
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "Calculating materials...");
+            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "正在计算材料...");
             return;
         }
         var showRetainer = AllaganTools.Enabled;
@@ -122,23 +122,23 @@ public class CraftingMaterialsWindow : Window
         ImGui.SameLine();
         ImGui.Checkbox("150%##overcap", ref _matsOvercapPercent);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Show % beyond 100 when you have more than needed");
+            ImGui.SetTooltip("持有数量超过需求时显示高于 100% 的比例");
         ImGui.SameLine();
-        ImGui.Checkbox("Precrafts##precrafts", ref _matsShowPrecrafts);
+        ImGui.Checkbox("半成品##precrafts", ref _matsShowPrecrafts);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("在清单中包含可制作的半成品和非装备成品");
         ImGui.SameLine();
-        ImGui.Checkbox("Prefer Vendors##preferVendors", ref _matsPreferVendors);
+        ImGui.Checkbox("优先商店##preferVendors", ref _matsPreferVendors);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(
-                "Default priority:\n" +
-                "  Gather > Fish > Scrip > Drops > Craft > Vendor > Tomes > Other\n\n" +
-                "When ON: Gil Vendor overrides Gather, Fish, Drops, and Craft\n" +
-                "for items also sold at a Gil shop.");
+                "默认优先级:\n" +
+                "  采集 > 钓鱼 > 工票 > 掉落 > 制作 > 商店 > 神典石 > 其他\n\n" +
+                "启用后, 金币商店会优先于采集、钓鱼、掉落和制作\n" +
+                "适用于同样可在金币商店购买的物品");
         ImGui.SameLine();
         ImGui.Checkbox("保留已满足##keepFulfilled", ref _matsKeepFulfilled);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Keep fulfilled materials visible even when \"Skip if Al足够 持有 Enough\" is enabled on the list.");
+            ImGui.SetTooltip("即使清单启用 \"持有足够时跳过\", 仍显示已满足的材料");
         if (showRetainer)
         {
             ImGui.SameLine();
@@ -153,7 +153,7 @@ public class CraftingMaterialsWindow : Window
         ImGui.Separator();
         if (!_cachedHasVisibleEntries)
         {
-            ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.4f, 1f), "All materials 足够.");
+            ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.4f, 1f), "所有材料都已足够");
             return;
         }
 
@@ -305,11 +305,11 @@ public class CraftingMaterialsWindow : Window
 
             var nonCraftRetainerMode = showRetainer ? RetainerColumnMode.Total : RetainerColumnMode.None;
             var craftRetainerMode = showRetainer ? RetainerColumnMode.Split : RetainerColumnMode.None;
-            if (gatherList.Count > 0) _cachedPanels.Add(new MaterialPanel("##gather", "Gather", AccentGather, gatherList, nonCraftRetainerMode, null));
-            if (dropList.Count > 0) _cachedPanels.Add(new MaterialPanel("##drop", "Drops / Bicolor", AccentDrop, dropList, nonCraftRetainerMode, null));
-            if (shopList.Count > 0) _cachedPanels.Add(new MaterialPanel("##shop", "Special Currency", AccentShop, shopList, nonCraftRetainerMode, BuildVendorBuyListTargets(shopList)));
-            if (vendorList.Count > 0) _cachedPanels.Add(new MaterialPanel("##vendor", "Vendor", AccentVendor, vendorList, nonCraftRetainerMode, BuildVendorBuyListTargets(vendorList)));
-            if (craftList is { Count: > 0 }) _cachedPanels.Add(new MaterialPanel("##craft", "Craft", AccentCraft, craftList, craftRetainerMode, null));
+            if (gatherList.Count > 0) _cachedPanels.Add(new MaterialPanel("##gather", "采集", AccentGather, gatherList, nonCraftRetainerMode, null));
+            if (dropList.Count > 0) _cachedPanels.Add(new MaterialPanel("##drop", "掉落 /双色", AccentDrop, dropList, nonCraftRetainerMode, null));
+            if (shopList.Count > 0) _cachedPanels.Add(new MaterialPanel("##shop", "特殊货币", AccentShop, shopList, nonCraftRetainerMode, BuildVendorBuyListTargets(shopList)));
+            if (vendorList.Count > 0) _cachedPanels.Add(new MaterialPanel("##vendor", "商店", AccentVendor, vendorList, nonCraftRetainerMode, BuildVendorBuyListTargets(vendorList)));
+            if (craftList is { Count: > 0 }) _cachedPanels.Add(new MaterialPanel("##craft", "制作", AccentCraft, craftList, craftRetainerMode, null));
 
             UpdateMaterialViewCacheMetadata(showRetainer);
         }
@@ -604,15 +604,15 @@ public class CraftingMaterialsWindow : Window
 
         if (hasSingleTarget)
         {
-            DrawVendorBuyListExistingListMenu("Add to Existing List", new[] { singleTarget });
-            if (ImGui.Selectable("Create New List"))
+            DrawVendorBuyListExistingListMenu("加入已有清单", new[] { singleTarget });
+            if (ImGui.Selectable("创建新清单"))
                 OpenCreateVendorBuyListPopup(new[] { singleTarget });
         }
 
         if (hasBatchTargets && vendorTargets!.Count > 1)
         {
-            DrawVendorBuyListExistingListMenu("Add Current Vendor View to Existing List", vendorTargets);
-            if (ImGui.Selectable("Create New List from Current Vendor View"))
+            DrawVendorBuyListExistingListMenu("将当前商店视图加入已有清单", vendorTargets);
+            if (ImGui.Selectable("按当前商店视图创建新清单"))
                 OpenCreateVendorBuyListPopup(vendorTargets);
         }
     }

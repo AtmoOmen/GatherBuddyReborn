@@ -23,8 +23,8 @@ public sealed partial class VendorBuyListWindow : Window
         ushort IconId,
         ulong AvailableAmount,
         ulong RequiredAmount);
-    public const string WindowId = "Vendor Buy List###VendorBuyListWindow";
-    private const string ListNamePopupId = "Vendor Buy List Name###VendorBuyListNamePopup";
+    public const string WindowId = "商店购买清单###VendorBuyListWindow";
+    private const string ListNamePopupId = "商店购买清单名称###VendorBuyListNamePopup";
     private readonly Dictionary<uint, ushort> _currencyIconIds = new();
     private readonly Dictionary<uint, string> _currencyNames = new();
 
@@ -61,7 +61,7 @@ public sealed partial class VendorBuyListWindow : Window
         if (manager == null)
             return false;
 
-        var list = manager.CreateList("Vendor List", false);
+        var list = manager.CreateList("商店清单", false);
         if (!manager.TryIncrementTarget(list.Id, itemId, 1, selectList: true, openWindow: false, announce: false))
         {
             GatherBuddy.Log.Warning($"[VendorBuyListWindow] Failed to add item {itemId} to newly created vendor list '{list.Name}'.");
@@ -75,7 +75,7 @@ public sealed partial class VendorBuyListWindow : Window
     }
 
     public bool OpenCreateListPopup(IReadOnlyList<VendorBuyListManager.VendorTargetRequest> requests)
-        => OpenCreateListPopup("Vendor List", requests);
+        => OpenCreateListPopup("商店清单", requests);
 
     public bool OpenCreateListPopup(string listName, IReadOnlyList<VendorBuyListManager.VendorTargetRequest> requests)
     {
@@ -103,7 +103,7 @@ public sealed partial class VendorBuyListWindow : Window
         if (manager == null)
             return false;
 
-        var list = manager.CreateList("Vendor List", false);
+        var list = manager.CreateList("商店清单", false);
         if (!manager.TryAddTarget(list.Id, entry, vendor, targetQuantity, selectList: true, openWindow: false, announce: false))
         {
             GatherBuddy.Log.Warning($"[VendorBuyListWindow] Failed to add {entry.ItemName} to newly created vendor list '{list.Name}'.");
@@ -167,7 +167,7 @@ public sealed partial class VendorBuyListWindow : Window
 
     private static void DrawHeader()
     {
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Manage vendor lists and run active list.");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "管理商店清单并运行当前清单");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -177,28 +177,28 @@ public sealed partial class VendorBuyListWindow : Window
     {
         var canModifyLists = !manager.IsBusy;
 
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Lists");
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{manager.Lists.Count} total");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "清单");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"共 {manager.Lists.Count} 个");
         ImGui.Spacing();
 
         using (ImRaii.Disabled(!canModifyLists))
         {
-            if (ImGui.Button("New List", new Vector2(-1, 0)))
+            if (ImGui.Button("新建清单", new Vector2(-1, 0)))
             {
-                var list = manager.CreateList("Vendor List");
+                var list = manager.CreateList("商店清单");
                 OpenListNamePopup(list.Id, list.Name);
             }
-            if (ImGui.Button("TeamCraft Import", new Vector2(-1, 0)))
+            if (ImGui.Button("TeamCraft 导入", new Vector2(-1, 0)))
                 OpenTeamCraftImportWindow(manager);
 
             var buttonWidth = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2f;
-            if (ImGui.Button("Rename", new Vector2(buttonWidth, 0)))
+            if (ImGui.Button("重命名", new Vector2(buttonWidth, 0)))
                 OpenListNamePopup(activeList.Id, activeList.Name);
 
             ImGui.SameLine();
             using (ImRaii.Disabled(manager.Lists.Count <= 1))
             {
-                if (ImGui.Button("Delete", new Vector2(buttonWidth, 0)))
+                if (ImGui.Button("删除", new Vector2(buttonWidth, 0)))
                     manager.DeleteList(activeList.Id);
             }
         }
@@ -216,11 +216,11 @@ public sealed partial class VendorBuyListWindow : Window
     private void DrawListSidebarEntry(VendorBuyListManager manager, VendorBuyListDefinition list, bool isSelected, bool canModifyLists)
     {
         var pendingCount = list.Entries.Count(entry => manager.GetRemainingQuantity(entry) > 0);
-        var summary = $"{list.Entries.Count} entry(s)";
+        var summary = $"{list.Entries.Count} 个条目";
         if (pendingCount > 0)
-            summary += $" · {pendingCount} pending";
+            summary += $" · {pendingCount} 个待处理";
         if (manager.IsRunning && manager.RunningListId == list.Id)
-            summary += " · running";
+            summary += " · 运行中";
         var selectableWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
 
         if (isSelected)
@@ -248,7 +248,7 @@ public sealed partial class VendorBuyListWindow : Window
         var currencyRequirements = BuildCurrencyRequirements(entries, manager);
 
         ImGui.TextColored(ImGuiColors.ParsedGold, activeList.Name);
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{entries.Count} entry(s) · {pending} pending");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{entries.Count} 个条目 · {pending} 个待处理");
         if (!string.IsNullOrWhiteSpace(manager.StatusText))
         {
             ImGui.Spacing();
@@ -263,11 +263,11 @@ public sealed partial class VendorBuyListWindow : Window
         {
             using (ImRaii.Disabled(entries.Count == 0 || pending == 0 || manager.IsBusy))
             {
-                if (ImGui.Button("Start List", new Vector2(120f, 0)))
+                if (ImGui.Button("开始清单", new Vector2(120f, 0)))
                     manager.Start();
             }
         }
-        else if (ImGui.Button("Stop", new Vector2(120f, 0)))
+        else if (ImGui.Button("停止", new Vector2(120f, 0)))
         {
             manager.Stop();
         }
@@ -275,7 +275,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.SameLine();
         using (ImRaii.Disabled(entries.Count == 0 || manager.IsBusy))
         {
-            if (ImGui.Button("Clear List", new Vector2(120f, 0)))
+            if (ImGui.Button("清空清单", new Vector2(120f, 0)))
                 manager.Clear();
         }
 
@@ -292,16 +292,16 @@ public sealed partial class VendorBuyListWindow : Window
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "This list is empty.");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "Add supported vendor items from the Vendors tab, Materials window,");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "or TeamCraft import to populate it.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "此清单为空");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "可从商店标签、材料窗口或 TeamCraft 导入");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "添加支持的商店物品");
             return;
         }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Entries");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "条目");
         ImGui.Spacing();
 
         DrawEntryTable(entries, manager);
@@ -352,17 +352,17 @@ public sealed partial class VendorBuyListWindow : Window
     {
         if (requirements.Count == 1)
         {
-            ImGui.TextColored(ImGuiColors.DalamudYellow, "Currency (Have / Need):");
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "货币 (持有 / 需要):");
             ImGui.SameLine();
             DrawCurrencyRequirementInline(requirements[0]);
             return;
         }
 
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Currency (Have / Need)");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "货币 (持有 / 需要)");
         ImGui.Spacing();
         if (requirements.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "No currency needed.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "不需要货币");
             return;
         }
 
@@ -401,7 +401,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.TextUnformatted($"{requirement.RequiredAmount:N0}");
         ImGui.EndGroup();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"{requirement.CurrencyName}\nHave: {requirement.AvailableAmount:N0}\nNeed: {requirement.RequiredAmount:N0}");
+            ImGui.SetTooltip($"{requirement.CurrencyName}\n持有: {requirement.AvailableAmount:N0}\n需要: {requirement.RequiredAmount:N0}");
     }
 
     private void DrawEntryTable(List<VendorBuyListEntry> entries, VendorBuyListManager manager)
@@ -413,13 +413,13 @@ public sealed partial class VendorBuyListWindow : Window
             return;
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("Item",     ImGuiTableColumnFlags.WidthStretch, 1.25f);
-        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, 58f);
-        ImGui.TableSetupColumn("Want",     ImGuiTableColumnFlags.WidthFixed, 78f);
-        ImGui.TableSetupColumn("Have",     ImGuiTableColumnFlags.WidthFixed, 54f);
-        ImGui.TableSetupColumn("Need",     ImGuiTableColumnFlags.WidthFixed, 54f);
-        ImGui.TableSetupColumn("Vendor",   ImGuiTableColumnFlags.WidthStretch, 0.80f);
-        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 1.00f);
+        ImGui.TableSetupColumn("物品",     ImGuiTableColumnFlags.WidthStretch, 1.25f);
+        ImGui.TableSetupColumn("价格",     ImGuiTableColumnFlags.WidthFixed, 58f);
+        ImGui.TableSetupColumn("目标",     ImGuiTableColumnFlags.WidthFixed, 78f);
+        ImGui.TableSetupColumn("持有",     ImGuiTableColumnFlags.WidthFixed, 54f);
+        ImGui.TableSetupColumn("需要",     ImGuiTableColumnFlags.WidthFixed, 54f);
+        ImGui.TableSetupColumn("商人",     ImGuiTableColumnFlags.WidthStretch, 0.80f);
+        ImGui.TableSetupColumn("位置",     ImGuiTableColumnFlags.WidthStretch, 1.00f);
         ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, 68f);
         ImGui.TableHeadersRow();
 
@@ -465,7 +465,7 @@ public sealed partial class VendorBuyListWindow : Window
         if (!ImGui.BeginPopup(ListNamePopupId, ImGuiWindowFlags.AlwaysAutoResize))
             return;
 
-        ImGui.Text("List Name");
+        ImGui.Text("清单名称");
         if (_focusListNameInput)
         {
             ImGui.SetKeyboardFocusHere();
@@ -475,7 +475,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.SetNextItemWidth(320f);
         var submitted = ImGui.InputText("##vendorBuyListNameInput", ref _listNameInput, 128, ImGuiInputTextFlags.EnterReturnsTrue);
 
-        if (submitted || ImGui.Button("Save"))
+        if (submitted || ImGui.Button("保存"))
         {
             if (_editingListId.HasValue)
                 manager.RenameList(_editingListId.Value, _listNameInput);
@@ -484,7 +484,7 @@ public sealed partial class VendorBuyListWindow : Window
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel"))
+        if (ImGui.Button("取消"))
         {
             _editingListId = null;
             ImGui.CloseCurrentPopup();
@@ -516,7 +516,7 @@ public sealed partial class VendorBuyListWindow : Window
                 manager.SetEntryEnabled(entry.Id, isEnabled);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(isEnabled ? "Enabled" : "Disabled");
+            ImGui.SetTooltip(isEnabled ? "已启用" : "已禁用");
         ImGui.SameLine(0, 4f);
         var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(entry.IconId));
         if (icon.TryGetWrap(out var wrap, out _))
@@ -558,7 +558,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.TableNextColumn();
         ImGui.AlignTextToFramePadding();
         if (!entry.Enabled)
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "Off");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "关闭");
         else if (remaining > 0)
             ImGui.TextColored(ImGuiColors.HealerGreen, $"{remaining:N0}");
         else
@@ -570,7 +570,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.TableNextColumn();
         if (selectedVendor?.Location == null)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "Unknown");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "未知");
         }
         else
         {
@@ -585,7 +585,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.TableNextColumn();
         using (ImRaii.Disabled(isActive || manager.IsBusy))
         {
-            if (ImGui.SmallButton($"Remove##vendorBuyListRemove_{entry.Id}"))
+            if (ImGui.SmallButton($"移除##vendorBuyListRemove_{entry.Id}"))
                 manager.RemoveEntry(entry.Id);
         }
     }
@@ -711,15 +711,15 @@ public sealed partial class VendorBuyListWindow : Window
     {
         var routeParts = new List<string>();
         if (npc.GcRankIndex >= 0)
-            routeParts.Add($"Rank {npc.GcRankIndex + 1}");
+            routeParts.Add($"军衔 {npc.GcRankIndex + 1}");
         if (npc.GcCategoryIndex >= 0)
-            routeParts.Add($"Category {npc.GcCategoryIndex + 1}");
+            routeParts.Add($"分类 {npc.GcCategoryIndex + 1}");
         if (npc.InclusionPageIndex >= 0)
-            routeParts.Add($"Page {npc.InclusionPageIndex + 1}");
+            routeParts.Add($"页 {npc.InclusionPageIndex + 1}");
         if (npc.InclusionSubPageIndex > 0)
-            routeParts.Add($"Tab {npc.InclusionSubPageIndex}");
+            routeParts.Add($"标签 {npc.InclusionSubPageIndex}");
         if (routeParts.Count == 0 && npc.SourceShopId != 0)
-            routeParts.Add($"Route {npc.SourceShopId}");
+            routeParts.Add($"路线 {npc.SourceShopId}");
         return string.Join(" / ", routeParts);
     }
 
@@ -730,11 +730,11 @@ public sealed partial class VendorBuyListWindow : Window
 
         var territorySheet = Dalamud.GameData.GetExcelSheet<TerritoryType>();
         if (territorySheet == null || !territorySheet.TryGetRow(location.TerritoryId, out var territory))
-            return _zoneNames[location.TerritoryId] = $"Territory {location.TerritoryId}";
+            return _zoneNames[location.TerritoryId] = $"区域 {location.TerritoryId}";
 
         zoneName = territory.PlaceName.RowId != 0
             ? territory.PlaceName.Value.Name.ToString()
-            : $"Territory {location.TerritoryId}";
+            : $"区域 {location.TerritoryId}";
         _zoneNames[location.TerritoryId] = zoneName;
         return zoneName;
     }
@@ -764,8 +764,8 @@ public sealed partial class VendorBuyListWindow : Window
         currencyName = currencyItemId != 0 && itemSheet != null && itemSheet.TryGetRow(currencyItemId, out var item)
             ? item.Name.ExtractText()
             : currencyItemId == 0
-                ? "Currency"
-                : $"Currency {currencyItemId}";
+                ? "货币"
+                : $"货币 {currencyItemId}";
         _currencyNames[currencyItemId] = currencyName;
         return currencyName;
     }

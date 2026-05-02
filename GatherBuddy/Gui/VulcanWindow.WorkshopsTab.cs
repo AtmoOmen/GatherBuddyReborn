@@ -35,13 +35,13 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("Workshops##workshopsTab", 2, 9);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("工坊##workshopsTab", 2, 9);
             tabItem = handle;
             tabOpen = handle;
         }
         else
         {
-            var handle = ImRaii.TabItem("Workshops##workshopsTab");
+            var handle = ImRaii.TabItem("工坊##workshopsTab");
             tabItem = handle;
             tabOpen = handle.Success;
         }
@@ -137,7 +137,7 @@ public partial class VulcanWindow
     {
         ImGui.Spacing();
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##workshopProjectSearch", "Search projects...", ref _workshopProjectSearch, 256);
+        ImGui.InputTextWithHint("##workshopProjectSearch", "搜索工程...", ref _workshopProjectSearch, 256);
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -149,13 +149,13 @@ public partial class VulcanWindow
                 .Where(project => project.ProjectName.Contains(_workshopProjectSearch, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{filteredProjects.Count} project(s)");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{filteredProjects.Count} 个工程");
         ImGui.Spacing();
 
         ImGui.BeginChild("##WorkshopProjectsList", new Vector2(-1, 0), false);
         if (filteredProjects.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No workshop projects match your search.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有匹配搜索的工坊工程");
             ImGui.EndChild();
             return;
         }
@@ -188,7 +188,7 @@ public partial class VulcanWindow
             {
                 ImGui.BeginTooltip();
                 ImGui.TextUnformatted(project.ProjectName);
-                ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{project.Parts.Count} part(s) · {project.PhaseCount} phase(s)");
+                ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{project.Parts.Count} 个部件 · {project.PhaseCount} 个阶段");
                 ImGui.EndTooltip();
             }
         }
@@ -200,12 +200,12 @@ public partial class VulcanWindow
         if (_selectedWorkshopProject == null)
         {
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Select a workshop project to browse its scope.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工坊工程以浏览范围");
             return;
         }
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Project Scope");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "工程范围");
         ImGui.TextColored(ImGuiColors.DalamudGrey3, _selectedWorkshopProject.ProjectName);
         ImGui.Spacing();
         ImGui.Separator();
@@ -213,11 +213,11 @@ public partial class VulcanWindow
 
         var overviewSelected = _selectedWorkshopScope is WorkshopProjectNode selectedProject
             && selectedProject.SequenceId == _selectedWorkshopProject.SequenceId;
-        if (ImGui.Selectable($"Overview##workshopOverview_{_selectedWorkshopProject.SequenceId}", overviewSelected))
+        if (ImGui.Selectable($"总览##workshopOverview_{_selectedWorkshopProject.SequenceId}", overviewSelected))
             _selectedWorkshopScope = _selectedWorkshopProject;
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Show the full project requirements and generate a list for the entire workshop project.");
+            ImGui.SetTooltip("显示完整工程需求, 并为整个工坊工程生成清单");
 
         ImGui.Spacing();
 
@@ -235,7 +235,7 @@ public partial class VulcanWindow
                 _selectedWorkshopScope = part;
 
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"{part.Phases.Count} phase(s) · {part.CraftableRequirementCount} supply item(s) with recipes");
+                ImGui.SetTooltip($"{part.Phases.Count} 个阶段 · {part.CraftableRequirementCount} 个有配方的补给品");
 
             if (!open || part.Phases.Count == 0)
                 continue;
@@ -243,11 +243,11 @@ public partial class VulcanWindow
             foreach (var phase in part.Phases)
             {
                 var phaseSelected = _selectedWorkshopScope is WorkshopPhaseNode selectedPhase && selectedPhase.PhaseId == phase.PhaseId;
-                if (ImGui.Selectable($"Phase {phase.PhaseIndex}##workshopPhase_{phase.PhaseId}", phaseSelected))
+                if (ImGui.Selectable($"阶段 {phase.PhaseIndex}##workshopPhase_{phase.PhaseId}", phaseSelected))
                     _selectedWorkshopScope = phase;
 
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip($"{phase.CraftableRequirementCount} supply item(s) with recipes");
+                    ImGui.SetTooltip($"{phase.CraftableRequirementCount} 个有配方的补给品");
             }
 
             ImGui.TreePop();
@@ -260,19 +260,19 @@ public partial class VulcanWindow
         {
             var center = ImGui.GetContentRegionAvail();
             ImGui.SetCursorPos(new Vector2(12, center.Y / 2f - 20f));
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Select a workshop scope to view requirements.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工坊范围以查看需求");
             ImGui.SetCursorPosX(12);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "The resulting list will use Vulcan's normal planner.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "生成的清单将使用 Vulcan 常规规划器");
             return;
         }
 
         var scope = _selectedWorkshopScope;
         var scopeLabel = scope.Kind switch
         {
-            WorkshopScopeKind.Project => "Project",
-            WorkshopScopeKind.Part => "Part",
-            WorkshopScopeKind.Phase => "Phase",
-            _ => "Scope",
+            WorkshopScopeKind.Project => "工程",
+            WorkshopScopeKind.Part => "部件",
+            WorkshopScopeKind.Phase => "阶段",
+            _ => "范围",
         };
 
         ImGui.Spacing();
@@ -289,38 +289,38 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.ParsedGold, scope.DisplayName);
         ImGui.TextColored(ImGuiColors.DalamudGrey3, scopeLabel);
         if (scope.Kind != WorkshopScopeKind.Project)
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"Project: {scope.ProjectName}");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"工程: {scope.ProjectName}");
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawWorkshopStatRow("With Recipes:", scope.CraftableRequirementCount.ToString(), scope.CraftableRequirementCount > 0 ? new Vector4(0.65f, 0.85f, 1.0f, 1.0f) : ImGuiColors.DalamudGrey3);
-        DrawWorkshopStatRow("Skipped:", scope.UncraftableRequirementCount.ToString(), scope.UncraftableRequirementCount > 0 ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey3);
+        DrawWorkshopStatRow("有配方:", scope.CraftableRequirementCount.ToString(), scope.CraftableRequirementCount > 0 ? new Vector4(0.65f, 0.85f, 1.0f, 1.0f) : ImGuiColors.DalamudGrey3);
+        DrawWorkshopStatRow("已跳过:", scope.UncraftableRequirementCount.ToString(), scope.UncraftableRequirementCount > 0 ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey3);
         if (scope.UncraftableRequirementCount > 0 && ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "No recipe found for:");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "未找到配方:");
             ImGui.Spacing();
             foreach (var req in scope.Requirements.Where(r => !r.IsCraftable))
                 ImGui.TextUnformatted($"  {req.ItemName}  x{req.RequiredQuantity}");
             ImGui.EndTooltip();
         }
-        DrawWorkshopStatRow("Required:", scope.TotalRequiredItemCount.ToString(), new Vector4(0.85f, 0.85f, 0.85f, 1.0f));
-        DrawWorkshopStatRow("Crafts:", scope.TotalCraftsNeeded.ToString(), scope.TotalCraftsNeeded > 0 ? new Vector4(0.75f, 1.0f, 0.75f, 1.0f) : ImGuiColors.DalamudGrey3);
+        DrawWorkshopStatRow("需求:", scope.TotalRequiredItemCount.ToString(), new Vector4(0.85f, 0.85f, 0.85f, 1.0f));
+        DrawWorkshopStatRow("制作:", scope.TotalCraftsNeeded.ToString(), scope.TotalCraftsNeeded > 0 ? new Vector4(0.75f, 1.0f, 0.75f, 1.0f) : ImGuiColors.DalamudGrey3);
 
         ImGui.Spacing();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Times:");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "次数:");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         ImGui.InputInt("##workshopLoopCount", ref _workshopLoopCount, 1);
         _workshopLoopCount = Math.Max(1, _workshopLoopCount);
 
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-        ImGui.Checkbox("Ephemeral##workshopEphemeral", ref _workshopEphemeral);
+        ImGui.Checkbox("临时##workshopEphemeral", ref _workshopEphemeral);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Delete this list automatically after crafting completes. Can be changed later in the list editor.");
+            ImGui.SetTooltip("制作完成后自动删除此清单, 可稍后在清单编辑器中修改");
 
         ImGui.Spacing();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
@@ -339,27 +339,27 @@ public partial class VulcanWindow
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
         using (ImRaii.Disabled(scope.CraftableRequirementCount == 0))
         {
-            if (ImGui.Button("Create Crafting List##createWorkshopList", new Vector2(-1, 22f)))
+            if (ImGui.Button("创建制作清单##createWorkshopList", new Vector2(-1, 22f)))
                 CreateWorkshopCraftingList(scope, _workshopListName);
         }
 
         if (scope.CraftableRequirementCount == 0 && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-            ImGui.SetTooltip("This selection has no workshop supplies with recipes to add to a Vulcan crafting list.");
+            ImGui.SetTooltip("当前选择没有可加入 Vulcan 制作清单的有配方工坊补给品");
 
         ImGui.Spacing();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
         var canAddToExistingList = scope.CraftableRequirementCount > 0 && GatherBuddy.CraftingListManager.Lists.Count > 0;
         using (ImRaii.Disabled(!canAddToExistingList))
         {
-            if (ImGui.Button("Add to Existing List##addWorkshopToExistingList", new Vector2(-1, 22f)))
+            if (ImGui.Button("加入已有清单##addWorkshopToExistingList", new Vector2(-1, 22f)))
                 QueueWorkshopAddToListPopup();
         }
 
         if (!canAddToExistingList && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
             var tooltip = scope.CraftableRequirementCount <= 0
-                ? "This selection has no workshop supplies with recipes to add."
-                : "Create a crafting list first, then you can append workshop selections into it.";
+                ? "当前选择没有可加入的有配方工坊补给品"
+                : "先创建制作清单, 然后即可追加工坊选择";
             ImGui.SetTooltip(tooltip);
         }
 
@@ -372,12 +372,12 @@ public partial class VulcanWindow
 
         var showRetainer = AllaganTools.Enabled;
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
-        DrawIngredientSectionHeader("Workshop Requirements", showRetainer);
+        DrawIngredientSectionHeader("工坊需求", showRetainer);
 
         if (scope.Requirements.Count == 0)
         {
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No workshop requirements were found for this selection.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "当前选择没有工坊需求");
         }
         else
         {
@@ -415,7 +415,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-        ImGui.TextColored(new Vector4(0.7f, 0.9f, 1.0f, 1.0f), "Recipes added to list");
+        ImGui.TextColored(new Vector4(0.7f, 0.9f, 1.0f, 1.0f), "已加入清单的配方");
 
         const float iconSize = 22f;
         var textColor = new Vector4(0.85f, 0.85f, 0.85f, 1.0f);
@@ -437,7 +437,7 @@ public partial class VulcanWindow
             ImGui.TextColored(textColor, requirement.ItemName);
             ImGui.SameLine(0, 6f);
             ImGui.SetCursorPosY(textY);
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"x{craftCount} craft(s)");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"x{craftCount} 次制作");
         }
     }
 
@@ -466,7 +466,7 @@ public partial class VulcanWindow
 
         GatherBuddy.Log.Information(
             $"[WorkshopsTab] Created workshop list '{list.Name}' from {scope.Kind} '{scope.DisplayName}' with {draft.Recipes.Count} recipe(s)");
-        Communicator.Print($"Created workshop list '{list.Name}' with {draft.Recipes.Count} recipe(s).");
+        Communicator.Print($"已创建工坊清单 '{list.Name}', 包含 {draft.Recipes.Count} 个配方");
         OpenCraftingList(list);
         _craftingListsRequestFocus = true;
         _previewList = list;
@@ -492,23 +492,23 @@ public partial class VulcanWindow
         var scope = _selectedWorkshopScope;
         if (scope == null)
         {
-            ImGui.TextColored(ImGuiColors.ParsedGold, "Add to Existing List");
+            ImGui.TextColored(ImGuiColors.ParsedGold, "加入已有清单");
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No workshop scope selected.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "未选择工坊范围");
             ImGui.Spacing();
-            if (ImGui.Button("Close", new Vector2(100f, 0f)))
+            if (ImGui.Button("关闭", new Vector2(100f, 0f)))
                 ImGui.CloseCurrentPopup();
             ImGui.EndPopup();
             return;
         }
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Add to Existing List");
+        ImGui.TextColored(ImGuiColors.ParsedGold, "加入已有清单");
         ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{scope.DisplayName} · {scope.Kind} · x{Math.Max(1, _workshopLoopCount)}");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##WorkshopExistingListSearch", "Search lists...", ref _workshopExistingListSearch, 256);
+        ImGui.InputTextWithHint("##WorkshopExistingListSearch", "搜索清单...", ref _workshopExistingListSearch, 256);
         ImGui.Spacing();
 
         var filteredLists = GatherBuddy.CraftingListManager.Lists
@@ -523,7 +523,7 @@ public partial class VulcanWindow
         ImGui.BeginChild("##WorkshopExistingListScroll", new Vector2(-1, listHeight), true);
         if (filteredLists.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No lists match your search.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有匹配搜索的清单");
         }
         else
         {
@@ -548,7 +548,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Cancel", new Vector2(100f, 0f)))
+        if (ImGui.Button("取消", new Vector2(100f, 0f)))
             ImGui.CloseCurrentPopup();
 
         ImGui.EndPopup();
@@ -581,6 +581,6 @@ public partial class VulcanWindow
         _previewFolderPath = null;
         GatherBuddy.Log.Information(
             $"[WorkshopsTab] Added {draft.Recipes.Count} workshop recipe(s) from {scope.Kind} '{scope.DisplayName}' to existing list '{list.Name}'");
-        Communicator.Print($"Added {draft.Recipes.Count} recipe(s) from '{scope.DisplayName}' to '{list.Name}'.");
+        Communicator.Print($"已将来自 '{scope.DisplayName}' 的 {draft.Recipes.Count} 个配方加入 '{list.Name}'");
     }
 }
