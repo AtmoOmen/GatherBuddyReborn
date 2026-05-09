@@ -74,9 +74,9 @@ public class CraftingStatusWindow : Window
             && currentState != CraftingQueueProcessor.QueueState.Complete && currentState != CraftingQueueProcessor.QueueState.WaitingForGather)
         {
             var remainingMs = CraftingTimeEstimator.EstimateRemainingMs(_queueProcessor.Queue, currentIndex);
-            ImGui.Text($"Estimated Time Remaining: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
+            ImGui.Text($"预计剩余时间: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Estimate based on action count per craft (macro length when set, otherwise a default) and the configured action delay. Excludes time spent gathering, repairing, or switching jobs.");
+                ImGui.SetTooltip("根据每次制作的操作数估算, 优先使用宏长度, 否则使用默认值\n包含已配置的操作延迟, 不含采集、修理和切换职业的耗时");
         }
 
         ImGui.Spacing();

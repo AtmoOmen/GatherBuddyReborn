@@ -68,7 +68,7 @@ public partial class VulcanWindow
     private static string _bulkAddFilteredListSearch = string.Empty;
     private static int _filteredUncraftedRecipeCount = 0;
     private static readonly uint[] CraftTypeToClassJobId = { 8, 9, 10, 11, 12, 13, 14, 15 };
-    private static readonly string[] JobNames = { "CRP", "BSM", "ARM", "GSM", "LTW", "WVR", "ALC", "CUL" };
+    private static readonly string[] JobNames = { "刻木匠", "锻铁匠", "铸甲匠", "雕金匠", "制革匠", "裁衣匠", "炼金术士", "烹调师" };
 
     private static void InitializeRecipeList()
     {

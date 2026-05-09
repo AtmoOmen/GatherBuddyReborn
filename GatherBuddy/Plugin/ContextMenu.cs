@@ -70,7 +70,7 @@ public class ContextMenu : IDisposable
             IsEnabled   = true,
             IsReturn    = false,
             PrefixChar  = 'V',
-            Name        = "Open in Vulcan",
+            Name        = "在 Vulcan 中打开",
             OnClicked   = OnClickVulcanRecipe,
             IsSubmenu   = false,
             PrefixColor = 42,
@@ -81,7 +81,7 @@ public class ContextMenu : IDisposable
             IsEnabled   = true,
             IsReturn    = false,
             PrefixChar  = 'V',
-            Name        = "Add to Vendor Buy List",
+            Name        = "加入商店购买清单",
             OnClicked   = OnClickVendorBuyList,
             IsSubmenu   = true,
             PrefixColor = 42,
@@ -179,7 +179,7 @@ public class ContextMenu : IDisposable
         {
             new()
             {
-                Name = "Create New List...",
+                Name = "新建清单...",
                 PrefixChar = 'C',
                 PrefixColor = 42,
                 OnClicked = _ => OpenCreateCraftingListPopup(recipe.Value.RowId),
@@ -214,7 +214,7 @@ public class ContextMenu : IDisposable
             {
                 var moreItem = new MenuItem
                 {
-                    Name = $"({allLists.Count - maxLists} more lists...)",
+                    Name = $"(还有 {allLists.Count - maxLists} 个清单...)",
                     IsEnabled = false
                 };
                 menuItems.Add(moreItem);
@@ -237,7 +237,7 @@ public class ContextMenu : IDisposable
         {
             new()
             {
-                Name = "Create New List...",
+                Name = "新建清单...",
                 PrefixChar = 'V',
                 PrefixColor = 42,
                 OnClicked = _ => OpenCreateVendorBuyListPopup(itemId),

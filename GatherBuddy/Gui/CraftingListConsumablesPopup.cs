@@ -79,7 +79,7 @@ public class CraftingListConsumablesPopup
 
     private void DrawListDefaults()
     {
-        ImGui.Text("配置此清单的默认消耗品:");
+        ImGui.Text("配置此清单的默认消耗品");
         ImGui.Spacing();
         DrawMacroSection();
         ImGui.Spacing();
@@ -313,7 +313,7 @@ public class CraftingListConsumablesPopup
     private void DrawSquadronManualSelector(ref uint? itemId, string idSuffix)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Squadron 指南:");
+        ImGui.Text("冒险者分队指南:");
         ImGui.SameLine(160);
 
         var squadronId = itemId ?? 0;

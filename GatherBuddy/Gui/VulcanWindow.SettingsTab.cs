@@ -100,13 +100,13 @@ public partial class VulcanWindow
                 ImGui.SetTooltip("每个制作操作之间的延迟毫秒数 (0 = 立即, 最大 1000 ms)");
 
             var ctxMenuEntries = GatherBuddy.Config.VulcanContextMenuEntries;
-            if (ImGui.Checkbox("Context Menu Entries (Vs in context menus)", ref ctxMenuEntries))
+            if (ImGui.Checkbox("启用右键菜单入口", ref ctxMenuEntries))
             {
                 GatherBuddy.Config.VulcanContextMenuEntries = ctxMenuEntries;
                 GatherBuddy.Config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Show Vulcan-related entries (Open in Vulcan, Add to Crafting List, Add to Vendor Buy List) in the in-game right-click menu.");
+                ImGui.SetTooltip("在游戏内右键菜单中显示 Vulcan 相关入口\n包括“在 Vulcan 中打开”“加入制作清单”“加入商店购买清单”");
 
             DrawVulcanRepairConfig();
 

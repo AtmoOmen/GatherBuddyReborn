@@ -214,12 +214,12 @@ public partial class VulcanWindow
             }
             else if (hasErr || data == null)
             {
-                statusLabel = " [N/A]";
+                statusLabel = " [无数据]";
                 statusColor = ImGuiColors.DalamudGrey;
             }
             else
             {
-                statusLabel = $"  {data.MinPrice:N0}金币";
+                statusLabel = $"  {data.MinPrice:N0} 金币";
                 statusColor = new Vector4(0.4f, 1f, 0.4f, 1f);
             }
 
@@ -256,7 +256,7 @@ public partial class VulcanWindow
             var h = ImGui.GetContentRegionAvail().Y;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择一个物品查看价格");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择一个物品查看价格信息");
             return;
         }
 
@@ -316,7 +316,7 @@ public partial class VulcanWindow
         if (ImGui.SmallButton("刷新##mbrefresh"))
             svc.ForceRefresh(itemId, scope);
         ImGui.SameLine(0, 4);
-        if (ImGui.SmallButton("Universalis##mbweb"))
+        if (ImGui.SmallButton("打开 Universalis##mbweb"))
         {
             try { Process.Start(new ProcessStartInfo($"https://universalis.app/market/{itemId}") { UseShellExecute = true }); }
             catch (Exception ex) { GatherBuddy.Log.Warning($"[市场板] 打开 Universalis 失败: {ex.Message}"); }
@@ -388,7 +388,7 @@ public partial class VulcanWindow
 
         if (items.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "  无上架记录");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "  暂无上架记录");
             return;
         }
 

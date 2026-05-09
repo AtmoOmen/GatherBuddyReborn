@@ -1084,7 +1084,7 @@ public partial class VulcanWindow
         var contextMenuId = $"##vendorAddToListPopup_{row.IdSuffix}";
         if (DrawVendorIconButton($"vendor_add_{row.IdSuffix}", FontAwesomeIcon.Plus,
                 VendorBuyListButtonColor,
-                "加入当前清单 - 右键查看更多选项")
+                "加入当前购买清单 - 右键查看更多选项")
          && !buyListManager.TryAddTarget(row.Entry, selectedNpc.Npc, targetQuantity, openWindow: false, announce: false))
             GatherBuddy.Log.Debug($@"[VulcanWindow] Unable to add {row.Entry.ItemName} to active vendor list '{buyListManager.ActiveListName}' with target {targetQuantity:N0}.");
 

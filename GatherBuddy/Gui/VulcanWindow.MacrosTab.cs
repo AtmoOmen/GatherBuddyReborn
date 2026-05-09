@@ -108,13 +108,13 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("浏览 Teamcraft##browseTC", new Vector2(200, 0)))
+        if (ImGui.Button("浏览 TeamCraft##browseTC", new Vector2(200, 0)))
         {
             try
             {
                 Dalamud.Commands.ProcessCommand("/bw overlay teamcraft disabled off");
                 Dalamud.Commands.ProcessCommand("/bw overlay teamcraft url https://ffxivteamcraft.com/community-rotations");
-                GatherBuddy.Log.Information("Opening Teamcraft in Browsingway overlay");
+                GatherBuddy.Log.Information("Opening TeamCraft in Browsingway overlay");
             }
             catch (Exception ex)
             {
@@ -151,7 +151,7 @@ public partial class VulcanWindow
         if (ImGui.BeginPopup("BrowsingwayError"))
         {
             ImGui.TextColored(ImGuiColors.DalamudYellow, "Browsingway 插件未找到或未加载。");
-            ImGui.TextWrapped("您可以在浏览器中打开 Teamcraft 并在下方粘贴宏。");
+            ImGui.TextWrapped("可在浏览器中打开 TeamCraft, 然后在下方粘贴宏");
             ImGui.EndPopup();
         }
 

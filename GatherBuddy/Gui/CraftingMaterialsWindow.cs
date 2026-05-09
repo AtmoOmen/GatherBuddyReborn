@@ -518,7 +518,7 @@ public class CraftingMaterialsWindow : Window
         {
             if (ImGui.Selectable("生成物品链接"))
                 Communicator.Print(SeString.CreateItemLink(itemId));
-            if (ImGui.Selectable("搜索 Marketboard"))
+            if (ImGui.Selectable("搜索市场布告板"))
             {
                 GatherBuddy.MarketboardService?.QueueLookup(itemId, name, iconId);
                 GatherBuddy.VulcanWindow?.OpenToMarketboardItem(itemId);

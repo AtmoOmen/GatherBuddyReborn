@@ -35,13 +35,13 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("工坊##workshopsTab", 2, 9);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("工房##workshopsTab", 2, 9);
             tabItem = handle;
             tabOpen = handle;
         }
         else
         {
-            var handle = ImRaii.TabItem("工坊##workshopsTab");
+            var handle = ImRaii.TabItem("工房##workshopsTab");
             tabItem = handle;
             tabOpen = handle.Success;
         }
@@ -155,7 +155,7 @@ public partial class VulcanWindow
         ImGui.BeginChild("##WorkshopProjectsList", new Vector2(-1, 0), false);
         if (filteredProjects.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有匹配搜索的工坊工程");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有匹配搜索的工房工程");
             ImGui.EndChild();
             return;
         }
@@ -200,7 +200,7 @@ public partial class VulcanWindow
         if (_selectedWorkshopProject == null)
         {
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工坊工程以浏览范围");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工房工程以浏览范围");
             return;
         }
 
@@ -217,7 +217,7 @@ public partial class VulcanWindow
             _selectedWorkshopScope = _selectedWorkshopProject;
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("显示完整工程需求, 并为整个工坊工程生成清单");
+            ImGui.SetTooltip("显示完整工程需求, 并为整个工房工程生成清单");
 
         ImGui.Spacing();
 
@@ -260,7 +260,7 @@ public partial class VulcanWindow
         {
             var center = ImGui.GetContentRegionAvail();
             ImGui.SetCursorPos(new Vector2(12, center.Y / 2f - 20f));
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工坊范围以查看需求");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择工房范围以查看需求");
             ImGui.SetCursorPosX(12);
             ImGui.TextColored(ImGuiColors.DalamudGrey, "生成的清单将使用 Vulcan 常规规划器");
             return;
@@ -269,7 +269,7 @@ public partial class VulcanWindow
         var scope = _selectedWorkshopScope;
         var scopeLabel = scope.Kind switch
         {
-            WorkshopScopeKind.Project => "工程",
+            WorkshopScopeKind.Project => "工房工程",
             WorkshopScopeKind.Part => "部件",
             WorkshopScopeKind.Phase => "阶段",
             _ => "范围",
@@ -344,7 +344,7 @@ public partial class VulcanWindow
         }
 
         if (scope.CraftableRequirementCount == 0 && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-            ImGui.SetTooltip("当前选择没有可加入 Vulcan 制作清单的有配方工坊补给品");
+            ImGui.SetTooltip("当前选择没有可加入 Vulcan 制作清单的有配方工房补给品");
 
         ImGui.Spacing();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
@@ -358,8 +358,8 @@ public partial class VulcanWindow
         if (!canAddToExistingList && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
             var tooltip = scope.CraftableRequirementCount <= 0
-                ? "当前选择没有可加入的有配方工坊补给品"
-                : "先创建制作清单, 然后即可追加工坊选择";
+                ? "当前选择没有可加入的有配方工房补给品"
+                : "先创建制作清单, 然后即可追加工房选择";
             ImGui.SetTooltip(tooltip);
         }
 
@@ -372,12 +372,12 @@ public partial class VulcanWindow
 
         var showRetainer = AllaganTools.Enabled;
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
-        DrawIngredientSectionHeader("工坊需求", showRetainer);
+        DrawIngredientSectionHeader("工房需求", showRetainer);
 
         if (scope.Requirements.Count == 0)
         {
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "当前选择没有工坊需求");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "当前选择没有工房需求");
         }
         else
         {
@@ -466,7 +466,7 @@ public partial class VulcanWindow
 
         GatherBuddy.Log.Information(
             $"[WorkshopsTab] Created workshop list '{list.Name}' from {scope.Kind} '{scope.DisplayName}' with {draft.Recipes.Count} recipe(s)");
-        Communicator.Print($"已创建工坊清单 '{list.Name}', 包含 {draft.Recipes.Count} 个配方");
+        Communicator.Print($"已创建工房清单 '{list.Name}', 包含 {draft.Recipes.Count} 个配方");
         OpenCraftingList(list);
         _craftingListsRequestFocus = true;
         _previewList = list;
@@ -494,7 +494,7 @@ public partial class VulcanWindow
         {
             ImGui.TextColored(ImGuiColors.ParsedGold, "加入已有清单");
             ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "未选择工坊范围");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "未选择工房范围");
             ImGui.Spacing();
             if (ImGui.Button("关闭", new Vector2(100f, 0f)))
                 ImGui.CloseCurrentPopup();

@@ -18,7 +18,7 @@ public partial class VulcanWindow
             return;
         ImGui.SetNextWindowSize(_teamCraftImportWindowSize, ImGuiCond.Appearing);
         var isOpen = _showTeamCraftImport;
-        var drawWindow = ImGui.Begin("TeamCraft Import###TCImport", ref isOpen, ImGuiWindowFlags.NoCollapse);
+        var drawWindow = ImGui.Begin("导入 TeamCraft###TCImport", ref isOpen, ImGuiWindowFlags.NoCollapse);
         _showTeamCraftImport = isOpen;
 
         var currentWindowSize = NormalizeTeamCraftImportWindowSize(ImGui.GetWindowSize());
@@ -39,24 +39,24 @@ public partial class VulcanWindow
             return;
         }
 
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Open your list on TeamCraft, copy the 'Final Items' section using");
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "'Copy as Text', then paste below. Precrafts are generated automatically.");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "在 TeamCraft 中打开清单, 使用“复制为文本”复制");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "“最终成品”部分后粘贴到下方, 半成品会自动生成");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
         var footerHeight = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 3f + 2f;
         ImGui.BeginChild("##teamCraftImportContent", new Vector2(0, -footerHeight), false);
-        ImGui.Text("List Name:");
+        ImGui.Text("清单名称:");
         ImGui.SetNextItemWidth(-1);
         ImGui.InputText("##ImportListName", ref _teamCraftListName, 256);
 
         ImGui.Spacing();
-        ImGui.Checkbox("Ephemeral##teamCraftEphemeral", ref _teamCraftEphemeral);
+        ImGui.Checkbox("临时##teamCraftEphemeral", ref _teamCraftEphemeral);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Delete this list automatically after crafting completes.\nCan be disabled later in the list editor.");
+            ImGui.SetTooltip("制作完成后自动删除此清单\n可稍后在清单编辑器中关闭");
 
         ImGui.Spacing();
-        ImGui.Text("Final Items:");
+        ImGui.Text("最终成品:");
         var finalItemsHeight = Math.Max(150f, ImGui.GetContentRegionAvail().Y);
         ImGui.InputTextMultiline("##FinalItems", ref _teamCraftFinalItems, 500000, new Vector2(-1, finalItemsHeight));
         ImGui.EndChild();
@@ -65,7 +65,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Import", new Vector2(100, 0)))
+        if (ImGui.Button("导入", new Vector2(100, 0)))
         {
             var importedList = ParseTeamCraftImport(_teamCraftEphemeral);
             if (importedList != null)
@@ -88,7 +88,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel", new Vector2(100, 0)))
+        if (ImGui.Button("取消", new Vector2(100, 0)))
         {
             _teamCraftListName   = string.Empty;
             _teamCraftFinalItems = string.Empty;
