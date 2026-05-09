@@ -311,6 +311,11 @@ public class ContextMenu : IDisposable
         if (contextItemId.HasValue && GatherBuddy.VendorBuyListManager.CanAddSupportedItem(contextItemId.Value))
             _lastVendorBuyListItemId = contextItemId.Value;
 
+        var vEnabled = GatherBuddy.Config.VulcanContextMenuEntries;
+        _menuItemCrafting.IsEnabled      = vEnabled;
+        _menuItemVulcanRecipe.IsEnabled  = vEnabled;
+        _menuItemVendorBuyList.IsEnabled = vEnabled;
+
         if (_lastGatherable != null)
             args.AddMenuItem(_menuItem);
         if (_lastGatherable is Gatherable)

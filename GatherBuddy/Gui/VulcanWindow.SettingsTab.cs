@@ -99,6 +99,15 @@ public partial class VulcanWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("每个制作操作之间的延迟毫秒数 (0 = 立即, 最大 1000 ms)");
 
+            var ctxMenuEntries = GatherBuddy.Config.VulcanContextMenuEntries;
+            if (ImGui.Checkbox("Context Menu Entries (Vs in context menus)", ref ctxMenuEntries))
+            {
+                GatherBuddy.Config.VulcanContextMenuEntries = ctxMenuEntries;
+                GatherBuddy.Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Show Vulcan-related entries (Open in Vulcan, Add to Crafting List, Add to Vendor Buy List) in the in-game right-click menu.");
+
             DrawVulcanRepairConfig();
 
             DrawVulcanMateriaConfig();

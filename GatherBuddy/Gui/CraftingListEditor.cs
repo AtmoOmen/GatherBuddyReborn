@@ -2,16 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Inventory;
 using Dalamud.Game.Inventory.InventoryEventArgTypes;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Lumina.Excel.Sheets;
 using ElliLib;
-using ElliLib.Raii;
 using ElliLib.Widgets;
 using ImRaii = ElliLib.Raii.ImRaii;
 using GatherBuddy.Crafting;
@@ -71,8 +70,6 @@ public class CraftingListEditor
     private RecipeCraftSettingsPopup _craftSettingsPopup = new();
     private CraftingListConsumablesPopup _consumablesPopup = new();
     
-    private int _editingQuantityIndex = -1;
-    private int _tempQuantityInput = 0;
     private readonly HashSet<int> _selectedRecipeIndices = new();
     private int _lastClickedRecipeIndex = -1;
     private Dictionary<uint, int>? _cachedPrecraftMaterials = null;
@@ -991,10 +988,24 @@ public class CraftingListEditor
 
         if (_selectedRecipeIndices.Count > 1)
         {
-            if (ImGui.Button($"移除已选 ({_selectedRecipeIndices.Count})##removeSelected"))
+            var selectionCount = _selectedRecipeIndices.Count;
+
+            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Ban.ToIconString() + "##skipSelected", Interface.IconButtonSize,
+                    $"将 {selectionCount} 个已选配方标记为跳过", false, true))
+                BulkSetSkipping(true);
+
+            ImGui.SameLine();
+            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Check.ToIconString() + "##enableSelected", Interface.IconButtonSize,
+                    $"重新启用 {selectionCount} 个已选配方", false, true))
+                BulkSetSkipping(false);
+
+            ImGui.SameLine();
+            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString() + "##removeSelected", Interface.IconButtonSize,
+                    $"从此清单移除 {selectionCount} 个已选配方", false, true))
                 indicesToRemove.AddRange(_selectedRecipeIndices);
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"从此清单移除 {_selectedRecipeIndices.Count} 个已选配方");
+
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({selectionCount} 个已选)");
         }
         var recipeRows = GetRecipeDisplayRows();
         var clipper = ImGui.ImGuiListClipper();
@@ -1085,6 +1096,7 @@ public class CraftingListEditor
             var recipeOptions = planningList.GetRecipeOptions(queueItem.RecipeId, queueItem.IsOriginalRecipe);
             var effectiveQuickSynth = recipeOptions.NQOnly || planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
             var forceQuickSynth = planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
+            var forcePreferNQNoQuickSynth = !recipeData.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(queueItem.IsOriginalRecipe);
             var queueItemCraftSettings = GetEffectiveCraftSettings(queueItem.RecipeId, queueItem.IsOriginalRecipe);
             var validation = WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe)
                 ? null
@@ -1099,7 +1111,7 @@ public class CraftingListEditor
                 IsOriginalRecipe = queueItem.IsOriginalRecipe,
                 Recipe = recipeData.Value,
                 ItemName = itemName,
-                Label = $"{(effectiveQuickSynth ? "[简易制作] " : string.Empty)}{i + 1}. {itemName} x{queueItem.Quantity} ({jobName})",
+                Label = $"{(effectiveQuickSynth ? "[简易制作] " : forcePreferNQNoQuickSynth ? "[NQ] " : string.Empty)}{i + 1}. {itemName} x{queueItem.Quantity} ({jobName})",
                 BaseTextColor = effectiveQuickSynth
                     ? new Vector4(0.3f, 0.9f, 0.9f, 1f)
                     : queueItem.IsOriginalRecipe
@@ -1285,6 +1297,7 @@ public class CraftingListEditor
             var jobName = GetCraftingJobName(recipe.Value.CraftType.RowId);
             var effectiveCraftSettings = GetEffectiveCraftSettings(item.RecipeId, true);
             var effectiveQuickSynth = IsEffectivelyQuickSynth(recipe.Value, item.RecipeId, true);
+            var forcePreferNQNoQuickSynth = !recipe.Value.CanQuickSynth && _list.ShouldForcePreferNQ(true);
             var validation = WillUseQuickSynth(recipe.Value, item.RecipeId, true)
                 ? null
                 : MacroValidator.GetOrCompute(item.RecipeId,
@@ -1296,7 +1309,7 @@ public class CraftingListEditor
                 ListIndex = i,
                 Recipe = recipe.Value,
                 ItemName = itemName,
-                Label = $"{(effectiveQuickSynth ? "[简易制作] " : string.Empty)}{(item.CraftSettings?.HasAnySettings() == true ? "[设置] " : string.Empty)}{(effectiveCraftSettings?.IngredientPreferences.Count > 0 ? "[HQ] " : string.Empty)}{(item.Options.Skipping ? "[跳过] " : string.Empty)}{itemName} x{item.Quantity} ({jobName})##recipe_{i}",
+                Label = $"{(effectiveQuickSynth ? "[简易制作] " : forcePreferNQNoQuickSynth ? "[NQ] " : string.Empty)}{(item.CraftSettings?.HasAnySettings() == true ? "[设置] " : string.Empty)}{(effectiveCraftSettings?.IngredientPreferences.Count > 0 ? "[HQ] " : string.Empty)}{(item.Options.Skipping ? "[跳过] " : string.Empty)}{itemName} ({jobName})##recipe_{i}",
                 TextColor = item.Options.Skipping
                     ? new Vector4(0.7f, 0.7f, 0.7f, 1f)
                     : effectiveQuickSynth
@@ -1319,8 +1332,14 @@ public class CraftingListEditor
             DrawValidationMarker(row.Validation);
 
         var isSelected = _selectedRecipeIndices.Contains(row.ListIndex);
+        const float qtyTextWidth = 50f;
+        var innerSpacing = ImGui.GetStyle().ItemInnerSpacing.X;
+        var frameHeight = ImGui.GetFrameHeight();
+        var qtyTotalWidth = qtyTextWidth + 2 * (frameHeight + innerSpacing);
+        var iconBtnSize = new Vector2(frameHeight, frameHeight);
+        var selectableWidth = Math.Max(50f, ImGui.GetContentRegionAvail().X - qtyTotalWidth - 2 * frameHeight - 3 * innerSpacing);
         ImGui.PushStyleColor(ImGuiCol.Text, row.TextColor);
-        var clicked = ImGui.Selectable(row.Label, isSelected);
+        var clicked = ImGui.Selectable(row.Label, isSelected, ImGuiSelectableFlags.None, new Vector2(selectableWidth, 0));
         ImGui.PopStyleColor();
 
         if (clicked)
@@ -1347,6 +1366,43 @@ public class CraftingListEditor
                 _lastClickedRecipeIndex = row.ListIndex;
             }
         }
+
+        ImGui.SameLine(0, innerSpacing);
+        var qty = item.Quantity;
+        var qtyStep = ImGui.GetIO().KeyShift ? 100 : ImGui.GetIO().KeyCtrl ? 10 : 1;
+        ImGui.SetNextItemWidth(qtyTotalWidth);
+        if (ImGui.InputInt($"##qty_{row.ListIndex}", ref qty, qtyStep, qtyStep))
+        {
+            qty = Math.Max(1, qty);
+            if (qty != item.Quantity)
+            {
+                _list.UpdateRecipeQuantity(item.RecipeId, qty);
+                GatherBuddy.CraftingListManager.SaveList(_list);
+                _cachedQueueValid = false;
+                InvalidateMaterialCaches();
+                InvalidatePresentationCaches();
+                TriggerQueueRegeneration();
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("点击 +/- 调整数量 1\n按住 Ctrl: ±10\n按住 Shift: ±100");
+
+        ImGui.SameLine(0, innerSpacing);
+        var skipIcon = item.Options.Skipping ? FontAwesomeIcon.Check : FontAwesomeIcon.Ban;
+        var skipTooltip = item.Options.Skipping ? "在队列中重新启用此配方" : "在队列中跳过此配方";
+        if (ImGuiUtil.DrawDisabledButton(skipIcon.ToIconString() + $"##skip_{row.ListIndex}", iconBtnSize, skipTooltip, false, true))
+        {
+            item.Options.Skipping = !item.Options.Skipping;
+            GatherBuddy.CraftingListManager.SaveList(_list);
+            _cachedQueueValid = false;
+            InvalidateMaterialCaches();
+            InvalidatePresentationCaches();
+            TriggerQueueRegeneration();
+        }
+
+        ImGui.SameLine(0, innerSpacing);
+        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString() + $"##remove_{row.ListIndex}", iconBtnSize, "从清单移除此配方", false, true))
+            indicesToRemove.Add(row.ListIndex);
 
         var isPopupOpen = GatherBuddy.ControllerSupport != null
             ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"context_{row.ListIndex}", Dalamud.GamepadState)
@@ -1379,61 +1435,30 @@ public class CraftingListEditor
                 ImGui.EndMenu();
             }
 
-            ImGui.Separator();
-
-            ImGui.Text("数量:");
-            ImGui.SetNextItemWidth(100);
-            if (_editingQuantityIndex != row.ListIndex)
-            {
-                _tempQuantityInput = item.Quantity;
-                _editingQuantityIndex = row.ListIndex;
-            }
-
-            if (ImGui.InputInt($"##qty_{row.ListIndex}", ref _tempQuantityInput, 1))
-            {
-                if (_tempQuantityInput < 1)
-                    _tempQuantityInput = 1;
-            }
-
-            if (ImGui.IsItemDeactivatedAfterEdit() && _tempQuantityInput != item.Quantity)
-            {
-                _list.UpdateRecipeQuantity(item.RecipeId, _tempQuantityInput);
-                GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid = false;
-                InvalidateMaterialCaches();
-                InvalidatePresentationCaches();
-                TriggerQueueRegeneration();
-            }
-
-            ImGui.Separator();
-
-            if (ImGui.MenuItem(item.Options.Skipping ? "启用" : "跳过"))
-            {
-                item.Options.Skipping = !item.Options.Skipping;
-                GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid = false;
-                InvalidateMaterialCaches();
-                InvalidatePresentationCaches();
-                TriggerQueueRegeneration();
-            }
-
-            if (_selectedRecipeIndices.Count > 1 && _selectedRecipeIndices.Contains(row.ListIndex))
-            {
-                if (ImGui.MenuItem($"移除已选 ({_selectedRecipeIndices.Count})"))
-                    indicesToRemove.AddRange(_selectedRecipeIndices);
-            }
-            else
-            {
-                if (ImGui.MenuItem("移除"))
-                    indicesToRemove.Add(row.ListIndex);
-            }
-
             ImGui.EndPopup();
         }
-        else if (_editingQuantityIndex == row.ListIndex)
+    }
+
+    private void BulkSetSkipping(bool skipping)
+    {
+        var changed = false;
+        foreach (var idx in _selectedRecipeIndices)
         {
-            _editingQuantityIndex = -1;
+            if (idx < 0 || idx >= _list.Recipes.Count)
+                continue;
+            var recipe = _list.Recipes[idx];
+            if (recipe.Options.Skipping == skipping)
+                continue;
+            recipe.Options.Skipping = skipping;
+            changed = true;
         }
+        if (!changed)
+            return;
+        GatherBuddy.CraftingListManager.SaveList(_list);
+        _cachedQueueValid = false;
+        InvalidateMaterialCaches();
+        InvalidatePresentationCaches();
+        TriggerQueueRegeneration();
     }
 
     private static void DrawValidationMarker(MacroValidationResult validation)

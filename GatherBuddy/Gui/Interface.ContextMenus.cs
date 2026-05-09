@@ -17,7 +17,8 @@ using GatherBuddy.GatherHelper;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Plugin;
 using GatherBuddy.Structs;
-using ImRaii = ElliLib.Raii.ImRaii;
+using ElliLib.Table;
+using ImRaii  = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
@@ -256,6 +257,48 @@ public partial class Interface
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(
                 $"添加 {item.Name[GatherBuddy.Language]} 至 {(current == null ? "添加" : CheckUnnamed(current.Name))}");
+    }
+
+    private void DrawAddAllFilteredToAutoGather<T>(Table<T> table, Func<T, IGatherable> selector, string label)
+    {
+        var lists = _plugin.AutoGatherListsManager.Lists.ToList();
+        if (lists.Count == 0)
+            return;
+
+        var popupId = $"##AddAllFiltered{label}Popup";
+        if (ImGui.Button($"将筛选出的{label}加入自动采集列表..."))
+            ImGui.OpenPopup(popupId);
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip($"将当前可见的所有{label}加入选择的自动采集列表\n"
+              + "列表中已存在的物品会被跳过");
+
+        using var popup = ImRaii.Popup(popupId);
+        if (!popup)
+            return;
+
+        foreach (var list in lists)
+        {
+            if (!ImGui.Selectable(CheckUnnamed(list.Name)))
+                continue;
+
+            var added = 0;
+            foreach (var (row, _) in table.GetFilteredItems())
+            {
+                var item = selector(row);
+                if (!item.Locations.Any())
+                    continue;
+
+                if (list.Add(item))
+                    added++;
+            }
+
+            _plugin.AutoGatherListsManager.Save();
+            if (list.Enabled)
+                _plugin.AutoGatherListsManager.SetActiveItems();
+
+            GatherBuddy.Log.Information($"[GatherUI] 已将 {added} 个{label}加入自动采集列表 '{list.Name}'");
+        }
     }
 
     private static AutoGatherList CreateAndAddPreset(IGatherable item)
