@@ -6,9 +6,9 @@ public static class EnumLocalization
     // GatheringType
     public static readonly Dictionary<GatheringType, string> GatheringTypeMap = new()
     {
-        { GatheringType.Mining,     "采矿" },
+        { GatheringType.Mining,     "采掘" },
         { GatheringType.Quarrying,  "碎石" },
-        { GatheringType.Logging,    "伐木" },
+        { GatheringType.Logging,    "采伐" },
         { GatheringType.Harvesting, "割草" },
         { GatheringType.Spearfishing, "刺鱼" },
         { GatheringType.Botanist,   "园艺工" },

@@ -75,11 +75,11 @@ public unsafe class ScripShopWindowHandler
         var shopItem = ScripShopItemManager.ShopItems.FirstOrDefault(x => x.ItemId == itemId);
         if (shopItem == null || shopItem.Page != _currentPage || shopItem.SubPage != _currentSubPage)
         {
-            GatherBuddy.Log.Error($"[ScripShopWindowHandler] Item ID {itemId} not found in current page={_currentPage} subpage={_currentSubPage}");
+            GatherBuddy.Log.Error($"[工票商店窗口] 在当前页={_currentPage} 子页={_currentSubPage} 找不到物品 ID {itemId}");
             return false;
         }
         
-        GatherBuddy.Log.Information($"[ScripShopWindowHandler] SelectItem: itemId={itemId}, index={shopItem.Index}, amount={amount}, page={_currentPage}, subpage={_currentSubPage}");
+        GatherBuddy.Log.Information($"[工票商店窗口] SelectItem: itemId={itemId}，索引={shopItem.Index}，数量={amount}，页={_currentPage}，子页={_currentSubPage}");
         var selectItem = stackalloc AtkValue[]
         {
             new() { Type = ValueType.Int, Int = 14 },

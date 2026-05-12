@@ -31,10 +31,10 @@ public class UserMacroSolverDefinition : ISolverDefinition
                 
                 var flavorId = selectedMacro.Id.GetHashCode();
                 var priority = statsOk ? 100 : 95;
-                var warningMsg = statsOk ? "" : "You do not meet the minimum stats for this macro";
+                var warningMsg = statsOk ? "" : "属性不满足该宏的最低要求";
                 
                 GatherBuddy.Log.Debug($"[UserMacroSolver] Using selected macro '{selectedMacro.Name}' for recipe {craft.RecipeId}");
-                yield return new(this, flavorId, priority, $"User Macro: {selectedMacro.Name}", warningMsg);
+                yield return new(this, flavorId, priority, $"用户宏: {selectedMacro.Name}", warningMsg);
                 yield break;
             }
             else
@@ -58,9 +58,9 @@ public class UserMacroSolverDefinition : ISolverDefinition
             
             var flavorId = macro.Id.GetHashCode();
             var priority = statsOk ? 90 : 10;
-            var warningMsg = statsOk ? "" : "You do not meet the minimum stats for this macro";
+            var warningMsg = statsOk ? "" : "属性不满足该宏的最低要求";
             
-            yield return new(this, flavorId, priority, $"User Macro: {macro.Name}", warningMsg);
+            yield return new(this, flavorId, priority, $"用户宏: {macro.Name}", warningMsg);
         }
     }
 
@@ -118,11 +118,11 @@ public class UserMacroSolver : Solver
         if (GatherBuddy.Config.MacroFallbackEnabled && fallback.HasValue && fallback.Value.Action != VulcanSkill.None)
         {
             GatherBuddy.Log.Debug($"[UserMacroSolver] Macro complete, falling back: {fallback.Value.Action}");
-            return new(fallback.Value.Action, $"Macro complete — {fallback.Value.Comment}");
+            return new(fallback.Value.Action, $"宏已完成 -- {fallback.Value.Comment}");
         }
 
         GatherBuddy.Log.Debug("[UserMacroSolver] All macro actions completed");
-        return new(VulcanSkill.None, "Macro complete");
+        return new(VulcanSkill.None, "宏已完成");
     }
 
     private static VulcanSkill ConvertActionIdToSkill(uint actionId)
@@ -140,12 +140,12 @@ public class UserMacroSolver : Solver
 public class UserMacro
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Name { get; set; } = "Unnamed Macro";
+    public string Name { get; set; } = "未命名宏";
     public List<uint> Actions { get; set; } = new();
     public int MinCraftsmanship { get; set; }
     public int MinControl { get; set; }
     public int MinCP { get; set; }
-    public string Source { get; set; } = "Manual";
+    public string Source { get; set; } = "手动";
     public string? TeamcraftUrl { get; set; }
     public string? Author { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -34,7 +34,7 @@ public class Aetheryte : IComparable<Aetheryte>
         var mapMarker = gameData.DataManager.GetSubrowExcelSheet<MapMarker>().SelectMany(m => m).Cast<MapMarker?>().FirstOrDefault(m => m!.Value.DataType == 3 && m.Value.DataKey.RowId == data.RowId);
         if (mapMarker == null)
         {
-            gameData.Log.Error($"No Map Marker for Aetheryte {Name} [{data.RowId}].");
+            gameData.Log.Error($"以太之光 {Name} 没有地图标记 [{data.RowId}]");
         }
         else
         {

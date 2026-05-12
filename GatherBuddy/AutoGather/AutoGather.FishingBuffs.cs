@@ -64,7 +64,7 @@ public partial class AutoGather
 
         if (IsFishing || IsGathering)
         {
-            GatherBuddy.Log.Debug("[Consumables] Quitting fishing to use food/medicine");
+            GatherBuddy.Log.Debug("[消耗品] 退出钓鱼以使用食物/药品");
             QueueQuitFishingTasks();
             return true;
         }
@@ -74,19 +74,19 @@ public partial class AutoGather
             var itemCount = GetInventoryItemCount(config.FoodItemId);
             if (itemCount > 0)
             {
-                GatherBuddy.Log.Information($"[Consumables] Using food item {config.FoodItemId}");
+                GatherBuddy.Log.Information($"[消耗品] 使用食物 {config.FoodItemId}");
                 EnqueueActionWithDelay(() => UseItem(config.FoodItemId));
                 return true;
             }
             else
             {
-                GatherBuddy.Log.Warning($"[Consumables] Configured food item {config.FoodItemId} not found in inventory");
+                GatherBuddy.Log.Warning($"[消耗品] 在背包中找不到配置的食物 {config.FoodItemId}");
             }
         }
 
         if (needMed)
         {
-            GatherBuddy.Log.Information($"[Consumables] Using medicine item {config.MedicineItemId}");
+            GatherBuddy.Log.Information($"[消耗品] 使用药品 {config.MedicineItemId}");
             EnqueueActionWithDelay(() => UseItem(config.MedicineItemId));
             return true;
         }

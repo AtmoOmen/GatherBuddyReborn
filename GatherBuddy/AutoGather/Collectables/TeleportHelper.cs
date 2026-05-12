@@ -34,10 +34,10 @@ public static class TeleportHelper
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Failed to find teleportInfo: {ex}");
+            GatherBuddy.Log.Error($"查找传送信息失败: {ex}");
             return false;
         }
-        GatherBuddy.Log.Error("Failed to find teleportInfo");
+        GatherBuddy.Log.Error("查找传送信息失败");
         return false;
     }
 

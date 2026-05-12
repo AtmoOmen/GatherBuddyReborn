@@ -238,7 +238,7 @@ namespace GatherBuddy.AutoGather
         {
             if (!Player.Available) return;
             var playerObject = (GameObject*)Player.Object.Address;
-            GatherBuddy.Log.Debug($"Setting rotation to {angle.Rad}");
+            GatherBuddy.Log.Debug($"设置朝向角度为 {angle.Rad}");
             playerObject->SetRotation(angle.Rad);
         }
 
@@ -263,7 +263,7 @@ namespace GatherBuddy.AutoGather
                 _navState.lastTry = Environment.TickCount64;
                 _navState.cts = new CancellationTokenSource();
                 _navState.task = FindCombinedPath(Player.Position, destination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token);
-                GatherBuddy.Log.Debug($"Retrying combined pathfinding to {destination}.");
+                GatherBuddy.Log.Debug($"重新尝试组合寻路到 {destination}");
                 return;
             }                
 
@@ -287,14 +287,14 @@ namespace GatherBuddy.AutoGather
             if (_navState.direct)
             {
                 _navState.task = VNavmesh.Nav.PathfindCancelable(Player.Position, offsettedDestination, shouldFly, _navState.cts.Token);
-                GatherBuddy.Log.Debug($"Starting direct pathfinding to {offsettedDestination} (original: {destination}), flying: {shouldFly}.");
+                GatherBuddy.Log.Debug($"开始直接寻路到 {offsettedDestination}（原始: {destination}），飞行: {shouldFly}");
             }
             else
             {
                 _navState.lastTry = Environment.TickCount64;
                 _navState.stage = PathfindingStage.InitialCombinedPathfinding;
                 _navState.task = FindCombinedPath(Player.Position, destination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token);
-                GatherBuddy.Log.Debug($"Starting combined pathfinding to {destination}.");
+                GatherBuddy.Log.Debug($"开始组合寻路到 {destination}");
             }
         }
 
@@ -317,7 +317,7 @@ namespace GatherBuddy.AutoGather
                 VNavmesh.Path.MoveTo(path, false);
                 _navState.flying = false;
                 Dismount(); // Try to land (not dismount)
-                GatherBuddy.Log.Debug($"Switching to ground movement, {path.Count} waypoints left.");
+                GatherBuddy.Log.Debug($"切换到地面移动，剩余 {path.Count} 个路径点");
                 return;
             }
 
@@ -332,7 +332,7 @@ namespace GatherBuddy.AutoGather
                 VNavmesh.Path.Stop();
                 VNavmesh.Path.MoveTo(path, true);
                 _navState.mountingUp = false;
-                GatherBuddy.Log.Debug($"Switching to flying movement, {path.Count} waypoints left.");
+                GatherBuddy.Log.Debug($"切换到飞行移动，剩余 {path.Count} 个路径点");
                 return;
             }
 
@@ -343,7 +343,7 @@ namespace GatherBuddy.AutoGather
             {
                 path = _navState.task.Result;
             } catch (Exception ex) {
-                GatherBuddy.Log.Error($"Pathfinding task threw an exception: {ex.Message}");
+                GatherBuddy.Log.Error($"寻路任务抛出异常: {ex.Message}");
                 StopNavigation();
                 _advancedUnstuck.Force();
                 return;
@@ -356,20 +356,20 @@ namespace GatherBuddy.AutoGather
             {
                 if (_navState.direct || _navState.stage == PathfindingStage.FallbackDirectPathfinding)
                 {
-                    GatherBuddy.Log.Error($"VNavmesh failed to find a path.");
+                    GatherBuddy.Log.Error($"VNavmesh 未能找到路径");
                     StopNavigation();
                     _advancedUnstuck.Force();
                 }
                 else if (_navState.stage == PathfindingStage.InitialCombinedPathfinding)
                 {
-                    GatherBuddy.Log.Debug($"VNavmesh failed to find a combined path, falling back to direct path.");
+                    GatherBuddy.Log.Debug($"VNavmesh 未能找到组合路径，回退到直接路径");
                     _navState.stage++;
                     _navState.cts = new CancellationTokenSource();
                     _navState.task = VNavmesh.Nav.PathfindCancelable(player, _navState.destination, _navState.flying, _navState.cts.Token);
                 }
                 else if (_navState.stage != PathfindingStage.RetryCombinedPathfinding)
                 {
-                    GatherBuddy.Log.Error($"BUG: Pathfinding failure at unexpected stage {_navState.stage}.");
+                    GatherBuddy.Log.Error($"BUG: 在非预期阶段 {_navState.stage} 寻路失败");
                     AbortAutoGather();
                 }
             }
@@ -397,7 +397,7 @@ namespace GatherBuddy.AutoGather
                 if (IsPathing) RemovePassedWaypoints(path);
                 VNavmesh.Path.Stop();
                 VNavmesh.Path.MoveTo(path, _navState.flying && !_navState.mountingUp);
-                GatherBuddy.Log.Debug($"VNavmesh started moving via {pathtype} path, {path.Count} waypoints.");
+                GatherBuddy.Log.Debug($"VNavmesh 开始沿 {pathtype} 路径移动，{path.Count} 个路径点");
             }
 
             static void RemovePassedWaypoints(List<Vector3> path)
@@ -498,7 +498,7 @@ namespace GatherBuddy.AutoGather
                 && nodeId.HasValue 
                 && AutoOffsets.TryGetRandomOffset(nodeId.Value, destination, player, out var offset))
             {
-                GatherBuddy.Log.Debug($"Using auto-offset for node {nodeId.Value}: {offset}. Distance to node: {Vector2.Distance(offset.ToVector2(), destination.ToVector2()):F2}y, angle: {Math.Acos(Vector2.Dot(Vector2.Normalize((player - destination).ToVector2()), Vector2.Normalize((offset - destination).ToVector2()))) * 180.0 / Math.PI:F1}度");
+                GatherBuddy.Log.Debug($"为采集点 {nodeId.Value} 使用自动偏移: {offset}。到采集点距离: {Vector2.Distance(offset.ToVector2(), destination.ToVector2()):F2}y，角度: {Math.Acos(Vector2.Dot(Vector2.Normalize((player - destination).ToVector2()), Vector2.Normalize((offset - destination).ToVector2()))) * 180.0 / Math.PI:F1}度");
                 return offset;
             }
 
@@ -509,9 +509,9 @@ namespace GatherBuddy.AutoGather
                 {
                     offset = VNavmesh.Query.Mesh.NearestPoint(offset, MaxHorizontalSeparation, MaxVerticalSeparation).GetValueOrDefault(offset);
                     if ((separation = Vector2.Distance(offset.ToVector2(), destination.ToVector2())) > MaxHorizontalSeparation)
-                        GatherBuddy.Log.Warning($"Offset is ignored because the horizontal separation {separation} is too large after correcting for mesh. Maximum allowed is {MaxHorizontalSeparation}.");
+                        GatherBuddy.Log.Warning($"偏移被忽略，校正网格后水平间距 {separation} 过大。允许的最大值为 {MaxHorizontalSeparation}");
                     else if ((separation = Math.Abs(offset.Y - destination.Y)) > MaxVerticalSeparation)
-                        GatherBuddy.Log.Warning($"Offset is ignored because the vertical separation {separation} is too large after correcting for mesh. Maximum allowed is {MaxVerticalSeparation}.");
+                        GatherBuddy.Log.Warning($"偏移被忽略，校正网格后垂直间距 {separation} 过大。允许的最大值为 {MaxVerticalSeparation}");
                     else
                         return offset;
                 }
@@ -557,7 +557,7 @@ namespace GatherBuddy.AutoGather
                 return false;
             }
 
-            GatherBuddy.Log.Debug($"[MoveToTerritory] Teleporting to {aetheryte.Name}");
+            GatherBuddy.Log.Debug($"[MoveToTerritory] 传送到 {aetheryte.Name}");
             EnqueueActionWithDelay(() => Teleporter.Teleport(aetheryte.Id));
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.BetweenAreas]);
             TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.BetweenAreas]);

@@ -21,15 +21,15 @@ public class RaphaelSolverDefinition : ISolverDefinition
 
         if (hasSolution)
         {
-            yield return new(this, 0, 100, "Raphael Solver (Ready)");
+            yield return new(this, 0, 100, "Raphael 求解器（就绪）");
         }
         else if (inProgress)
         {
-            yield return new(this, 1, 50, "Raphael Solver (Generating...)", "Solution still being generated");
+            yield return new(this, 1, 50, "Raphael 求解器（生成中...）", "方案仍在生成中");
         }
         else
         {
-            yield return new(this, 2, 25, "Raphael Solver (Not Ready)", "No solution available");
+            yield return new(this, 2, 25, "Raphael 求解器（未就绪）", "无可用方案");
         }
     }
 
@@ -80,7 +80,7 @@ public class RaphaelMacroSolver : Solver
         if (_currentActionIndex >= _solution.ActionIds.Count)
         {
             GatherBuddy.Log.Debug($"[RaphaelMacroSolver] All Raphael actions completed");
-            return new(VulcanSkill.None, "Raphael solution complete");
+            return new(VulcanSkill.None, "Raphael 方案已完成");
         }
 
         var actionId = _solution.ActionIds[_currentActionIndex];
@@ -89,7 +89,7 @@ public class RaphaelMacroSolver : Solver
         _currentActionIndex++;
 
         var progress = _currentActionIndex * 100 / _solution.ActionIds.Count;
-        return new(vulcanSkill, $"Raphael step {_currentActionIndex}/{_solution.ActionIds.Count} ({progress}%)");
+        return new(vulcanSkill, $"Raphael 步骤 {_currentActionIndex}/{_solution.ActionIds.Count} ({progress}%)");
     }
 
     private VulcanSkill ConvertActionIdToSkill(uint actionId)

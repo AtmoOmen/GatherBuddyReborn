@@ -37,7 +37,7 @@ public class ScripShopItemManager
                 }
                 else
                 {
-                    GatherBuddy.Log.Error($"[ScripShopItemManager] Could not find embedded resource or file: {resourceName}");
+                    GatherBuddy.Log.Error($"[工票商店物品管理器] 找不到嵌入资源或文件: {resourceName}");
                     ShopItems = new();
                 }
             }
@@ -51,7 +51,7 @@ public class ScripShopItemManager
         catch (Exception ex)
         {
             ShopItems = new();
-            GatherBuddy.Log.Error($"[ScripShopItemManager] Failed to load scrip shop items: {ex}");
+            GatherBuddy.Log.Error($"[工票商店物品管理器] 加载工票商店物品失败: {ex}");
         }
         finally
         {

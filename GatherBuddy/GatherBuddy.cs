@@ -127,14 +127,14 @@ public partial class GatherBuddy : IDalamudPlugin
             UptimeManager          = new UptimeManager(GameData);
             var sigScannerWrapper  = new SigScannerWrapper(Dalamud.Interop);
             try { FishLog = new FishLog(sigScannerWrapper, Dalamud.GameData); }
-            catch (Exception e) { Log.Warning($"Failed to initialize FishLog: {e.Message}"); FishLog = null!; }
+            catch (Exception e) { Log.Warning($"初始化 FishLog 失败: {e.Message}"); FishLog = null!; }
             EventFramework         = new EventFramework();
             try { CurrentBait = new CurrentBait(sigScannerWrapper); }
-            catch (Exception e) { Log.Warning($"Failed to initialize CurrentBait: {e.Message}"); CurrentBait = null!; }
+            catch (Exception e) { Log.Warning($"初始化 CurrentBait 失败: {e.Message}"); CurrentBait = null!; }
             try { CurrentWeather = new CurrentWeather(sigScannerWrapper); }
-            catch (Exception e) { Log.Warning($"Failed to initialize CurrentWeather: {e.Message}"); CurrentWeather = null!; }
+            catch (Exception e) { Log.Warning($"初始化 CurrentWeather 失败: {e.Message}"); CurrentWeather = null!; }
             try { TugType = new SeTugType(sigScannerWrapper); }
-            catch (Exception e) { Log.Warning($"Failed to initialize TugType: {e.Message}"); TugType = null!; }
+            catch (Exception e) { Log.Warning($"初始化 TugType 失败: {e.Message}"); TugType = null!; }
             Executor               = new Executor(this);
             ContextMenu            = new ContextMenu(this, Dalamud.ContextMenu, Executor);
             GatherGroupManager     = GatherGroup.GatherGroupManager.Load();
@@ -163,7 +163,7 @@ public partial class GatherBuddy : IDalamudPlugin
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Failed to populate repair NPCs: {ex.Message}");
+                    Log.Error($"填充修理 NPC 数据失败: {ex.Message}");
                 }
             });
 
@@ -218,7 +218,7 @@ public partial class GatherBuddy : IDalamudPlugin
             }
             catch (Exception e)
             {
-                Log.Warning($"Failed to initialize ElliCon controller support: {e.Message}");
+                Log.Warning($"初始化 ElliCon 手柄支持失败: {e.Message}");
             }
 
             Ipc = new GatherBuddyIpc(this);
@@ -240,7 +240,7 @@ public partial class GatherBuddy : IDalamudPlugin
         {
             if (plugin.Name == "GatherBuddy" && plugin.IsLoaded)
             {
-                Log.Error("First Party GatherBuddy detected. Please uninstall it to use this version.");
+                Log.Error("检测到原版 GatherBuddy。请卸载后才能使用此版本");
                 Communicator.PrintError(
                     "[GatherBuddy Reborn] 检测到官方版 GatherBuddy, 请卸载后重启游戏以使用此版本。");
                 break;
@@ -298,7 +298,7 @@ public partial class GatherBuddy : IDalamudPlugin
         }
         catch (Exception e)
         {
-            Log.Error($"Error while running crafting update: {e}");
+            Log.Error($"运行制作更新时出错: {e}");
         }
 
         try
@@ -307,7 +307,7 @@ public partial class GatherBuddy : IDalamudPlugin
         }
         catch (Exception e)
         {
-            Log.Error($"Error while running auto gather: {e}");
+            Log.Error($"运行自动采集时出错: {e}");
         }
     }
 

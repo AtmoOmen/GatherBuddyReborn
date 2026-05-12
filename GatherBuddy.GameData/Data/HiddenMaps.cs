@@ -32,7 +32,7 @@ public static class HiddenMaps
         {
             if (!data.Gatherables.TryGetValue(map, out var mapItem))
             {
-                data.Log.Error($"Could not find map item {map}.");
+                data.Log.Error($"找不到地图物品 {map}.");
                 continue;
             }
 
@@ -40,7 +40,7 @@ public static class HiddenMaps
             {
                 if (!data.GatheringNodes.TryGetValue(node, out var nodeData))
                 {
-                    data.Log.Error($"Could not find gathering node {node}.");
+                    data.Log.Error($"找不到采集点 {node}.");
                     continue;
                 }
 

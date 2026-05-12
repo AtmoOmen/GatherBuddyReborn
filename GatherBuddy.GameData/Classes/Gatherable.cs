@@ -46,7 +46,7 @@ public class Gatherable : IComparable<Gatherable>, IGatherable
         var itemSheet = gameData.DataManager.GetExcelSheet<Item>();
         ItemData = itemSheet.GetRowOrDefault(gatheringData.Item.RowId) ?? new Item();
         if (ItemData.RowId == 0)
-            gameData.Log.Error("Invalid item.");
+            gameData.Log.Error("无效物品");
 
         var levelData = gatheringData.GatheringItemLevel.ValueNullable;
         _levelStars = levelData == null ? 0 : (levelData.Value.GatheringItemLevel << 3) + levelData.Value.Stars;

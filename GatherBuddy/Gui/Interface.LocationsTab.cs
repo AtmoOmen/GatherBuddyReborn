@@ -205,7 +205,7 @@ public partial class Interface
             }
 
             public override string ToName(ILocation location)
-                => location.ClosestAetheryte?.Name ?? "None";
+                => location.ClosestAetheryte?.Name ?? "无";
 
             public override float Width
                 => _aetheryteColumnWidth * ImGuiHelpers.GlobalScale;
@@ -214,12 +214,12 @@ public partial class Interface
             {
                 var       overwritten = location.DefaultAetheryte != location.ClosestAetheryte;
                 using var color       = ImRaii.PushColor(ImGuiCol.FrameBg, ColorId.ChangedLocationBg.Value(), overwritten);
-                var       currentName = location.ClosestAetheryte?.Name ?? "None";
+                var       currentName = location.ClosestAetheryte?.Name ?? "无";
                 if (_aetheryteCombo.Draw(currentName, out var newIdx))
                     _plugin.LocationManager.SetAetheryte(location, _aetherytes[newIdx]);
                 if (overwritten)
                 {
-                    ImGuiUtil.HoverTooltip($"右键点击以重载默认设置。 ({location.DefaultAetheryte?.Name ?? "None"})");
+                    ImGuiUtil.HoverTooltip($"右键点击以重载默认设置。 ({location.DefaultAetheryte?.Name ?? "无"})");
                     if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                         _plugin.LocationManager.SetAetheryte(location, location.DefaultAetheryte);
                 }

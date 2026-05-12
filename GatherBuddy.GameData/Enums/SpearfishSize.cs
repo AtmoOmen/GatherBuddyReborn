@@ -16,11 +16,11 @@ public static class SpearFishSizeExtensions
     public static string ToName(this SpearfishSize size)
         => size switch
         {
-            SpearfishSize.Unknown => "Î´Öª³ß´ç",
-            SpearfishSize.Small   => "Ð¡ÐÍ",
-            SpearfishSize.Average => "ÖÐÐÍ",
-            SpearfishSize.Large   => "´óÐÍ",
-            SpearfishSize.None    => "ÎÞ³ß´ç",
+            SpearfishSize.Unknown => "æœªçŸ¥å°ºå¯¸",
+            SpearfishSize.Small   => "å°åž‹",
+            SpearfishSize.Average => "ä¸­åž‹",
+            SpearfishSize.Large   => "å¤§åž‹",
+            SpearfishSize.None    => "æ— å°ºå¯¸",
             _                     => throw new ArgumentOutOfRangeException(nameof(size), size, null),
         };
 }

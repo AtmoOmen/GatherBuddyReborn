@@ -37,10 +37,10 @@ public unsafe class CollectableWindowHandler
             var index = turnIn.GetItemIndexOf(itemName);
             if (index == -1)
             {
-                GatherBuddy.Log.Error($"[CollectableWindowHandler] Item '{itemName}' not found in current collectable tab");
+                GatherBuddy.Log.Error($"[收藏品窗口] 在当前收藏品标签页找不到物品 '{itemName}'");
                 return;
             }
-            GatherBuddy.Log.Debug($"[CollectableWindowHandler] Firing SelectItem callback with index {index}");
+            GatherBuddy.Log.Debug($"[收藏品窗口] 使用索引 {index} 触发 SelectItem 回调");
             var selectItem = stackalloc AtkValue[]
             {
                 new() { Type = ValueType.Int, Int = 12 },
@@ -121,7 +121,7 @@ public unsafe class CollectableWindowHandler
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[CollectableWindowHandler] Error getting purple scrip count: {ex}");
+            GatherBuddy.Log.Error($"[收藏品窗口] 获取紫票数量时出错: {ex}");
             return -1;
         }
     }

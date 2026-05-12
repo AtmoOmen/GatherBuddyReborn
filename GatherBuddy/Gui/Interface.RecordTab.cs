@@ -141,7 +141,7 @@ public partial class Interface
         private sealed class ContentIdHeader : ColumnString<FishRecord>
         {
             public override string ToName(FishRecord item)
-                => item.Flags.HasFlag(Effects.Legacy) ? "Legacy" : item.ContentIdHash.ToString("X8");
+                => item.Flags.HasFlag(Effects.Legacy) ? "旧版" : item.ContentIdHash.ToString("X8");
 
             public override float Width
                 => 75 * ImGuiHelpers.GlobalScale;
@@ -646,12 +646,12 @@ public partial class Interface
         {
             var sb = new StringBuilder(Items.Count * 128);
             sb.Append(
-                "Fish\tFishId\tBite\tBait\tBaitId\tSpot\tSpotId\tTug\tHookset\tTimestamp\tEorzea Time\tTransition\tWeather\tAmount\tIlm\tGathering\tPerception\tPatience\tPatience2\tIntuition\tSnagging\tFish Eyes\tChum\tPrize Catch\tIdentical Cast\tSurface Slap\tCollectible\tBig Game Fishing\tAmbitious Lure\tModest Lure\n");
+                "鱼\t鱼 ID\t咬钩时间\t钓饵\t钓饵 ID\t渔场\t渔场 ID\t咬钩强度\t提钩\t时间戳\t艾欧泽亚时间\t转天气\t天气\t数量\t尺寸\t获得力\t鉴别力\t耐心\t耐心 II\t捕鱼人之识\t钓组\t鱼眼\t撒饵\t大鱼猎手\t专一垂钓\t拍击水面\t收藏品\t大鱼的知识\t雄心之饵\t谦逊之饵\n");
             foreach (var record in Items.OrderBy(r => r.TimeStamp))
             {
                 var (hour, minute) = record.TimeStamp.CurrentEorzeaTimeOfDay();
                 var spot = record.FishingSpot;
-                var (weather, transition) = ("Unknown", "Unknown");
+                var (weather, transition) = ("未知", "未知");
                 if (spot != null)
                 {
                     var weathers = WeatherManager.GetForecast(spot.Territory, 2, record.TimeStamp.AddEorzeaHours(-8));

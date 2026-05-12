@@ -77,7 +77,7 @@ namespace GatherBuddy.AutoGather
                 var fullThreshold = GatherBuddy.Config.CollectableConfig.InventoryFullThreshold;
                 if (usedSlots >= fullThreshold && collectableCount > 0)
                 {
-                    GatherBuddy.Log.Debug($"[HasCollectables] Inventory at threshold ({usedSlots}/{fullThreshold}) with {collectableCount} collectables - triggering turn-in");
+                    GatherBuddy.Log.Debug($"[HasCollectables] 背包达到阈值（{usedSlots}/{fullThreshold}），含 {collectableCount} 个收藏品 - 触发交付");
                     return true;
                 }
             }
@@ -85,7 +85,7 @@ namespace GatherBuddy.AutoGather
             // Emergency fallback: trigger if inventory is actually full (all slots) regardless of mode
             if (usedSlots >= totalSlots && collectableCount > 0)
             {
-                GatherBuddy.Log.Debug($"[HasCollectables] Inventory completely full ({usedSlots}/{totalSlots}) with {collectableCount} collectables - emergency turn-in");
+                GatherBuddy.Log.Debug($"[HasCollectables] 背包已满（{usedSlots}/{totalSlots}），含 {collectableCount} 个收藏品 - 紧急交付");
                 return true;
             }
 
@@ -195,7 +195,7 @@ namespace GatherBuddy.AutoGather
                 if (item.GatheringData.Unknown3 is 3 or 4 or 6)
                     minScore = targetScore;
 
-                GatherBuddy.Log.Verbose($"Using target collectability {targetScore} and minimum collectability {minScore} for {item.Name}.");
+                GatherBuddy.Log.Verbose($"对 {item.Name} 使用目标收藏价值 {targetScore} 和最低收藏价值 {minScore}");
                 return (targetScore, minScore);
             }
 

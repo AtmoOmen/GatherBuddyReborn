@@ -24,7 +24,7 @@ namespace GatherBuddy.Gui;
 
 public partial class Interface
 {
-    private const string AutomaticallyGenerated = "从右键菜单中自动生成";
+    private const string AutomaticallyGenerated = "自动生成";
 
     private void DrawAddAlarm(IGatherable item)
     {

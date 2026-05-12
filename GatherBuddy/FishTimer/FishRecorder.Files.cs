@@ -33,7 +33,7 @@ public partial class FishRecorder
 
     private void WriteFileInternal(FileInfo file, bool remote)
     {
-        GatherBuddy.Log.Debug($"Saving fish record file to {file.FullName} with {Changes} changes.");
+        GatherBuddy.Log.Debug($"正在保存钓鱼记录文件到 {file.FullName}，有 {Changes} 项变更");
         try
         {
             var bytes = GetRecordBytes(remote);
@@ -41,7 +41,7 @@ public partial class FishRecorder
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not write fish record file {file.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法写入钓鱼记录文件 {file.FullName}:\n{e}");
         }
     }
 
@@ -65,11 +65,11 @@ public partial class FishRecorder
         {
             var data = JsonConvert.SerializeObject(Records.Select(r => r.ToJson()), Formatting.Indented);
             File.WriteAllText(file.FullName, data);
-            GatherBuddy.Log.Information($"Exported {Records.Count} fish records to {file.FullName}.");
+            GatherBuddy.Log.Information($"已导出 {Records.Count} 条钓鱼记录到 {file.FullName}");
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Warning($"Could not export json file to {file.FullName}:\n{e}");
+            GatherBuddy.Log.Warning($"无法导出 JSON 文件到 {file.FullName}:\n{e}");
         }
     }
 
@@ -83,7 +83,7 @@ public partial class FishRecorder
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Warning($"Error while importing fish records:\n{e}");
+            GatherBuddy.Log.Warning($"导入钓鱼记录时出错:\n{e}");
         }
     }
 
@@ -108,7 +108,7 @@ public partial class FishRecorder
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Unknown error reading fish record file {file.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"读取钓鱼记录文件 {file.FullName} 时发生未知错误:\n{e}");
             return new List<FishRecord>();
         }
     }
@@ -135,7 +135,7 @@ public partial class FishRecorder
             {
                 if (data.Length % FishRecord.Version1ByteLength != 1)
                 {
-                    GatherBuddy.Log.Error($"{name} has no valid size for its record version, skipped.\n");
+                    GatherBuddy.Log.Error($"{name} 的记录版本大小无效，已跳过\n");
                     return new List<FishRecord>();
                 }
 
@@ -145,7 +145,7 @@ public partial class FishRecorder
                 {
                     if (!FishRecord.FromBytesV1(data, 1 + i * FishRecord.Version1ByteLength, out var record))
                     {
-                        GatherBuddy.Log.Error($"{name}'s {i}th record is invalid, skipped.\n");
+                        GatherBuddy.Log.Error($"{name} 的第 {i} 条记录无效，已跳过\n");
                         continue;
                     }
 
@@ -164,12 +164,12 @@ public partial class FishRecorder
                 }
                 catch (Exception e)
                 {
-                    GatherBuddy.Log.Error($"{name} was unable to be deserialized using V2 logic.");
+                    GatherBuddy.Log.Error($"{name} 无法使用 V2 逻辑反序列化");
                     return new List<FishRecord>();
                 }
             }
             default:
-                GatherBuddy.Log.Error($"{name} has no valid record version, skipped.\n");
+                GatherBuddy.Log.Error($"{name} 没有有效的记录版本，已跳过\n");
                 return new List<FishRecord>();
         }
     }
@@ -185,7 +185,7 @@ public partial class FishRecorder
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not read fish record file {file.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法读取钓鱼记录文件 {file.FullName}:\n{e}");
         }
         ResetTimes();
     }

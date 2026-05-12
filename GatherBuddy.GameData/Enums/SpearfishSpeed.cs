@@ -25,19 +25,19 @@ public static class SpearFishSpeedExtensions
     public static string ToName(this SpearfishSpeed speed)
         => speed switch
         {
-            SpearfishSpeed.Unknown       => "Î´ÖªËÙ¶È",
-            SpearfishSpeed.SuperSlow     => "¼«¶È»ºÂý",
-            SpearfishSpeed.ExtremelySlow => "·Ç³£»ºÂý",
-            SpearfishSpeed.VerySlow      => "ºÜÂý",
-            SpearfishSpeed.Slow          => "»ºÂý",
-            SpearfishSpeed.Average       => "ÆÕÍ¨",
-            SpearfishSpeed.Fast          => "¿ìËÙ",
-            SpearfishSpeed.VeryFast      => "ºÜ¿ì",
-            SpearfishSpeed.ExtremelyFast => "·Ç³£¿ìËÙ",
-            SpearfishSpeed.SuperFast     => "¼«¶È¿ìËÙ",
-            SpearfishSpeed.HyperFast     => "³¬¸ßËÙ",
-            SpearfishSpeed.LynFast       => "¼«ÏÞ¸ßËÙ",
-            SpearfishSpeed.None          => "ÎÞËÙ¶È",
+            SpearfishSpeed.Unknown       => "æœªçŸ¥é€Ÿåº¦",
+            SpearfishSpeed.SuperSlow     => "æžåº¦ç¼“æ…¢",
+            SpearfishSpeed.ExtremelySlow => "éžå¸¸ç¼“æ…¢",
+            SpearfishSpeed.VerySlow      => "å¾ˆæ…¢",
+            SpearfishSpeed.Slow          => "ç¼“æ…¢",
+            SpearfishSpeed.Average       => "æ™®é€š",
+            SpearfishSpeed.Fast          => "å¿«é€Ÿ",
+            SpearfishSpeed.VeryFast      => "å¾ˆå¿«",
+            SpearfishSpeed.ExtremelyFast => "éžå¸¸å¿«é€Ÿ",
+            SpearfishSpeed.SuperFast     => "æžåº¦å¿«é€Ÿ",
+            SpearfishSpeed.HyperFast     => "è¶…é«˜é€Ÿ",
+            SpearfishSpeed.LynFast       => "æžé™é«˜é€Ÿ",
+            SpearfishSpeed.None          => "æ— é€Ÿåº¦",
             _                            => $"{(ushort)speed}",
         };
 }

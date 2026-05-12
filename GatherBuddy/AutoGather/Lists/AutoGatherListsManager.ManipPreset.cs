@@ -50,7 +50,7 @@ public partial class AutoGatherListsManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Warning($"Failed to create folder: {e.Message}");
+            GatherBuddy.Log.Warning($"创建文件夹失败: {e.Message}");
         }
     }
 
@@ -66,7 +66,7 @@ public partial class AutoGatherListsManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Warning($"Failed to delete folder: {e.Message}");
+            GatherBuddy.Log.Warning($"删除文件夹失败: {e.Message}");
         }
     }
 
@@ -83,7 +83,7 @@ public partial class AutoGatherListsManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Warning($"Failed to rename list: {e.Message}");
+            GatherBuddy.Log.Warning($"重命名列表失败: {e.Message}");
         }
     }
 
@@ -144,7 +144,7 @@ public partial class AutoGatherListsManager
                 if (customPresetBaitIds != null && customPresetBaitIds.TryGetValue(fish.ItemId, out var customBaitId))
                 {
                     baitId = customBaitId;
-                    GatherBuddy.Log.Debug($"[Auto-Gather] Using custom preset bait ID {baitId} for fish {fish.ItemId}");
+                    GatherBuddy.Log.Debug($"[自动采集] 为鱼 {fish.ItemId} 使用自定义预设钓饵 ID {baitId}");
                 }
 
                 if (!inventoryCounts.TryGetValue(baitId, out var baitCount))
@@ -161,7 +161,7 @@ public partial class AutoGatherListsManager
 
             stopwatch.Stop();
             if (stopwatch.ElapsedMilliseconds >= 10)
-                GatherBuddy.Log.Debug($"[Auto-Gather] Validated fishing bait for list '{list.Name}' in {stopwatch.ElapsedMilliseconds} ms ({fishInList.Count} fish, {inventoryCounts.Count} unique bait IDs).");
+                GatherBuddy.Log.Debug($"[自动采集] 已为列表 '{list.Name}' 验证钓饵，耗时 {stopwatch.ElapsedMilliseconds} 毫秒（{fishInList.Count} 条鱼，{inventoryCounts.Count} 个唯一钓饵 ID）");
             if (missingBaits.Count > 0)
             {
                 var baitIds = string.Join(", ", missingBaits);
@@ -174,7 +174,7 @@ public partial class AutoGatherListsManager
         }
         catch (System.Exception ex)
         {
-            GatherBuddy.Log.Error($"[Auto-Gather] Error validating fishing bait: {ex.Message}\n{ex.StackTrace}");
+            GatherBuddy.Log.Error($"[自动采集] 验证钓饵时出错: {ex.Message}\n{ex.StackTrace}");
             return true;
         }
     }
@@ -214,7 +214,7 @@ public partial class AutoGatherListsManager
         }
         catch (System.Exception ex)
         {
-            GatherBuddy.Log.Error($"[Auto-Gather] Error validating single fish bait: {ex.Message}");
+            GatherBuddy.Log.Error($"[自动采集] 验证单条鱼钓饵时出错: {ex.Message}");
             return true;
         }
     }
@@ -233,7 +233,7 @@ public partial class AutoGatherListsManager
             
             if (!isMiner && !isBotanist)
             {
-                GatherBuddy.Log.Debug($"[Auto-Gather] Skipping perception validation - player not on Miner or Botanist (current job: {currentJob})");
+                GatherBuddy.Log.Debug($"[自动采集] 跳过鉴别力验证 - 玩家当前不是采矿工或园艺工（当前职业: {currentJob}）");
                 return true;
             }
             
@@ -252,7 +252,7 @@ public partial class AutoGatherListsManager
                     continue;
                 }
                 
-                GatherBuddy.Log.Debug($"[Auto-Gather] Validating {gatherable.Name[GatherBuddy.Language]}: requires {requiredPerception} perception (current: {playerPerception})");
+                GatherBuddy.Log.Debug($"[自动采集] 验证 {gatherable.Name[GatherBuddy.Language]}: 需要 {requiredPerception} 鉴别力（当前: {playerPerception}）");
                 
                 if (playerPerception < requiredPerception)
                 {
@@ -272,7 +272,7 @@ public partial class AutoGatherListsManager
         }
         catch (System.Exception ex)
         {
-            GatherBuddy.Log.Error($"[Auto-Gather] Error validating gatherable perception: {ex.Message}\n{ex.StackTrace}");
+            GatherBuddy.Log.Error($"[自动采集] 验证可采集物品鉴别力时出错: {ex.Message}\n{ex.StackTrace}");
             return true;
         }
     }
@@ -295,19 +295,19 @@ public partial class AutoGatherListsManager
             
             if (!isMiner && !isBotanist)
             {
-                GatherBuddy.Log.Debug($"[Auto-Gather] Skipping perception validation for {gatherable.Name[GatherBuddy.Language]} - player not on Miner or Botanist (current job: {currentJob})");
+                GatherBuddy.Log.Debug($"[自动采集] 跳过 {gatherable.Name[GatherBuddy.Language]} 的鉴别力验证 - 玩家当前不是采矿工或园艺工（当前职业: {currentJob}）");
                 return true;
             }
             
             if ((isMiner && gatheringType != GatheringType.Miner) || (isBotanist && gatheringType != GatheringType.Botanist))
             {
-                GatherBuddy.Log.Debug($"[Auto-Gather] Skipping perception validation for {gatherable.Name[GatherBuddy.Language]} - item is for different gathering job");
+                GatherBuddy.Log.Debug($"[自动采集] 跳过 {gatherable.Name[GatherBuddy.Language]} 的鉴别力验证 - 物品属于不同的采集职业");
                 return true;
             }
             
             var playerPerception = DiscipleOfLand.Perception;
             
-            GatherBuddy.Log.Debug($"[Auto-Gather] Validating {gatherable.Name[GatherBuddy.Language]}: requires {requiredPerception} perception (current: {playerPerception})");
+            GatherBuddy.Log.Debug($"[自动采集] 验证 {gatherable.Name[GatherBuddy.Language]}: 需要 {requiredPerception} 鉴别力（当前: {playerPerception}）");
             
             if (playerPerception < requiredPerception)
             {
@@ -320,7 +320,7 @@ public partial class AutoGatherListsManager
         }
         catch (System.Exception ex)
         {
-            GatherBuddy.Log.Error($"[Auto-Gather] Error validating single gatherable perception: {ex.Message}");
+            GatherBuddy.Log.Error($"[自动采集] 验证单个可采集物品鉴别力时出错: {ex.Message}");
             return true;
         }
     }
@@ -364,7 +364,7 @@ public partial class AutoGatherListsManager
         }
         catch (System.Exception ex)
         {
-            GatherBuddy.Log.Error($"[Auto-Gather] Error reading AutoHook config for bait validation: {ex.Message}");
+            GatherBuddy.Log.Error($"[自动采集] 读取 AutoHook 配置以进行钓饵验证时出错: {ex.Message}");
             return null;
         }
     }
@@ -375,7 +375,7 @@ public partial class AutoGatherListsManager
         if (customPresetBaitIds == null || !customPresetBaitIds.TryGetValue(fishId, out var forcedBaitId))
             return null;
 
-        GatherBuddy.Log.Debug($"[Auto-Gather] Found custom preset for fish {fishId} with bait ID {forcedBaitId}");
+        GatherBuddy.Log.Debug($"[自动采集] 为鱼 {fishId} 找到自定义预设，钓饵 ID {forcedBaitId}");
         return forcedBaitId;
     }
 

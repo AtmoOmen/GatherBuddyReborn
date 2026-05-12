@@ -18,11 +18,11 @@ namespace GatherBuddy.DataImport
         static void Main(string[] args)
         {
             if (args.Length == 0)
-                throw new ArgumentException("Please provide the path to the input JSON file.");
+                throw new ArgumentException("请提供输入 JSON 文件的路径");
 
             var input = args[0];
             if (!File.Exists(input))
-                throw new FileNotFoundException("Input file not found.", input);
+                throw new FileNotFoundException("找不到输入文件", input);
 
             var output = Path.Combine(OutputPath, FishRecordsFile);
 
@@ -92,29 +92,29 @@ namespace GatherBuddy.DataImport
             var trimmedFromNew = finalRecords.Count - trimmedFromOld;
 
             Console.WriteLine("======================================");
-            Console.WriteLine("        GatherBuddy Data Importer     ");
+            Console.WriteLine("        GatherBuddy 数据导入工具     ");
             Console.WriteLine("======================================");
-            Console.WriteLine($"Input file: {input}");
-            Console.WriteLine($"Output file (relative): {output}");
+            Console.WriteLine($"输入文件: {input}");
+            Console.WriteLine($"输出文件（相对路径）: {output}");
             Console.WriteLine();
-            Console.WriteLine($"Old records loaded: {oldFishRecords.Count}");
-            Console.WriteLine($"New records loaded: {newEntries.Count}");
-            Console.WriteLine($"New records with sortTimestamp == 0: {newZeroSortCount}");
-            Console.WriteLine($"Merged total (before trimming): {allEntries.Count}");
-            Console.WriteLine($"Trimmed total (after trimming): {finalRecords.Count}");
-            Console.WriteLine($"Unique FishingSpots: {finalRecords.Select(r => r.FishingSpot).Distinct().Count()}");
-            Console.WriteLine($"Trimmed from OLD file: {trimmedFromOld}");
-            Console.WriteLine($"Trimmed from NEW file: {trimmedFromNew}");
+            Console.WriteLine($"已加载旧记录: {oldFishRecords.Count}");
+            Console.WriteLine($"已加载新记录: {newEntries.Count}");
+            Console.WriteLine($"sortTimestamp 为 0 的新记录: {newZeroSortCount}");
+            Console.WriteLine($"合并总数（裁剪前）: {allEntries.Count}");
+            Console.WriteLine($"裁剪总数（裁剪后）: {finalRecords.Count}");
+            Console.WriteLine($"唯一钓场数: {finalRecords.Select(r => r.FishingSpot).Distinct().Count()}");
+            Console.WriteLine($"从旧文件裁剪: {trimmedFromOld}");
+            Console.WriteLine($"从新文件裁剪: {trimmedFromNew}");
             Console.WriteLine("======================================");
             Console.WriteLine();
 
             var fullOutputPath = Path.GetFullPath(output);
-            Console.WriteLine($"Writing file to: {fullOutputPath}");
+            Console.WriteLine($"正在写入文件到: {fullOutputPath}");
 
             Directory.CreateDirectory(OutputPath);
             File.WriteAllText(output, JsonConvert.SerializeObject(finalRecords, Formatting.Indented));
 
-            Console.WriteLine("Write completed successfully!");
+            Console.WriteLine("写入成功完成");
             Console.WriteLine("======================================");
         }
 

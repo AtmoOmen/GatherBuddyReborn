@@ -17,7 +17,7 @@ public unsafe class TurninWindow(AtkUnitBase* addon) : TreeListWindowBase(addon)
 
     public int GetItemIndexOf(string label)
     {
-        GatherBuddy.Log.Debug($"[TurninWindow] GetItemIndexOf searching for '{label}' in {Labels.Length} items");
+        GatherBuddy.Log.Debug($"[交付窗口] 在 {Labels.Length} 个物品中搜索 '{label}'");
         
         int itemCount = 0;
         for (var i = 0; i < Labels.Length; i++)
@@ -33,20 +33,20 @@ public unsafe class TurninWindow(AtkUnitBase* addon) : TreeListWindowBase(addon)
             if (itemType == AtkComponentTreeListItemType.CollapsibleGroupHeader || 
                 itemType == AtkComponentTreeListItemType.GroupHeader)
             {
-                GatherBuddy.Log.Debug($"[TurninWindow] Skipping group header");
+                GatherBuddy.Log.Debug($"[交付窗口] 跳过组标题");
                 continue;
             }
             
             if (Labels[i].Contains(label, StringComparison.OrdinalIgnoreCase))
             {
-                GatherBuddy.Log.Debug($"[TurninWindow] Found match at item index {itemCount} (absolute index {i})");
+                GatherBuddy.Log.Debug($"[交付窗口] 在物品索引 {itemCount}（绝对索引 {i}）找到匹配");
                 return itemCount;
             }
             
             itemCount++;
         }
 
-        GatherBuddy.Log.Debug($"[TurninWindow] No match found for '{label}'");
+        GatherBuddy.Log.Debug($"[交付窗口] 未找到 '{label}' 的匹配");
         return -1;
     }
 }

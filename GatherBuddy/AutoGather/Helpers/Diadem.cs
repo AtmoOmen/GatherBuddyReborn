@@ -229,7 +229,7 @@ namespace GatherBuddy.AutoGather.Helpers
                     {
                         if (_indexes[pathIndex] != nodeIndex)
                         {
-                            GatherBuddy.Log.Debug($"[Diadem] Changing path {pathIndex} index from {_indexes[pathIndex]} to {nodeIndex}");
+                            GatherBuddy.Log.Debug($"[云冠群岛] 将路径 {pathIndex} 的索引从 {_indexes[pathIndex]} 改为 {nodeIndex}");
                             _indexes[pathIndex] = (byte)nodeIndex;
                         }
                         _initialized |= 1 << pathIndex;
@@ -242,7 +242,7 @@ namespace GatherBuddy.AutoGather.Helpers
                             && GatherBuddy.GameData.WorldCoords[nodeId].All(v => v.DistanceToPlayer() < AutoGather.NodeVisibilityDistance)
                             && !Dalamud.Objects.Where(obj => obj.ObjectKind == ObjectKind.GatheringPoint && obj.BaseId == nodeId && obj.IsTargetable).Any())
                         {
-                            GatherBuddy.Log.Debug($"[Diadem] Node #{nodeIndex} not visible on path {pathIndex}; incrementing the index to {(_indexes[pathIndex] + 1) % NodesPerChain} as a fallback.");
+                            GatherBuddy.Log.Debug($"[云冠群岛] 路径 {pathIndex} 上的节点 #{nodeIndex} 不可见；回退到索引 {(_indexes[pathIndex] + 1) % NodesPerChain}");
                             _indexes[pathIndex] = (byte)((_indexes[pathIndex] + 1u) % NodesPerChain);
                         }
                     }

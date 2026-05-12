@@ -684,7 +684,7 @@ public static class VendorNpcLocationCache
             MapRowId = upperMapRowId,
             Source = VendorNpcLocationSource.Override,
         };
-        return LogAppliedLocationOverride(location, overriddenLocation, "Eulmore upper-layer");
+        return LogAppliedLocationOverride(location, overriddenLocation, "游末邦上层");
     }
 
     private static VendorNpcLocation LogAppliedLocationOverride(VendorNpcLocation original, VendorNpcLocation overridden, string reason)

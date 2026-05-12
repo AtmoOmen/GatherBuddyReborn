@@ -10,7 +10,7 @@ public class Bait : IComparable<Bait>
 
     public static Bait Unknown { get; } = new(0, "未知鱼饵", 60027);
 
-    public readonly string Name = "Unknown";
+    public readonly string Name = "未知";
     public          uint   Id   { get; private set; }
     public          ushort Icon { get; private set; }
 

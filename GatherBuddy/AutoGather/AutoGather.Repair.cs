@@ -96,24 +96,24 @@ public unsafe partial class AutoGather
         if (RepairAddon == null)
             ActionManager.Instance()->UseAction(ActionType.GeneralAction, 6);
 
-        TaskManager.Enqueue(() => RepairAddon != null, 1000, true, "Wait until repair menu is ready.");
+        TaskManager.Enqueue(() => RepairAddon != null, 1000, true, "等待修理界面就绪");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (RepairAddon is var addon && addon != null) { GatherBuddy.Log.Debug("[Repair] Clicking RepairAll button"); new AddonMaster.Repair(addon).RepairAll(); } }, 1000, "Repairing all.");
-        TaskManager.Enqueue(() => SelectYesnoAddon != null, 1000, true, "Wait until YesnoAddon is ready.");
+        TaskManager.Enqueue(() => { if (RepairAddon is var addon && addon != null) { GatherBuddy.Log.Debug("[Repair] 点击全部修理按钮"); new AddonMaster.Repair(addon).RepairAll(); } }, 1000, "修理全部装备");
+        TaskManager.Enqueue(() => SelectYesnoAddon != null, 1000, true, "等待确认对话框就绪");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (SelectYesnoAddon is var addon && addon != null) Callback.Fire(&addon->AtkUnitBase, true, 0); }, 1000, "Confirm repairs.");
-        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], 5000, "Wait for repairs.");
+        TaskManager.Enqueue(() => { if (SelectYesnoAddon is var addon && addon != null) Callback.Fire(&addon->AtkUnitBase, true, 0); }, 1000, "确认修理");
+        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], 5000, "等待修理完成");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (RepairAddon is var addon and not null) Callback.Fire(&addon->AtkUnitBase, true, -1); }, 1000, true, "Close repair menu.");
+        TaskManager.Enqueue(() => { if (RepairAddon is var addon and not null) Callback.Fire(&addon->AtkUnitBase, true, -1); }, 1000, true, "关闭修理界面");
         TaskManager.DelayNext(1000);
         TaskManager.Enqueue(() => {
             var repairAutoAddon = GetAddon<FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase>("RepairAuto");
             if (repairAutoAddon == null || !repairAutoAddon->IsVisible)
                 return true;
-            GatherBuddy.Log.Debug("[Repair] RepairAuto window still visible, closing it");
+            GatherBuddy.Log.Debug("[Repair] 修理界面仍可见，正在关闭");
             repairAutoAddon->Close(true);
             return true;
-        }, 3000, "Wait for RepairAuto window to close or force close it.");
+        }, 3000, "等待修理界面关闭或强制关闭");
         TaskManager.DelayNext(delay);
 
         return true;
@@ -176,7 +176,7 @@ public unsafe partial class AutoGather
         if (IsGathering || IsFishing)
         {
             QueueQuitFishingTasks();
-            TaskManager.Enqueue(() => !IsFishing, 5000, "Wait until fishing stopped.");
+            TaskManager.Enqueue(() => !IsFishing, 5000, "等待钓鱼停止");
         }
         
         if (RepairAddon == null)
@@ -184,24 +184,24 @@ public unsafe partial class AutoGather
             EnqueueActionWithDelay(() => ActionManager.Instance()->UseAction(ActionType.GeneralAction, 6));
         }
 
-        TaskManager.Enqueue(() => RepairAddon != null, 1000, true, "Wait until repair menu is ready.");
+        TaskManager.Enqueue(() => RepairAddon != null, 1000, true, "等待修理界面就绪");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (RepairAddon is var addon && addon != null) new AddonMaster.Repair(addon).RepairAll(); }, 1000, "Repairing all.");
-        TaskManager.Enqueue(() => SelectYesnoAddon != null, 1000, true, "Wait until YesnoAddon is ready.");
+        TaskManager.Enqueue(() => { if (RepairAddon is var addon && addon != null) new AddonMaster.Repair(addon).RepairAll(); }, 1000, "修理全部装备");
+        TaskManager.Enqueue(() => SelectYesnoAddon != null, 1000, true, "等待确认对话框就绪");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (SelectYesnoAddon is var addon && addon != null) new AddonMaster.SelectYesno(addon).Yes(); }, 1000, "Confirm repairs.");
-        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], 5000, "Wait for repairs.");
+        TaskManager.Enqueue(() => { if (SelectYesnoAddon is var addon && addon != null) new AddonMaster.SelectYesno(addon).Yes(); }, 1000, "确认修理");
+        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], 5000, "等待修理完成");
         TaskManager.DelayNext(delay);
-        TaskManager.Enqueue(() => { if (RepairAddon is var addon and not null) Callback.Fire(&addon->AtkUnitBase, true, -1); }, 1000, true, "Close repair menu.");
+        TaskManager.Enqueue(() => { if (RepairAddon is var addon and not null) Callback.Fire(&addon->AtkUnitBase, true, -1); }, 1000, true, "关闭修理界面");
         TaskManager.DelayNext(1000);
         TaskManager.Enqueue(() => {
             var repairAutoAddon = GetAddon<FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase>("RepairAuto");
             if (repairAutoAddon == null || !repairAutoAddon->IsVisible)
                 return true;
-            GatherBuddy.Log.Debug("[Repair] RepairAuto window still visible, closing it");
+            GatherBuddy.Log.Debug("[Repair] 修理界面仍可见，正在关闭");
             repairAutoAddon->Close(true);
             return true;
-        }, 3000, "Wait for RepairAuto window to close or force close it.");
+        }, 3000, "等待修理界面关闭或强制关闭");
         TaskManager.DelayNext(delay);
         TaskManager.Enqueue(() =>
         {

@@ -83,7 +83,7 @@ internal sealed class WorkshopPartNode : WorkshopScopeNode
     public int PartIndex { get; }
     public List<WorkshopPhaseNode> Phases { get; } = [];
     public override WorkshopScopeKind Kind => WorkshopScopeKind.Part;
-    public override string DisplayName => $"Part {PartIndex}: {PartName}";
+    public override string DisplayName => $"部件 {PartIndex}: {PartName}";
 }
 
 internal sealed class WorkshopPhaseNode : WorkshopScopeNode
@@ -336,7 +336,7 @@ internal static class WorkshopDataService
         var item = sequence.ResultItem.Value;
         return item.RowId > 0
             ? item.Name.ExtractText()
-            : $"Project {sequence.RowId}";
+            : $"项目 {sequence.RowId}";
     }
 
     private static uint GetProjectIconId(CompanyCraftSequence sequence)
@@ -351,7 +351,7 @@ internal static class WorkshopDataService
             ? part.CompanyCraftType.Value.Name.ExtractText()
             : string.Empty;
         return string.IsNullOrWhiteSpace(partName)
-            ? $"Part {partIndex}"
+            ? $"部件 {partIndex}"
             : partName;
     }
 
@@ -361,8 +361,8 @@ internal static class WorkshopDataService
         if (itemSheet != null && itemSheet.TryGetRow(itemId, out var item))
             return (item.Name.ExtractText(), (uint)item.Icon);
 
-        GatherBuddy.Log.Debug($"[WorkshopDataService] Missing item metadata for workshop supply item {itemId}");
-        return ($"Item {itemId}", 0);
+        GatherBuddy.Log.Debug($"[WorkshopDataService] 缺少工坊补给物品 {itemId} 的元数据");
+        return ($"物品 {itemId}", 0);
     }
 
     internal static string GetDefaultListName(WorkshopScopeNode scope, int loopCount)

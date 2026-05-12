@@ -26,7 +26,7 @@ public partial class FishingParser
               && FishingSpotNames.TryGetValue(fishingSpotName[4..], out fishingSpot))
             BeganFishing?.Invoke(fishingSpot);
         else
-            GatherBuddy.Log.Error($"Began fishing at unknown fishing spot: \"{fishingSpotName}\".");
+            GatherBuddy.Log.Error($"在未知钓场开始钓鱼: \"{fishingSpotName}\"");
     }
 
     private void HandleSpotDiscoveredMatch(Match match)
@@ -40,7 +40,7 @@ public partial class FishingParser
               && FishingSpotNames.TryGetValue(fishingSpotName[4..], out fishingSpot))
             IdentifiedSpot?.Invoke(fishingSpot);
         else
-            GatherBuddy.Log.Error($"Discovered unknown fishing spot: \"{fishingSpotName}\".");
+            GatherBuddy.Log.Error($"发现了未知钓场: \"{fishingSpotName}\"");
     }
 
     private const XivChatType FishingMessage = (XivChatType)2243;
@@ -71,7 +71,7 @@ public partial class FishingParser
                         if (wks is not null)
                         {
                             missionId = wks->CurrentMissionUnitRowId;
-                            GatherBuddy.Log.Verbose($"Loaded quest: {missionId.Value}");
+                            GatherBuddy.Log.Verbose($"已加载任务: {missionId.Value}");
                         }
                     }
 

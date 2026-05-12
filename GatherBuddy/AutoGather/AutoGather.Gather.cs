@@ -33,10 +33,10 @@ namespace GatherBuddy.AutoGather
             {
                 _lastNodeInteractionTime = Environment.TickCount64;
                 targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
-                GatherBuddy.Log.Debug($"Interacting with node, "
-                    + $"distanceXZ: {Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2())}, "
-                    + $"distanceY: {Player.Position.Y - gameObject.Position.Y}, "
-                    + $"Conditions: {string.Join(' ', Dalamud.Conditions.AsReadOnlySet())}.");
+                GatherBuddy.Log.Debug($"与采集点交互中，" +
+                    $"水平距离: {Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2())}，" +
+                    $"垂直距离: {Player.Position.Y - gameObject.Position.Y}，" +
+                    $"条件: {string.Join(' ', Dalamud.Conditions.AsReadOnlySet())}");
             });
 
             // If flying, it takes up to 600 ms for the Mounted condition to fade and up to 500 ms more for the Gathering condition to appear.
@@ -45,11 +45,11 @@ namespace GatherBuddy.AutoGather
             {
                 if (Dalamud.Conditions[ConditionFlag.Gathering])
                 {
-                    GatherBuddy.Log.Debug($"Opening node took {Environment.TickCount64 - _lastNodeInteractionTime} ms.");
+                    GatherBuddy.Log.Debug($"打开采集点耗时 {Environment.TickCount64 - _lastNodeInteractionTime} 毫秒");
                     return true;
                 }
                 return false;
-            }, 1100, "Node interaction");
+            }, 1100, "采集点交互");
 
             TaskManager.Enqueue(() =>
             {
@@ -69,7 +69,7 @@ namespace GatherBuddy.AutoGather
 
             Dalamud.ToastGui.ErrorToast -= HandleNodeInteractionErrorToast;
             var text = message.TextValue;
-            GatherBuddy.Log.Debug($"Node interaction error toast detected: {text}.");
+            GatherBuddy.Log.Debug($"检测到采集点交互错误提示: {text}");
             TaskManager.Abort();
             if (Dalamud.Conditions[ConditionFlag.InFlight])
                 ForceLandAndDismount();

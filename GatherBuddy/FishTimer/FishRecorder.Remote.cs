@@ -43,7 +43,7 @@ public partial class FishRecorder
         {
             RecordsToUpload.Enqueue(record);
         }
-        GatherBuddy.Log.Information($"Queued {records.Count()} records for upload");
+        GatherBuddy.Log.Information($"已将 {records.Count()} 条记录加入上传队列");
     }
 
     private readonly Random _random = new(Guid.NewGuid().GetHashCode());
@@ -88,7 +88,7 @@ public partial class FishRecorder
     {
         if (RecordsToUpload.Count == 0)
         {
-            GatherBuddy.Log.Verbose("No records to upload.");
+            GatherBuddy.Log.Verbose("没有需要上传的记录");
         }
         else
         {
@@ -100,7 +100,7 @@ public partial class FishRecorder
                     records.Add(record);
                 }
 
-                GatherBuddy.Log.Debug($"Uploading {records.Count} local fish records to remote server.");
+                GatherBuddy.Log.Debug($"正在上传 {records.Count} 条本地钓鱼记录到远程服务器");
                 var simpleRecords = new List<SimpleFishRecord>(records.Count);
                 foreach (var record in records)
                 {
@@ -113,12 +113,12 @@ public partial class FishRecorder
                 using var client   = new FishRecorderClient();
                 var       response = await client.PostAsync(RemoteUrl, content, cancellationToken);
                 if (!response.IsSuccessStatusCode)
-                    GatherBuddy.Log.Error($"Could not upload local fish records: {response.StatusCode}");
-                GatherBuddy.Log.Information($"Uploaded {records.Count} local fish records to remote server.");
+                    GatherBuddy.Log.Error($"无法上传本地钓鱼记录: {response.StatusCode}");
+                GatherBuddy.Log.Information($"已上传 {records.Count} 条本地钓鱼记录到远程服务器");
             }
             catch (Exception e)
             {
-                GatherBuddy.Log.Error($"Could not upload local fish records:\n{e}");
+                GatherBuddy.Log.Error($"无法上传本地钓鱼记录:\n{e}");
             }
         }
 
@@ -132,12 +132,12 @@ public partial class FishRecorder
         {
             var embeddedResource = typeof(FishRecorder).Assembly.GetManifestResourceStream(RemoteFishRecordsFileName);
             if (embeddedResource == null)
-                throw new FileNotFoundException($"Could not find embedded resource {RemoteFishRecordsFileName}");
+                throw new FileNotFoundException($"找不到嵌入资源 {RemoteFishRecordsFileName}");
             using var reader = new StreamReader(embeddedResource);
             var       json   = reader.ReadToEnd();
             var       records = JsonConvert.DeserializeObject<List<SimpleFishRecord>>(json);
             if (records == null)
-                throw new JsonException("Could not deserialize remote fish records.");
+                throw new JsonException("无法反序列化远程钓鱼记录");
 
             foreach (var record in records)
             {
@@ -147,7 +147,7 @@ public partial class FishRecorder
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not read fish record file {FishRecordFileName}:\n{e}");
+            GatherBuddy.Log.Error($"无法读取钓鱼记录文件 {FishRecordFileName}:\n{e}");
         }
     }
 

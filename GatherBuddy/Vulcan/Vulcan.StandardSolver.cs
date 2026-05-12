@@ -22,7 +22,7 @@ public class StandardSolverDefinition : ISolverDefinition
     public IEnumerable<ISolverDefinition.Desc> Flavors(CraftState craft)
     {
         if (!craft.CraftExpert && (craft.CraftHQ || craft.CraftRequiredQuality > 0))
-            yield return new(this, 0, 2, "Standard Recipe Solver");
+            yield return new(this, 0, 2, "标准配方求解器");
     }
 
     public Solver Create(CraftState craft, int flavor) => new StandardSolver(GatherBuddy.Config.StandardSolverConfig);

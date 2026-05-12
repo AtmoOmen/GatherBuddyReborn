@@ -214,15 +214,15 @@ namespace GatherBuddy.AutoGather.Lists
         private static string FormatFishTimingForDebug(in GatherTarget target, TimeStamp now)
         {
             if (target.Time == TimeInterval.Always)
-                return "always";
+                return "总是";
             if (target.Time == TimeInterval.Invalid || target.Time == TimeInterval.Never)
-                return "invalid";
+                return "无效";
 
             var effectiveStart = target.Time.Start.Max(now);
             var window = TimeInterval.DurationString(effectiveStart, target.Time.End, true);
             return target.Time.InRange(now)
-                ? $"active, remaining={window}"
-                : $"future, startsIn={TimeInterval.DurationString(target.Time.Start, now, true)}, window={window}";
+                ? $"活跃，剩余时间={window}"
+                : $"未来，{TimeInterval.DurationString(target.Time.Start, now, true)} 后开始，窗口={window}";
         }
 
         private void LogFishPriorityOrder(TimeStamp now)
@@ -235,7 +235,7 @@ namespace GatherBuddy.AutoGather.Lists
             if (prioritizedFish.Length == 0)
                 return;
 
-            GatherBuddy.Log.Debug($"[ActiveItemList] Fish priority order: {string.Join(" | ", prioritizedFish)}");
+            GatherBuddy.Log.Debug($"[ActiveItemList] 鱼类优先级顺序: {string.Join(" | ", prioritizedFish)}");
         }
 
         private static int CompareLegacyTargetOrder(GatherTarget lhs, GatherTarget rhs, TimeStamp now)
@@ -429,7 +429,7 @@ namespace GatherBuddy.AutoGather.Lists
             }
             LogFishPriorityOrder(adjustedServerTime);
 
-            GatherBuddy.Log.Verbose($"Gatherable items: ({_gatherableItems.Count}): {string.Join(", ", _gatherableItems.Select(x => x.Item.Name))}.");
+            GatherBuddy.Log.Verbose($"可采集物品: ({_gatherableItems.Count}): {string.Join(", ", _gatherableItems.Select(x => x.Item.Name))}.");
         }
 
         private ILocation CorrectForPredatorLocation(IGatherable item, ILocation location)
@@ -452,12 +452,12 @@ namespace GatherBuddy.AutoGather.Lists
                     {
                         // First predator met - shadow node spawns, use it
                         location = shadowSpot;
-                        GatherBuddy.Log.Debug($"[ActiveItemList] First predator met for {fish.Name[GatherBuddy.Language]}, using shadow node");
+                        GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的第一捕食者已满足，使用影子节点");
                     }
                     else if (shadowSpot.ParentNode != null)
                     {
                         location = shadowSpot.ParentNode;
-                        GatherBuddy.Log.Debug($"[ActiveItemList] First predator not met for {fish.Name[GatherBuddy.Language]}, using parent node");
+                        GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的第一捕食者未满足，使用父节点");
                     }
                 }
             }
@@ -499,7 +499,7 @@ namespace GatherBuddy.AutoGather.Lists
 
             if (territory == Territory.Invalid)
             {
-                GatherBuddy.Log.Debug($"[ActiveItemList] Could not determine territory for {fish.Name[GatherBuddy.Language]}");
+                GatherBuddy.Log.Debug($"[ActiveItemList] 无法确定 {fish.Name[GatherBuddy.Language]} 的区域");
                 return time;
             }
 
@@ -529,7 +529,7 @@ namespace GatherBuddy.AutoGather.Lists
 
             if (territory == Territory.Invalid)
             {
-                GatherBuddy.Log.Debug($"[ActiveItemList] Could not determine territory for {fish.Name[GatherBuddy.Language]}");
+                GatherBuddy.Log.Debug($"[ActiveItemList] 无法确定 {fish.Name[GatherBuddy.Language]} 的区域");
                 return time;
             }
 

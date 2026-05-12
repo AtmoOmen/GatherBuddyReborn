@@ -47,8 +47,8 @@ public class RecipeCraftSettingsPopup
     private bool    _lastValidatedMedicineHQ;
     private int     _lastValidatedStartingQuality;
     
-    private static readonly string[] OverrideModeLabels = { "Inherit", "None", "Specific" };
-    private static readonly string[] MacroModeLabels    = { "Inherit", "Specific" };
+    private static readonly string[] OverrideModeLabels = { "继承", "无", "指定" };
+    private static readonly string[] MacroModeLabels    = { "继承", "指定" };
     
     private class IngredientData
     {
@@ -223,7 +223,7 @@ public class RecipeCraftSettingsPopup
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Save", new Vector2(100, 0)))
+            if (ImGui.Button("保存", new Vector2(100, 0)))
             {
                 if (!string.IsNullOrEmpty(_resolvedMacroId))
                     MacroValidator.Invalidate(_recipeId, _resolvedMacroId);
@@ -320,7 +320,7 @@ public class RecipeCraftSettingsPopup
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Cancel", new Vector2(100, 0)))
+            if (ImGui.Button("取消", new Vector2(100, 0)))
             {
                 _isOpen = false;
             }
@@ -437,13 +437,13 @@ public class RecipeCraftSettingsPopup
 
         if (_validationResult == null || _validationResult.Failure == MacroValidationFailure.NoStats)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Validation: No gear stats available for this job.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "验证: 没有该职业的装备属性数据");
             return;
         }
 
         if (_validationResult.IsValid)
         {
-            ImGui.TextColored(ImGuiColors.ParsedGreen, "Validation: PASS");
+            ImGui.TextColored(ImGuiColors.ParsedGreen, "验证: 通过");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(
                     $"Macro will complete the craft.\n" +
@@ -458,11 +458,11 @@ public class RecipeCraftSettingsPopup
         {
             var (color, label) = _validationResult.Failure switch
             {
-                MacroValidationFailure.CPExhausted          => (ImGuiColors.DalamudRed,    "FAIL \u2014 CP exhausted"),
-                MacroValidationFailure.DurabilityFailed     => (ImGuiColors.DalamudRed,    "FAIL \u2014 durability broke"),
-                MacroValidationFailure.InsufficientProgress => (ImGuiColors.DalamudYellow, "WARN \u2014 insufficient progress"),
-                MacroValidationFailure.ActionUnusable       => (ImGuiColors.DalamudYellow, "WARN \u2014 action unusable"),
-                _                                           => (ImGuiColors.DalamudRed,    "FAIL"),
+                MacroValidationFailure.CPExhausted          => (ImGuiColors.DalamudRed,    "失败 \u2014 制作力耗尽"),
+                MacroValidationFailure.DurabilityFailed     => (ImGuiColors.DalamudRed,    "失败 \u2014 耐久度归零"),
+                MacroValidationFailure.InsufficientProgress => (ImGuiColors.DalamudYellow, "警告 \u2014 进度不足"),
+                MacroValidationFailure.ActionUnusable       => (ImGuiColors.DalamudYellow, "警告 \u2014 技能不可用"),
+                _                                           => (ImGuiColors.DalamudRed,    "失败"),
             };
             ImGui.TextColored(color, $"Validation: {label} (step {_validationResult.FailedAtStep})");
             if (ImGui.IsItemHovered())
@@ -476,7 +476,7 @@ public class RecipeCraftSettingsPopup
     private void DrawMacroSelector()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Macro:");
+        ImGui.Text("宏:");
         ImGui.SameLine(120);
 
         var allMacros = CraftingGameInterop.UserMacroLibrary.GetAllMacros();
@@ -514,22 +514,22 @@ public class RecipeCraftSettingsPopup
         if (ImGui.BeginCombo("##MacroSelector", currentMacroName))
         {
             var isDefault = _editingSettings.SolverOverride == SolverOverrideMode.Default && string.IsNullOrEmpty(_editingSettings.SelectedMacroId);
-            if (ImGui.Selectable("Default (Use Solver)", isDefault))
+            if (ImGui.Selectable("默认（使用求解器）", isDefault))
             {
                 _editingSettings.SelectedMacroId = null;
                 _editingSettings.SolverOverride = SolverOverrideMode.Default;
             }
-            if (ImGui.Selectable("Standard Solver", _editingSettings.SolverOverride == SolverOverrideMode.StandardSolver))
+            if (ImGui.Selectable("标准求解器", _editingSettings.SolverOverride == SolverOverrideMode.StandardSolver))
             {
                 _editingSettings.SelectedMacroId = null;
                 _editingSettings.SolverOverride = SolverOverrideMode.StandardSolver;
             }
-            if (ImGui.Selectable("Raphael Solver", _editingSettings.SolverOverride == SolverOverrideMode.RaphaelSolver))
+            if (ImGui.Selectable("Raphael 求解器", _editingSettings.SolverOverride == SolverOverrideMode.RaphaelSolver))
             {
                 _editingSettings.SelectedMacroId = null;
                 _editingSettings.SolverOverride = SolverOverrideMode.RaphaelSolver;
             }
-            if (ImGui.Selectable("Progress Only", _editingSettings.SolverOverride == SolverOverrideMode.ProgressOnlySolver))
+            if (ImGui.Selectable("仅推进度", _editingSettings.SolverOverride == SolverOverrideMode.ProgressOnlySolver))
             {
                 _editingSettings.SelectedMacroId = null;
                 _editingSettings.SolverOverride = SolverOverrideMode.ProgressOnlySolver;
@@ -566,18 +566,18 @@ public class RecipeCraftSettingsPopup
     {
         return solverOverride switch
         {
-            SolverOverrideMode.StandardSolver     => "Standard Solver",
-            SolverOverrideMode.RaphaelSolver      => "Raphael Solver",
-            SolverOverrideMode.ProgressOnlySolver => "Progress Only",
-            _ when !string.IsNullOrEmpty(macroId) => allMacros.FirstOrDefault(m => m.Id == macroId)?.Name ?? "(Macro Not Found)",
-            _                                     => "Default (Use Solver)",
+            SolverOverrideMode.StandardSolver     => "标准求解器",
+            SolverOverrideMode.RaphaelSolver      => "Raphael 求解器",
+            SolverOverrideMode.ProgressOnlySolver => "仅推进度",
+            _ when !string.IsNullOrEmpty(macroId) => allMacros.FirstOrDefault(m => m.Id == macroId)?.Name ?? "（未找到宏）",
+            _                                     => "默认（使用求解器）",
         };
     }
 
     private void DrawFoodSelector()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Food:");
+        ImGui.Text("食物:");
         ImGui.SameLine(120);
 
         if (_editingListItem != null || _isPrecraftMode)
@@ -590,7 +590,7 @@ public class RecipeCraftSettingsPopup
             if (_editingSettings.FoodMode == ConsumableOverrideMode.Inherit)
             {
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"List: {GetConsumableDisplayName(_editingList?.Consumables.FoodItemId, _editingList?.Consumables.FoodHQ ?? false)}");
+                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"清单: {GetConsumableDisplayName(_editingList?.Consumables.FoodItemId, _editingList?.Consumables.FoodHQ ?? false)}");
             }
             else if (_editingSettings.FoodMode == ConsumableOverrideMode.Specific)
             {
@@ -607,17 +607,17 @@ public class RecipeCraftSettingsPopup
     {
         var currentFood = _editingSettings.FoodItemId.HasValue
             ? GetItemName(_editingSettings.FoodItemId.Value) + (_editingSettings.FoodHQ ? $" {(char)SeIconChar.HighQuality}" : "")
-            : "None";
+            : "无";
         ImGui.SetNextItemWidth(-1);
         if (ImGui.BeginCombo("##FoodSelector", currentFood))
         {
-            if (ImGui.Selectable("None", !_editingSettings.FoodItemId.HasValue))
+            if (ImGui.Selectable("无", !_editingSettings.FoodItemId.HasValue))
             {
                 _editingSettings.FoodItemId = null;
                 _editingSettings.FoodHQ = false;
             }
             ImGui.Separator();
-            ImGui.InputTextWithHint("##FoodSearch", "Search food...", ref _foodSearch, 128);
+            ImGui.InputTextWithHint("##FoodSearch", "搜索食物...", ref _foodSearch, 128);
             var filteredFood = string.IsNullOrWhiteSpace(_foodSearch)
                 ? _foodItems
                 : _foodItems.Where(f => f.Name.Contains(_foodSearch, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -637,7 +637,7 @@ public class RecipeCraftSettingsPopup
     private void DrawMedicineSelector()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Medicine:");
+        ImGui.Text("药品:");
         ImGui.SameLine(120);
 
         if (_editingListItem != null || _isPrecraftMode)
@@ -650,7 +650,7 @@ public class RecipeCraftSettingsPopup
             if (_editingSettings.MedicineMode == ConsumableOverrideMode.Inherit)
             {
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"List: {GetConsumableDisplayName(_editingList?.Consumables.MedicineItemId, _editingList?.Consumables.MedicineHQ ?? false)}");
+                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"清单: {GetConsumableDisplayName(_editingList?.Consumables.MedicineItemId, _editingList?.Consumables.MedicineHQ ?? false)}");
             }
             else if (_editingSettings.MedicineMode == ConsumableOverrideMode.Specific)
             {
@@ -667,17 +667,17 @@ public class RecipeCraftSettingsPopup
     {
         var currentMedicine = _editingSettings.MedicineItemId.HasValue
             ? GetItemName(_editingSettings.MedicineItemId.Value) + (_editingSettings.MedicineHQ ? $" {(char)SeIconChar.HighQuality}" : "")
-            : "None";
+            : "无";
         ImGui.SetNextItemWidth(-1);
         if (ImGui.BeginCombo("##MedicineSelector", currentMedicine))
         {
-            if (ImGui.Selectable("None", !_editingSettings.MedicineItemId.HasValue))
+            if (ImGui.Selectable("无", !_editingSettings.MedicineItemId.HasValue))
             {
                 _editingSettings.MedicineItemId = null;
                 _editingSettings.MedicineHQ = false;
             }
             ImGui.Separator();
-            ImGui.InputTextWithHint("##MedicineSearch", "Search medicine...", ref _medicineSearch, 128);
+            ImGui.InputTextWithHint("##MedicineSearch", "搜索药品...", ref _medicineSearch, 128);
             var filteredMedicine = string.IsNullOrWhiteSpace(_medicineSearch)
                 ? _medicineItems
                 : _medicineItems.Where(m => m.Name.Contains(_medicineSearch, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -697,7 +697,7 @@ public class RecipeCraftSettingsPopup
     private void DrawManualSelector()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Manual:");
+        ImGui.Text("秘籍:");
         ImGui.SameLine(120);
 
         if (_editingListItem != null || _isPrecraftMode)
@@ -711,7 +711,7 @@ public class RecipeCraftSettingsPopup
             {
                 ImGui.SameLine();
                 var listManualId = _editingList?.Consumables.ManualItemId;
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"List: {(listManualId.HasValue ? GetItemName(listManualId.Value) : "None")}");
+                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"清单: {(listManualId.HasValue ? GetItemName(listManualId.Value) : "无")}");
             }
             else if (_editingSettings.ManualMode == ConsumableOverrideMode.Specific)
             {
@@ -728,9 +728,9 @@ public class RecipeCraftSettingsPopup
     {
         var manualId = _editingSettings.ManualItemId ?? 0;
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("##ManualSelector", manualId == 0 ? "None" : GetItemName(manualId)))
+        if (ImGui.BeginCombo("##ManualSelector", manualId == 0 ? "无" : GetItemName(manualId)))
         {
-            if (ImGui.Selectable("None", manualId == 0))
+            if (ImGui.Selectable("无", manualId == 0))
                 _editingSettings.ManualItemId = null;
             foreach (var (itemId, name) in _manualItems)
             {
@@ -744,7 +744,7 @@ public class RecipeCraftSettingsPopup
     private void DrawSquadronManualSelector()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Squadron Manual:");
+        ImGui.Text("军用秘籍:");
         ImGui.SameLine(120);
 
         if (_editingListItem != null || _isPrecraftMode)
@@ -758,7 +758,7 @@ public class RecipeCraftSettingsPopup
             {
                 ImGui.SameLine();
                 var listSquadronId = _editingList?.Consumables.SquadronManualItemId;
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"List: {(listSquadronId.HasValue ? GetItemName(listSquadronId.Value) : "None")}");
+                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), $"清单: {(listSquadronId.HasValue ? GetItemName(listSquadronId.Value) : "无")}");
             }
             else if (_editingSettings.SquadronManualMode == ConsumableOverrideMode.Specific)
             {
@@ -775,9 +775,9 @@ public class RecipeCraftSettingsPopup
     {
         var squadronId = _editingSettings.SquadronManualItemId ?? 0;
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("##SquadronManualSelector", squadronId == 0 ? "None" : GetItemName(squadronId)))
+        if (ImGui.BeginCombo("##SquadronManualSelector", squadronId == 0 ? "无" : GetItemName(squadronId)))
         {
-            if (ImGui.Selectable("None", squadronId == 0))
+            if (ImGui.Selectable("无", squadronId == 0))
                 _editingSettings.SquadronManualItemId = null;
             foreach (var (itemId, name) in _squadronManualItems)
             {
@@ -789,7 +789,7 @@ public class RecipeCraftSettingsPopup
     }
 
     private string GetConsumableDisplayName(uint? itemId, bool hq)
-        => itemId.HasValue ? GetItemName(itemId.Value) + (hq ? $" {(char)SeIconChar.HighQuality}" : "") : "None";
+        => itemId.HasValue ? GetItemName(itemId.Value) + (hq ? $" {(char)SeIconChar.HighQuality}" : "") : "无";
 
     private void LoadConsumables()
     {
@@ -914,7 +914,7 @@ public class RecipeCraftSettingsPopup
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
         if (itemSheet != null && itemSheet.TryGetRow(itemId, out var item))
             return item.Name.ExtractText();
-        return "Unknown";
+        return "未知";
     }
     
     private void LoadIngredients()
@@ -991,11 +991,11 @@ public class RecipeCraftSettingsPopup
             var currentQuality = CalculateCurrentQuality(recipe.Value);
             var maxQuality = CalculateMaxQuality(recipe.Value);
             
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "Ingredient Quality:");
+            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "材料品质:");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(1.0f, 1.0f, 0.5f, 1), $"{currentQuality}/{maxQuality}");
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Starting quality from HQ materials: {currentQuality}\nRecipe's maximum quality: {maxQuality}");
+                ImGui.SetTooltip($"HQ 材料初始品质: {currentQuality}\n配方的最高品质: {maxQuality}");
         }
         else
         {

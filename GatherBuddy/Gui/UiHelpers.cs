@@ -150,7 +150,7 @@ public partial class Interface
             if (File.Exists(GatherBuddy.GameData.OverrideFile))
             {
                 ImGui.SameLine(0, 50 * ImGuiHelpers.GlobalScale);
-                if (ImUtf8.SmallButton("Reimport Fish Overrides") && GatherBuddy.GameData.ReimportOverrides())
+                if (ImUtf8.SmallButton("重新导入鱼类覆盖数据") && GatherBuddy.GameData.ReimportOverrides())
                 {
                     GatherBuddy.UptimeManager.ResetModifiedUptimes();
                     foreach (var fish in ExtendedFishList.Where(f => f.Data.HasOverridenData))
@@ -176,7 +176,7 @@ public partial class Interface
             if (GatherBuddy.GameData.OverriddenFish > 0)
             {
                 ImGui.SameLine(0, 50 * ImGuiHelpers.GlobalScale);
-                ImUtf8.Text($"{GatherBuddy.GameData.OverriddenFish} Fish Overridden");
+                ImUtf8.Text($"{GatherBuddy.GameData.OverriddenFish} 鱼类覆盖已应用");
             }
         }
     }

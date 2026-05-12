@@ -21,7 +21,7 @@ public static partial class Fish
             return fish;
         }
 
-        data.Log.Error($"Could not find fish {id}.");
+        data.Log.Error($"找不到鱼类 {id}");
         return null;
     }
 
@@ -34,7 +34,7 @@ public static partial class Fish
         {
             fish!.PreviousWeather = previousWeathers.Select(w => data.Weathers.TryGetValue(w, out var weather)
                     ? weather
-                    : throw new Exception($"Could not find weather {w}."))
+                    : throw new Exception($"找不到天气 {w}."))
                 .ToArray();
             fish.FishRestrictions |= FishRestrictions.Weather;
         }
@@ -55,7 +55,7 @@ public static partial class Fish
         {
             fish!.CurrentWeather = weathers.Select(w => data.Weathers.TryGetValue(w, out var weather)
                     ? weather
-                    : throw new Exception($"Could not find weather {w}."))
+                    : throw new Exception($"找不到天气 {w}."))
                 .ToArray();
             fish.FishRestrictions |= FishRestrictions.Weather;
         }
@@ -77,7 +77,7 @@ public static partial class Fish
 
         if (fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set bait for spearfish.");
+            data.Log.Error("尝试为刺鱼设置钓饵");
             return fish;
         }
 
@@ -91,7 +91,7 @@ public static partial class Fish
                     fsh,
                 ];
             else
-                throw new Exception($"Could not find bait {baitId.Value}.");
+                throw new Exception($"找不到钓饵 {baitId.Value}.");
         }
         catch (Exception e)
         {
@@ -117,7 +117,7 @@ public static partial class Fish
 
         if (fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set bait for spearfish.");
+            data.Log.Error("尝试为刺鱼设置钓饵");
             return fish;
         }
 
@@ -129,7 +129,7 @@ public static partial class Fish
                     fsh,
                 ];
             else
-                throw new Exception($"Could not find fish {moochId}.");
+                throw new Exception($"找不到以小钓大的鱼类 {moochId}.");
         }
         catch (Exception e)
         {
@@ -146,16 +146,16 @@ public static partial class Fish
 
         if (fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set bait for spearfish.");
+            data.Log.Error("尝试为刺鱼设置钓饵");
             return fish;
         }
 
         try
         {
-            fish.InitialBait = data.Bait.TryGetValue(baitId, out var bait) ? bait : throw new Exception($"Could not find bait {baitId}.");
+            fish.InitialBait = data.Bait.TryGetValue(baitId, out var bait) ? bait : throw new Exception($"找不到钓饵 {baitId}.");
             fish.Mooches = items.Prepend(mooch1).Select(f => data.Fishes.TryGetValue(f, out var fsh)
                     ? fsh
-                    : throw new Exception($"Could not find fish {f}."))
+                    : throw new Exception($"找不到鱼类 {f}."))
                 .ToArray();
         }
         catch (Exception e)
@@ -180,7 +180,7 @@ public static partial class Fish
             fish.Predators = predators.Where(p => p.Item2 > 0)
                 .Select(p => data.Fishes.TryGetValue(p.Item1, out var fsh)
                     ? (fsh, p.Item2)
-                    : throw new Exception($"Could not find fish {p.Item1}."))
+                    : throw new Exception($"找不到鱼类 {p.Item1}."))
                 .ToArray();
         }
         catch (Exception e)
@@ -208,7 +208,7 @@ public static partial class Fish
 
         if (fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set snagging for spearfish.");
+            data.Log.Error("尝试为刺鱼设置钓组");
             return fish;
         }
 
@@ -223,7 +223,7 @@ public static partial class Fish
 
         if (fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set bite for spearfish.");
+            data.Log.Error("尝试为刺鱼设置咬钩类型");
             return fish;
         }
 
@@ -240,7 +240,7 @@ public static partial class Fish
 
         if (!fish.IsSpearFish)
         {
-            data.Log.Error("Tried to set spearfish data for regular fish.");
+            data.Log.Error("尝试为普通鱼类设置刺鱼数据");
             return fish;
         }
 
@@ -276,7 +276,7 @@ public static partial class Fish
 
         fish.SurfaceSlap = data.Fishes.TryGetValue(fishId, out var fsh)
             ? fsh
-            : throw new Exception($"Could not find fish {fishId}.");
+            : throw new Exception($"找不到鱼类 {fishId}.");
         return fish;
     }
 
@@ -325,7 +325,7 @@ public static partial class Fish
 
         fish.CosmicMission = data.CosmicFishingMissions.TryGetValue(value, out var mission)
             ? mission
-            : throw new Exception($"Could not find cosmic fishing mission {value}.");
+            : throw new Exception($"找不到太空钓鱼任务 {value}.");
         return fish;
     }
 
@@ -434,7 +434,7 @@ public static partial class Fish
                 {
                     if (!data.Fishes.TryGetValue(custom.ItemId, out var fish))
                     {
-                        data.Log.Warning($"Could not identify fish with ItemID {custom.ItemId} at index {index}.");
+                        data.Log.Warning($"无法识别 ItemID 为 {custom.ItemId} 的鱼类，位于索引 {index}");
                         continue;
                     }
 
@@ -492,16 +492,16 @@ public static partial class Fish
                 }
                 catch (Exception e)
                 {
-                    data.Log.Warning($"Error applying fish override data at index {index}:\n{e}");
+                    data.Log.Warning($"应用鱼类覆盖数据时出错，位于索引 {index}:\n{e}");
                 }
             }
 
-            data.Log.Information($"Successfully applied {count} fish data overrides.");
+            data.Log.Information($"已成功应用 {count} 条鱼类覆盖数据");
             return count > 0;
         }
         catch (Exception ex)
         {
-            data.Log.Error($"Error reading fish override file:\n{ex}");
+            data.Log.Error($"读取鱼类覆盖文件时出错:\n{ex}");
             return false;
         }
     }

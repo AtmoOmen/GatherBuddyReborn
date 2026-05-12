@@ -48,12 +48,12 @@ public partial class AutoGather
         {
             StopNavigation();
             EnqueueActionWithDelay(() => ActionManager.Instance()->UseAction(ActionType.GeneralAction, 14));
-            TaskManager.Enqueue(() => MaterializeAddon != null, "MaterializeAddon != null");
+            TaskManager.Enqueue(() => MaterializeAddon != null, "精魔晶石界面已打开");
             return;
         }
 
         EnqueueActionWithDelay(() => { if (MaterializeAddon is var addon and not null) Callback.Fire(&addon->AtkUnitBase, true, 2, 0); });
-        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], "!Dalamud.Conditions[ConditionFlag.Occupied39]");
+        TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Occupied39], "等待占用状态解除");
         EnqueueActionWithDelay(() => { });
 
         if (SpiritbondMax == 1) 

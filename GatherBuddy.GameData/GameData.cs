@@ -90,7 +90,7 @@ public class GameData
 
             Weathers = DataManager.GetExcelSheet<WeatherRow>()
                 .ToFrozenDictionary(w => w.RowId, w => new Weather(w));
-            Log.Verbose("Collected {NumWeathers} different Weathers.", Weathers.Count);
+            Log.Verbose("已收集 {NumWeathers} 种天气", Weathers.Count);
 
             CumulativeWeatherRates = DataManager.GetExcelSheet<WeatherRate>()
                 .ToFrozenDictionary(w => (byte)w.RowId, w => new CumulativeWeatherRates(this, w));
@@ -104,15 +104,15 @@ public class GameData
                 .Select(group => group.First())
                 .OrderBy(t => t.Name)
                 .ToArray();
-            Log.Verbose("Collected {NumWeatherTerritories} different territories with dynamic weather.", WeatherTerritories.Length);
+            Log.Verbose("已收集 {NumWeatherTerritories} 个动态天气区域", WeatherTerritories.Length);
 
             Aetherytes = DataManager.GetExcelSheet<AetheryteRow>()
                 .Where(a => a is { IsAetheryte: true, RowId: > 1 } && a.PlaceName.RowId != 0)
                 .ToFrozenDictionary(a => a.RowId, a => new Aetheryte(this, a));
-            Log.Verbose("Collected {NumAetherytes} different aetherytes.", Aetherytes.Count);
+            Log.Verbose("已收集 {NumAetherytes} 个以太之光", Aetherytes.Count);
             ForcedAetherytes.ApplyMissingAetherytes(this);
             if (Aetherytes.Count is 0)
-                throw new Exception("Could not fetch any aetherytes, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何以太之光数据，这肯定是个错误，终止");
 
             Gatherables = DataManager.GetExcelSheet<GatheringItem>()
                 .Where(g => g.Item.RowId != 0 && g.Item.RowId < 1000000 && g.Item.TryGetValue<Item>(out var i) && !i.Name.IsEmpty)
@@ -121,9 +121,9 @@ public class GameData
                 .Select(group => group.MaxBy(g => g.RowId))
                 .ToFrozenDictionary(g => g.Item.RowId, g => new Gatherable(this, g));
             GatherablesByGatherId = Gatherables.Values.ToFrozenDictionary(g => g.GatheringId, g => g);
-            Log.Verbose("Collected {NumGatherables} different gatherable items.", Gatherables.Count);
+            Log.Verbose("已收集 {NumGatherables} 个可采集物品", Gatherables.Count);
             if (Gatherables.Count is 0)
-                throw new Exception("Could not fetch any gatherables, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何可采集物品数据，这肯定是个错误，终止");
 
             // Create GatheringItemPoint dictionary.
             var tmpGatheringItemPoint = DataManager.GetSubrowExcelSheet<GatheringItemPoint>().SelectMany(g => g)
@@ -148,23 +148,23 @@ public class GameData
                 .Select(b => new GatheringNode(this, tmpGatheringPoints, tmpGatheringItemPoint, b))
                 .Where(n => n.Territory.Id > 1 && n.Items.Count > 0)
                 .ToFrozenDictionary(n => n.Id, n => n);
-            Log.Verbose("Collected {NumGatheringNodes} different gathering nodes", GatheringNodes.Count);
+            Log.Verbose("已收集 {NumGatheringNodes} 个采集点", GatheringNodes.Count);
             if (GatheringNodes.Count is 0)
-                throw new Exception("Could not fetch any gathering nodes, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何采集点数据，这肯定是个错误，终止");
 
             CosmicFishingMissions = DataManager.GetExcelSheet<WKSMissionUnit>()
                 .Where(m => m.Name.ByteLength > 0 && (m.ClassJobCategory[0].RowId is 19 || m.ClassJobCategory[1].RowId is 19))
                 .ToFrozenDictionary(m => (ushort)m.RowId, m => new CosmicMission(m));
-            Log.Verbose("Collected {NumCosmicMissions} different cosmic fishing missions.", CosmicFishingMissions.Count);
+            Log.Verbose("已收集 {NumCosmicMissions} 个宇宙钓鱼任务", CosmicFishingMissions.Count);
 
             Bait = DataManager.GetExcelSheet<Item>()
                 .Where(i => i.ItemSearchCategory.RowId == Structs.Bait.FishingTackleRow)
                 .Concat(DataManager.GetExcelSheet<WKSItemInfo>().Where(i => i.WKSItemSubCategory.RowId is 5)
                     .Select(i => i.Item.Value))
                 .ToFrozenDictionary(b => b.RowId, b => new Bait(b));
-            Log.Verbose("Collected {NumBaits} different types of bait.", Bait.Count);
+            Log.Verbose("已收集 {NumBaits} 种钓饵", Bait.Count);
             if (Bait.Count is 0)
-                throw new Exception("Could not fetch any bait, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何钓饵数据，这肯定是个错误，终止");
 
             var catchData = DataManager.GetExcelSheet<FishingNoteInfo>();
             Fishes = DataManager.GetExcelSheet<FishParameter>()
@@ -176,9 +176,9 @@ public class GameData
                 .GroupBy(f => f.ItemId)
                 .Select(group => group.First())
                 .ToFrozenDictionary(f => f.ItemId, f => f);
-            Log.Verbose("Collected {NumFishes} different types of fish.", Fishes.Count);
+            Log.Verbose("已收集 {NumFishes} 种鱼类", Fishes.Count);
             if (Fishes.Count is 0)
-                throw new Exception("Could not fetch any fish, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何鱼类数据，这肯定是个错误，终止");
 
             Data.Fish.Apply(this);
             OverriddenFish = Fishes.Values.Count(f => f.HasOverridenData);
@@ -192,9 +192,9 @@ public class GameData
                         .Select(sf => new FishingSpot(this, sf)))
                 .Where(f => f.Territory.Id != 0)
                 .ToFrozenDictionary(f => f.Id, f => f);
-            Log.Verbose("Collected {NumFishingSpots} different fishing spots.", FishingSpots.Count);
+            Log.Verbose("已收集 {NumFishingSpots} 个钓场", FishingSpots.Count);
             if (FishingSpots.Count is 0)
-                throw new Exception("Could not fetch any fishing spots, this is certainly an error, terminating.");
+                throw new Exception("无法获取任何钓场数据，这肯定是个错误，终止");
 
             Data.SpearfishingData.Apply(this);
 
@@ -227,7 +227,7 @@ public class GameData
         }
         catch (Exception e)
         {
-            Log.Error($"Error while setting up data:\n{e}");
+            Log.Error($"设置数据时出错:\n{e}");
         }
     }
 
@@ -280,7 +280,7 @@ public class GameData
         var spots = spotSheet.Skip(1).Select(r
                 => fishingSpots.TryGetValue(r.SpotMain.RowId, out var main) && fishingSpots.TryGetValue(r.SpotSub.RowId, out var sub)
                     ? (main, Sub: sub)
-                    : throw new Exception("Invalid fishing spot!"))
+                    : throw new Exception("无效的钓场"))
             .ToArray();
 
         for (var i = 1u; i < routeSheet.Count; ++i)

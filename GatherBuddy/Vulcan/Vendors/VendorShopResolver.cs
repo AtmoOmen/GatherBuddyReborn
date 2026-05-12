@@ -771,7 +771,7 @@ public static class VendorShopResolver
 
                 entries.Add(new VendorShopEntry(
                     itemId, item.Name.ExtractText(), (ushort)item.Icon,
-                    price, GilCurrencyItemId, "Gil", new List<VendorNpc>(npcs), VendorShopType.GilShop, VendorCurrencyGroup.Gil));
+                    price, GilCurrencyItemId, "金币", new List<VendorNpc>(npcs), VendorShopType.GilShop, VendorCurrencyGroup.Gil));
             }
         }
 
@@ -906,7 +906,7 @@ public static class VendorShopResolver
         var currencyItemId = GetGrandCompanySealCurrencyItemId(grandCompanyId);
         return currencyItemId != 0 && itemSheet.TryGetRow(currencyItemId, out var currencyItem)
             ? currencyItem.Name.ExtractText()
-            : "GC Seals";
+            : "军票";
     }
 
     private static int GetGrandCompanyRankTabIndex(uint requiredGrandCompanyRank)

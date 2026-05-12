@@ -37,7 +37,7 @@ public partial class AutoGather
 
         if (!AutoHook.Enabled)
         {
-            GatherBuddy.Log.Debug("[AutoGather] AutoHook not available, skipping preset generation");
+            GatherBuddy.Log.Debug("[AutoGather] AutoHook 不可用，跳过预设生成");
             return;
         }
 
@@ -58,7 +58,7 @@ public partial class AutoGather
                 AutoHook.SetPluginState?.Invoke(true);
                 AutoHook.SetAutoStartFishing?.Invoke(true); 
             }
-            GatherBuddy.Log.Verbose($"[AutoGather] Re-enabled existing AutoHook preset '{_currentAutoHookPresetName}'");
+            GatherBuddy.Log.Verbose($"[AutoGather] 重新启用现有 AutoHook 预设 '{_currentAutoHookPresetName}'");
             return;
         }
 
@@ -81,11 +81,11 @@ public partial class AutoGather
                 {
                     // Use first predator fish as preset
                     presetFish = firstPredator;
-                    GatherBuddy.Log.Debug($"[AutoGather] Target fish {target.Fish.Name[GatherBuddy.Language]} first predator not met, using prerequisite fish {presetFish.Name[GatherBuddy.Language]} for preset");
+                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 的第一捕食者未满足，使用前置鱼 {presetFish.Name[GatherBuddy.Language]} 作为预设");
                 }
                 else
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] Target fish {target.Fish.Name[GatherBuddy.Language]} first predator met, using target fish for preset");
+                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 的第一捕食者已满足，使用目标鱼作为预设");
                 }
             }
             
@@ -117,12 +117,12 @@ public partial class AutoGather
                     presetName = userPresetName;
                     isUserPreset = true;
 
-                    GatherBuddy.Log.Information($"[AutoGather] Found user preset '{presetName}' for {fishName}");
+                    GatherBuddy.Log.Information($"[AutoGather] 为 {fishName} 找到用户预设 '{presetName}'");
                     AutoHook.SetPreset?.Invoke(presetName);
                 }
                 else
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] No user preset found for fish ID {fishId}, will generate one");
+                    GatherBuddy.Log.Debug($"[AutoGather] 未找到鱼类 ID {fishId} 的用户预设，将自动生成");
                 }
             }
 
@@ -135,7 +135,7 @@ public partial class AutoGather
                     // At shadow node targeting fish with multiple predators - include all predators (skip first) + target
                     var predatorFish = target.Fish.Predators.Skip(1).Select(p => p.Item1).ToList();
                     fishList = predatorFish.Append(target.Fish).ToArray();
-                    GatherBuddy.Log.Debug($"[AutoGather] Building preset with {fishList.Length} fish for multi-predator chain: {string.Join(", ", fishList.Select(f => f.Name[GatherBuddy.Language]))}");
+                    GatherBuddy.Log.Debug($"[AutoGather] 为多头捕食者链构建包含 {fishList.Length} 条鱼的预设: {string.Join(", ", fishList.Select(f => f.Name[GatherBuddy.Language]))}");
                 }
                 
                 presetName = $"GBR_{fishName.Replace(" ", "")}_{DateTime.Now:HHmmss}";
@@ -143,12 +143,12 @@ public partial class AutoGather
                 // For intuition fish generator will generate _Predators and _Target presets
                 if (isIntuitionFish)
                 {
-                    GatherBuddy.Log.Information($"[AutoGather] Creating intuition presets for {fishName}");
+                    GatherBuddy.Log.Information($"[AutoGather] 为 {fishName} 创建直感预设");
                     presetName = presetName + "_Predators";
                 }
                 else
                 {
-                    GatherBuddy.Log.Information($"[AutoGather] Creating AutoHook preset '{presetName}' for {fishName}");
+                    GatherBuddy.Log.Information($"[AutoGather] 为 {fishName} 创建 AutoHook 预设 '{presetName}'");
                 }
                 
                 bool success;
@@ -164,7 +164,7 @@ public partial class AutoGather
                 
                 if (!success)
                 {
-                    GatherBuddy.Log.Error($"[AutoGather] Failed to create AutoHook preset");
+                    GatherBuddy.Log.Error($"[AutoGather] 创建 AutoHook 预设失败");
                     return;
                 }
             }
@@ -187,36 +187,36 @@ public partial class AutoGather
             {
                 if (AutoHook.SetAutoGigState == null)
                 {
-                    GatherBuddy.Log.Error("[AutoGather] SetAutoGigState IPC is null!");
+                    GatherBuddy.Log.Error("[AutoGather] SetAutoGigState IPC 为空");
                 }
                 else
                 {
                     AutoHook.SetAutoGigState.Invoke(true);
                     _autoHookSetupComplete = true;
-                    GatherBuddy.Log.Information("[AutoGather] Called SetAutoGigState(true) via IPC");
+                    GatherBuddy.Log.Information("[AutoGather] 通过 IPC 调用 SetAutoGigState(true)");
                 }
             }
             else
             {
                 if (AutoHook.SetPluginState == null)
                 {
-                    GatherBuddy.Log.Error("[AutoGather] SetPluginState IPC is null!");
+                    GatherBuddy.Log.Error("[AutoGather] SetPluginState IPC 为空");
                 }
                 else
                 {
                     AutoHook.SetPluginState.Invoke(true);
                     AutoHook.SetAutoStartFishing?.Invoke(true);
                     _autoHookSetupComplete = true;
-                    GatherBuddy.Log.Information("[AutoGather] AutoHook enabled for fishing");
+                    GatherBuddy.Log.Information("[AutoGather] AutoHook 已为钓鱼启用");
                 }
             }
             
             var presetType = isUserPreset ? "user" : "generated";
-            GatherBuddy.Log.Information($"[AutoGather] AutoHook preset '{presetName}' ({presetType}) for {fishName} selected and activated successfully");
+            GatherBuddy.Log.Information($"[AutoGather] 为 {fishName} 的 AutoHook 预设 '{presetName}'（{presetType}）已成功选择并激活");
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[AutoGather] Exception setting up AutoHook: {ex.Message}");
+            GatherBuddy.Log.Error($"[AutoGather] 设置 AutoHook 时发生异常: {ex.Message}");
         }
     }
 
@@ -231,19 +231,19 @@ public partial class AutoGather
             {
                 if (_isCurrentPresetUserOwned)
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] Preserving user-owned preset '{_currentAutoHookPresetName}'");
+                    GatherBuddy.Log.Debug($"[AutoGather] 保留用户拥有的预设 '{_currentAutoHookPresetName}'");
                 }
                 else
                 {
                     AutoHook.SetPreset?.Invoke(_currentAutoHookPresetName);
                     AutoHook.DeleteSelectedPreset?.Invoke();
-                    GatherBuddy.Log.Debug($"[AutoGather] Deleted GBR-generated preset '{_currentAutoHookPresetName}'");
+                    GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookPresetName}'");
                     
                     if (_currentAutoHookTargetPresetName != null)
                     {
                         AutoHook.SetPreset?.Invoke(_currentAutoHookTargetPresetName);
                         AutoHook.DeleteSelectedPreset?.Invoke();
-                        GatherBuddy.Log.Debug($"[AutoGather] Deleted GBR-generated preset '{_currentAutoHookTargetPresetName}'");
+                        GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookTargetPresetName}'");
                     }
                 }
             }
@@ -251,11 +251,11 @@ public partial class AutoGather
             AutoHook.SetPluginState?.Invoke(false);
             AutoHook.SetAutoStartFishing?.Invoke(false);
             AutoHook.SetAutoGigState?.Invoke(false);
-            GatherBuddy.Log.Debug("[AutoGather] AutoHook/AutoGig disabled");
+            GatherBuddy.Log.Debug("[AutoGather] AutoHook/AutoGig 已禁用");
             
             if (_currentAutoHookTarget.HasValue && _currentAutoHookTarget.Value.Fish?.IsSpearFish == true)
             {
-                GatherBuddy.Log.Debug("[AutoGather] Calling UpdateSpearfishingCatches from CleanupAutoHook");
+                GatherBuddy.Log.Debug("[AutoGather] 从 CleanupAutoHook 调用 UpdateSpearfishingCatches");
                 UpdateSpearfishingCatches();
             }
             
@@ -267,7 +267,7 @@ public partial class AutoGather
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[AutoGather] Exception cleaning up AutoHook: {ex.Message}");
+            GatherBuddy.Log.Error($"[AutoGather] 清理 AutoHook 时发生异常: {ex.Message}");
         }
     }
 
@@ -283,7 +283,7 @@ public partial class AutoGather
             var configPath = Path.Combine(pluginConfigsDir, "AutoHook.json");
             if (!File.Exists(configPath))
             {
-                GatherBuddy.Log.Debug($"[AutoGather] AutoHook config not found at {configPath}");
+                GatherBuddy.Log.Debug($"[AutoGather] 在 {configPath} 找不到 AutoHook 配置");
                 return null;
             }
 
@@ -293,7 +293,7 @@ public partial class AutoGather
             var customPresets = config["HookPresets"]?["CustomPresets"] as JArray;
             if (customPresets == null)
             {
-                GatherBuddy.Log.Debug("[AutoGather] No CustomPresets found in AutoHook config");
+                GatherBuddy.Log.Debug("[AutoGather] 在 AutoHook 配置中找不到 CustomPresets");
                 return null;
             }
 
@@ -302,7 +302,7 @@ public partial class AutoGather
                 var presetName = preset?["PresetName"]?.ToString();
                 if (presetName != null && presetName.Equals(fishId, StringComparison.Ordinal))
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] Found matching preset in config: {presetName}");
+                    GatherBuddy.Log.Debug($"[AutoGather] 在配置中找到匹配的预设: {presetName}");
                     return presetName;
                 }
             }
@@ -311,7 +311,7 @@ public partial class AutoGather
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[AutoGather] Error reading AutoHook config: {ex.Message}");
+            GatherBuddy.Log.Error($"[AutoGather] 读取 AutoHook 配置时出错: {ex.Message}");
             return null;
         }
     }

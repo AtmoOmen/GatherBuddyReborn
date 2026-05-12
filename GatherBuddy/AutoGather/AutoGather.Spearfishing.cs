@@ -46,7 +46,7 @@ namespace GatherBuddy.AutoGather
                     SpearfishingSessionCatches[fishId] += caught;
                     _spawnRequirementsMetCache.Clear();
                     var fishName = GatherBuddy.GameData.Fishes.TryGetValue(fishId, out var fish) ? fish.Name[GatherBuddy.Language] : fishId.ToString();
-                    GatherBuddy.Log.Information($"[Spearfishing] Caught {caught}x {fishName}, session total: {SpearfishingSessionCatches[fishId]}");
+                    GatherBuddy.Log.Information($"[Spearfishing] 捕获 {caught}x {fishName}，会话总计: {SpearfishingSessionCatches[fishId]}");
                 }
             }
             
@@ -60,7 +60,7 @@ namespace GatherBuddy.AutoGather
             
             if (!IsGathering && _spawnRequirementsMetCache.TryGetValue(shadowNode.Id, out var cached))
             {
-                GatherBuddy.Log.Debug($"[Spearfishing] Using cached requirement status for shadow node {shadowNode.Id}: {cached}");
+                GatherBuddy.Log.Debug($"[Spearfishing] 使用缓存的影子节点 {shadowNode.Id} 需求状态: {cached}");
                 return cached;
             }
                 
@@ -69,7 +69,7 @@ namespace GatherBuddy.AutoGather
             {
                 var caughtCount = SpearfishingSessionCatches.GetValueOrDefault(requirement.RequiredFish.ItemId, 0);
                 var reqFishName = GatherBuddy.GameData.Fishes.TryGetValue(requirement.RequiredFish.ItemId, out var fish) ? fish.Name[GatherBuddy.Language] : requirement.RequiredFish.ItemId.ToString();
-                GatherBuddy.Log.Debug($"[Spearfishing] Requirement check: {reqFishName} - caught {caughtCount}/{requirement.Count}");
+                GatherBuddy.Log.Debug($"[Spearfishing] 需求检查: {reqFishName} - 已捕获 {caughtCount}/{requirement.Count}");
                 if (caughtCount < requirement.Count)
                 {
                     allMet = false;
@@ -77,7 +77,7 @@ namespace GatherBuddy.AutoGather
                 }
             }
             
-            GatherBuddy.Log.Debug($"[Spearfishing] Requirements met for shadow node {shadowNode.Id}: {allMet}");
+            GatherBuddy.Log.Debug($"[Spearfishing] 影子节点 {shadowNode.Id} 的需求已满足: {allMet}");
             
             if (!IsGathering)
                 _spawnRequirementsMetCache[shadowNode.Id] = allMet;

@@ -113,7 +113,7 @@ public static class Communicator
         if (e != null)
         {
             name = name.Length > 0 ? name : "<未命名>";
-            GatherBuddy.Log.Error($"Could not save {objectType}{name} to Clipboard:\n{e}");
+            GatherBuddy.Log.Error($"无法将 {objectType}{name} 保存到剪贴板:\n{e}");
             PrintError($"无法保存 {objectType}", name, GatherBuddy.Config.SeColorNames, " 到剪贴板");
         }
         else if (GatherBuddy.Config.PrintClipboardMessages)
@@ -180,7 +180,7 @@ public static class Communicator
         if (item == null)
         {
             Print("找不到匹配的物品: \"", name, GatherBuddy.Config.SeColorNames, "\".");
-            GatherBuddy.Log.Verbose($"Could not find item corresponding to \"{name}\".");
+            GatherBuddy.Log.Verbose($"找不到与 \"{name}\" 对应的物品");
             return;
         }
 

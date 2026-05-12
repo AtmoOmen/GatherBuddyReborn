@@ -40,11 +40,11 @@ public static class ItemHelper
                 return Math.Max(0, nq) + Math.Max(0, hq);
             }
 
-            LogInventoryManagerFallback($"[ItemHelper] InventoryManager unavailable while counting item {itemId}, falling back to inventory bags only");
+            LogInventoryManagerFallback($"[物品助手] 计数物品 {itemId} 时 InventoryManager 不可用，回退到仅背包计数");
         }
         catch (Exception ex)
         {
-            LogInventoryManagerFallback($"[ItemHelper] Failed to count item {itemId} with InventoryManager: {ex.Message}");
+            LogInventoryManagerFallback($"[物品助手] 用 InventoryManager 计数物品 {itemId} 失败: {ex.Message}");
         }
 
         return GetCurrentInventoryItems()

@@ -66,7 +66,7 @@ public partial class FishingParser : IDisposable
 
         if (!GatherBuddy.GameData.Fishes.TryGetValue(fishId, out var fish))
         {
-            GatherBuddy.Log.Error($"Unknown fish id {fishId} caught.");
+            GatherBuddy.Log.Error($"捕获了未知鱼类 ID {fishId}");
             return;
         }
 

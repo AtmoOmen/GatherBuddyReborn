@@ -96,7 +96,7 @@ public class UptimeManager : IDisposable
         
         if (closest == null)
         {
-            GatherBuddy.Log.Warning($"No valid location found for {item.Name[GatherBuddy.Language]}. Using fallback location.");
+            GatherBuddy.Log.Warning($"找不到 {item.Name[GatherBuddy.Language]} 的有效位置。使用后备位置");
             closest = (ILocation?)GatherBuddy.GameData.GatheringNodes.Values.FirstOrDefault() ?? GatherBuddy.GameData.FishingSpots.Values.FirstOrDefault()!;
         }
         
@@ -215,7 +215,7 @@ public class UptimeManager : IDisposable
             Debug.Assert(loc != null);
             _bestUptime[item.InternalLocationId] = (loc, bestTime);
             if (item is Fish fish && stopwatch.ElapsedMilliseconds >= 10)
-                GatherBuddy.Log.Debug($"[UptimeManager] Recomputed uptime for {fish.Name[GatherBuddy.Language]} in {stopwatch.ElapsedMilliseconds} ms ({fish.FishingSpots.Count} spots, result={bestTime}).");
+                GatherBuddy.Log.Debug($"[UptimeManager] 已重新计算 {fish.Name[GatherBuddy.Language]} 的活跃时间，耗时 {stopwatch.ElapsedMilliseconds} ms ({fish.FishingSpots.Count} 个钓场，结果={bestTime})");
             UptimeChange?.Invoke(item);
         }
 

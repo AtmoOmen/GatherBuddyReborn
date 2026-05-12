@@ -38,7 +38,7 @@ public sealed partial class VendorBuyListManager : IDisposable
     private static readonly TimeSpan ShopCloseRetryDelay        = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan ShopCloseTimeout           = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ShopCloseBlockerLogDelay   = TimeSpan.FromSeconds(1);
-    private const           string   DefaultVendorBuyListName   = "Default";
+    private const           string   DefaultVendorBuyListName   = "默认";
 
     private Guid?    _activeEntryId;
     private Guid?    _runningListId;
@@ -125,7 +125,7 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         ResetShopCloseWaitState();
         ResetExecutionState();
-        _statusText    = "Timed out leaving the previous vendor interaction.";
+        _statusText    = "离开上次 NPC 交互超时";
         GatherBuddy.Log.Error($"[VendorBuyListManager] Timed out leaving the previous vendor interaction. Last blocker: {blocker}");
         Communicator.PrintError("[GatherBuddyReborn] Timed out leaving the previous vendor interaction.");
     }

@@ -270,7 +270,7 @@ public partial class Interface
         }
         else
         {
-            ImUtf8.Text("No fish available.");
+            ImUtf8.Text("没有可用的鱼");
         }
     }
 
@@ -308,7 +308,7 @@ public partial class Interface
             foreach (var (baitId, entries) in baitGroups)
             {
                 var bait = GatherBuddy.GameData.Bait.GetValueOrDefault(baitId);
-                ImUtf8.BulletText($"Bait: {bait?.Name ?? "Unknown"}");
+                ImUtf8.BulletText($"钓饵: {bait?.Name ?? "未知"}");
 
                 DrawAmountCaught(entries.Count);
                 DrawCatchPercentage(entries, recordsAtSpot.Count(r => r.BaitId == baitId));
@@ -430,8 +430,8 @@ public partial class Interface
 
         // Titles
         drawList.AddText(new Vector2(cursor.X + leftMargin + chartWidth * 0.5f - 20f, origin.Y + 20f), ImGui.GetColorU32(ImGuiCol.Text),
-            "Size");
-        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(cursor.X + 5f, cursor.Y), ImGui.GetColorU32(ImGuiCol.Text), "Count");
+            "尺寸");
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(cursor.X + 5f, cursor.Y), ImGui.GetColorU32(ImGuiCol.Text), "数量");
 
         // Legend
         var legendX = origin.X + chartWidth + 10f;
@@ -441,9 +441,9 @@ public partial class Interface
             var sizeName =
                 new List<string>
                 {
-                    "Average",
-                    "Large",
-                    "Big Game Fishing",
+                    "中型",
+                    "大型",
+                    "大鱼",
                 }[i];
             var label = $"{sizeName}";
             drawList.AddRectFilled(new Vector2(legendX, legendY), new Vector2(legendX + textHeight, legendY + textHeight),
@@ -458,13 +458,13 @@ public partial class Interface
 
     private static void DrawAmountCaught(int count)
     {
-        ImUtf8.Text($"Caught: {count} times");
+        ImUtf8.Text($"钓获: {count} 次");
     }
 
     private static void DrawCatchPercentage(List<FishRecord> entries, int baitTotal)
     {
         var percentage = entries.Count / (float)baitTotal * 100f;
-        ImUtf8.Text($"Percent of baited catches: {percentage:F2}");
+        ImUtf8.Text($"上饵钓获比例: {percentage:F2}");
     }
 
     private static void DrawBiteTimeHistogram(List<FishRecord> entries)
@@ -714,8 +714,8 @@ public partial class Interface
 
         // Titles
         drawList.AddText(new Vector2(cursor.X + leftMargin + chartWidth * 0.5f - 20f, origin.Y + 20f), ImGui.GetColorU32(ImGuiCol.Text),
-            "Bite Time");
-        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(cursor.X + 5f, cursor.Y), ImGui.GetColorU32(ImGuiCol.Text), "Count");
+            "咬钩时间");
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(cursor.X + 5f, cursor.Y), ImGui.GetColorU32(ImGuiCol.Text), "数量");
 
         // Legend
         var legendX = origin.X + chartWidth + 10f;
@@ -736,13 +736,13 @@ public partial class Interface
             var baitName =
                 new List<string>
                 {
-                    "Chum",
-                    "AmbitiousLure1",
-                    "AmbitiousLure2",
-                    "AmbitiousLure3",
-                    "ModestLure1",
-                    "ModestLure2",
-                    "ModestLure3",
+                    "撒饵",
+                    "雄心之饵 Lv1",
+                    "雄心之饵 Lv2",
+                    "雄心之饵 Lv3",
+                    "谦逊之饵 Lv1",
+                    "谦逊之饵 Lv2",
+                    "谦逊之饵 Lv3",
                 }[k];
             var label = $"{baitName}";
             if (k == 0)

@@ -109,7 +109,7 @@ namespace GatherBuddy.AutoGather
             var enemyId = enemy.GameObjectId;
             TargetByGameObject(enemy);
             _lastAetherTarget = DateTime.UtcNow;
-            GatherBuddy.Log.Debug($"[Diadem] Targeting enemy {enemy.Name} (ID: {enemyId}) at {enemy.Position}");
+            GatherBuddy.Log.Debug($"[云冠群岛] 瞄准敌人 {enemy.Name}（ID: {enemyId}），位置 {enemy.Position}");
 
             TaskManager.DelayNext(100);
 
@@ -118,11 +118,11 @@ namespace GatherBuddy.AutoGather
                 var currentTarget = Dalamud.Targets.Target;
                 if (currentTarget == null || currentTarget.GameObjectId != enemyId)
                 {
-                    GatherBuddy.Log.Debug($"[Diadem] Target not set properly. Current: {currentTarget?.Name ?? "null"}");
+                    GatherBuddy.Log.Debug($"[云冠群岛] 目标未正确设置。当前: {currentTarget?.Name ?? "null"}");
                     return true;
                 }
 
-                GatherBuddy.Log.Debug($"[Diadem] Target confirmed: {currentTarget.Name}, distance: {Vector3.Distance(Player.Position, currentTarget.Position):F1}y");
+                GatherBuddy.Log.Debug($"[云冠群岛] 目标已确认: {currentTarget.Name}，距离: {Vector3.Distance(Player.Position, currentTarget.Position):F1}y");
                 return true;
             });
 
@@ -131,34 +131,34 @@ namespace GatherBuddy.AutoGather
                 var currentTarget = Dalamud.Targets.Target;
                 if (currentTarget == null)
                 {
-                    GatherBuddy.Log.Debug($"[Diadem] No target when trying to fire");
+                    GatherBuddy.Log.Debug($"[云冠群岛] 尝试开火时无目标");
                     return;
                 }
 
                 var amInstance = ActionManager.Instance();
                 if (amInstance == null)
                 {
-                    GatherBuddy.Log.Debug($"[Diadem] ActionManager.Instance() is null");
+                    GatherBuddy.Log.Debug($"[云冠群岛] ActionManager.Instance() 为空");
                     return;
                 }
 
                 var targetId = currentTarget.GameObjectId;
                 var actionStatus = amInstance->GetActionStatus(ActionType.Action, AethercannonActionId);
-                GatherBuddy.Log.Debug($"[Diadem] Firing at target ID {targetId}, action status: {actionStatus}");
+                GatherBuddy.Log.Debug($"[云冠群岛] 向目标 ID {targetId} 开火，动作状态: {actionStatus}");
 
                 if (actionStatus == 0)
                 {
                     var result = amInstance->UseAction(ActionType.Action, AethercannonActionId, targetId);
-                    GatherBuddy.Log.Debug($"[Diadem] UseAction returned: {result}");
+                    GatherBuddy.Log.Debug($"[云冠群岛] UseAction 返回: {result}");
                 }
                 else
                 {
-                    GatherBuddy.Log.Debug($"[Diadem] Cannot use action, status code: {actionStatus}");
+                    GatherBuddy.Log.Debug($"[云冠群岛] 无法使用动作，状态代码: {actionStatus}");
                 }
             });
 
-            TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Casting], 1000, "Wait for aethercannon cast start");
-            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Casting], 5000, "Wait for aethercannon cast finish");
+            TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Casting], 1000, "等待以太炮发射开始");
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Casting], 5000, "等待以太炮发射完成");
             TaskManager.DelayNext(500);
             return true;
         }

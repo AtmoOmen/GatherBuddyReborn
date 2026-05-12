@@ -23,7 +23,7 @@ public partial class FishRecorder : IDisposable
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not create fish record directory {FishRecordDirectory.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法创建钓鱼记录目录 {FishRecordDirectory.FullName}:\n{e}");
         }
 
         var file = new FileInfo(Path.Combine(FishRecordDirectory.FullName, FishRecordFileName));
@@ -120,7 +120,7 @@ public partial class FishRecorder : IDisposable
 
         if (!Times.TryGetValue(record.Catch!.ItemId, out var data) || !data.Data.TryGetValue(record.Bait.Id, out var times))
         {
-            GatherBuddy.Log.Error("Invalid state in fish records.");
+            GatherBuddy.Log.Error("钓鱼记录状态无效");
             return;
         }
 
@@ -200,13 +200,13 @@ public partial class FishRecorder : IDisposable
     {
         if (!record.PositionDataValid)
         {
-            GatherBuddy.Log.Debug($"[Upload Filter] Skipping upload - position data invalid");
+            GatherBuddy.Log.Debug($"[Upload Filter] 跳过上传 - 位置数据无效");
             return false;
         }
 
         if (record.FishingSpot == null)
         {
-            GatherBuddy.Log.Debug($"[Upload Filter] Skipping upload - fishing spot is null");
+            GatherBuddy.Log.Debug($"[Upload Filter] 跳过上传 - 钓场为空");
             return false;
         }
 
@@ -217,11 +217,11 @@ public partial class FishRecorder : IDisposable
             .Distinct(new Vector3Comparer())
             .ToList();
 
-        GatherBuddy.Log.Debug($"[Upload Filter] Fishing spot '{record.FishingSpot.Name}' has {allKnownPositions.Count} unique positions");
+        GatherBuddy.Log.Debug($"[Upload Filter] 钓场 '{record.FishingSpot.Name}' 有 {allKnownPositions.Count} 个独立位置");
 
         if (allKnownPositions.Count >= 50)
         {
-            GatherBuddy.Log.Debug($"[Upload Filter] Skipping upload - fishing spot already has 50+ positions");
+            GatherBuddy.Log.Debug($"[Upload Filter] 跳过上传 - 该钓场已有超过 50 个位置");
             return false;
         }
 
@@ -230,11 +230,11 @@ public partial class FishRecorder : IDisposable
         
         if (positionExists)
         {
-            GatherBuddy.Log.Debug($"[Upload Filter] Skipping upload - position already exists in database or upload queue");
+            GatherBuddy.Log.Debug($"[Upload Filter] 跳过上传 - 位置已存在于数据库或上传队列");
             return false;
         }
         
-        GatherBuddy.Log.Information($"[Upload Filter] Queuing record for upload - new position for '{record.FishingSpot.Name}' ({recordPosition.X:F2}, {recordPosition.Y:F2}, {recordPosition.Z:F2})");
+        GatherBuddy.Log.Information($"[Upload Filter] 将记录加入上传队列 - '{record.FishingSpot.Name}' 的新位置 ({recordPosition.X:F2}, {recordPosition.Y:F2}, {recordPosition.Z:F2})");
         return true;
     }
 

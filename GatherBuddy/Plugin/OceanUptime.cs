@@ -40,7 +40,7 @@ public static class OceanUptime
 
             if (!Array.Exists(fish.CurrentWeather, weather => weather.Id == currentWeather))
             {
-                GatherBuddy.Log.Error($"{fish.Name.English} cw:{currentWeather} w:{string.Join(", ", fish.CurrentWeather.Select(x => x.Id))}");
+                GatherBuddy.Log.Error($"{fish.Name.English} 当前天气:{currentWeather} 天气:{string.Join(", ", fish.CurrentWeather.Select(x => x.Id))}");
                 return TimeInterval.Invalid;
             }
         }
@@ -74,7 +74,7 @@ public static class OceanUptime
         }
 
         // The lookup above shouldn't fail unless data is wrong or something is awry.
-        GatherBuddy.Log.Warning("Ocean fish was not found accessible in entire loop.");
+        GatherBuddy.Log.Warning("在整个循环中找不到可到达的海洋鱼");
         return TimeInterval.Always;
     }
 }

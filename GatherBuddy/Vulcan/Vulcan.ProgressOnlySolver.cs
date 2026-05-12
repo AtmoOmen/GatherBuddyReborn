@@ -7,7 +7,7 @@ public class ProgressOnlySolverDefinition : ISolverDefinition
     public IEnumerable<ISolverDefinition.Desc> Flavors(CraftState craft)
     {
         if (!craft.CraftExpert && !craft.CraftCollectible)
-            yield return new(this, 0, 1, "Progress Only Solver");
+            yield return new(this, 0, 1, "仅推进度求解器");
     }
 
     public Solver Create(CraftState craft, int flavor) => new ProgressOnlySolver();
