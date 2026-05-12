@@ -82,7 +82,7 @@ public partial class Interface
         var alarmData = which ? _plugin.AlarmManager.LastItemAlarm : _plugin.AlarmManager.LastFishAlarm;
         if (alarmData == null)
         {
-            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "点击前往采集此闹钟物品", true);
+            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "Click to /gather this alarm.", true);
             return;
         }
 
@@ -90,7 +90,7 @@ public partial class Interface
 
         var text = $"{(alarm.Name.Any() ? alarm.Name : alarm.Item.Name[GatherBuddy.Language])}###{(which ? "itemAlarm" : "fishAlarm")}";
         var desc =
-            $"点击前往采集此闹钟物品\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "无"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
+            $"Click to /gather this alarm.\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "None"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
 
         if (!ImGuiUtil.DrawDisabledButton(text, _headerCache.AlarmButtonSize, desc, false))
             return;
@@ -102,10 +102,10 @@ public partial class Interface
     }
 
     private void DrawLastItemAlarm()
-        => DrawLastAlarm(true, "无已触发的采集闹钟");
+        => DrawLastAlarm(true, "No Item Alarm Triggered");
 
     private void DrawLastFishAlarm()
-        => DrawLastAlarm(false, "无已触发的钓鱼闹钟");
+        => DrawLastAlarm(false, "No Fish Alarm Triggered");
 
 
     private void DrawAlarmRow()
@@ -114,14 +114,13 @@ public partial class Interface
         ImGui.SameLine();
         ConfigFunctions.DrawAlarmToggle();
         ImGui.SameLine();
-        const string vulcanButtonText = "Vulcan 自动流";
-        var vulcanButtonWidth = Math.Max(95f * Scale, ImGui.CalcTextSize(vulcanButtonText).X + FramePadding.X * 5f);
+        var vulcanButtonWidth = Math.Max(95f * Scale, ImGui.CalcTextSize("Vulcan").X + FramePadding.X * 5f);
         {
             using var buttonAlign = ImRaii.PushStyle(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
             using var buttonColor = ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.30f, 0.25f, 0.46f, 1f));
             using var buttonHoveredColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.36f, 0.30f, 0.55f, 1f));
             using var buttonActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.24f, 0.20f, 0.38f, 1f));
-            if (ImGui.Button(vulcanButtonText, new Vector2(vulcanButtonWidth, 0f)))
+            if (ImGui.Button("Vulcan", new Vector2(vulcanButtonWidth, 0f)))
             {
                 if (GatherBuddy.VulcanWindow == null)
                 {
@@ -134,7 +133,7 @@ public partial class Interface
                 }
             }
         }
-        ImGuiUtil.HoverTooltip("打开 Vulcan 制作界面");
+        ImGuiUtil.HoverTooltip("Open the Vulcan crafting window.");
         ImGui.SameLine();
         _headerCache.AlarmButtonSize = (ImGui.GetContentRegionAvail().X - ItemSpacing.X) / 2 * Vector2.UnitX;
         DrawLastItemAlarm();
@@ -148,13 +147,15 @@ public partial class Interface
         if (ImGui.IsItemHovered())
         {
             using var tt = ImRaii.Tooltip();
-            ImGui.TextUnformatted("如果游戏中的艾欧泽亚时间不一致，请验证您的 Windows 系统时间是否准确。");
-            var nearRoute = OceanUptime.NextOceanRoute(OceanArea.Aldenard, TimeStamp.UtcNow);
-            var farRoute = OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow);
-            ImGui.TextUnformatted(
-                $"下一近海航线: {nearRoute.Name} ({EnumLocalization.GetFlags(nearRoute.StartTime)})");
-            ImGui.TextUnformatted(
-                $"下一远洋航线: {farRoute.Name} ({EnumLocalization.GetFlags(farRoute.StartTime)})");
+            ImGui.TextUnformatted("If this does not correspond to your in-game Eorzea Time, verify that your windows system time is accurate.");
+            ImGui.TextUnformatted($"Next Aldenard Ocean Routes:");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow)}");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow.AddHours(2))}");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow.AddHours(4))}");
+            ImGui.TextUnformatted($"Next Othard Ocean Routes:");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow)}");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow.AddHours(2))}");
+            ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow.AddHours(4))}");
         }
     }
 
@@ -202,15 +203,15 @@ public partial class Interface
         nextHourS    -= nextHourM * RealTime.SecondsPerMinute;
         nextWeatherS -= nextWeatherM * RealTime.SecondsPerMinute;
 
-        var nextWeatherString = $"  {nextWeatherM:D2}:{nextWeatherS:D2} 分钟  ";
+        var nextWeatherString = $"  {nextWeatherM:D2}:{nextWeatherS:D2} Min.  ";
         var width = -(ImGui.CalcTextSize(nextWeatherString).X
           + (WeatherIconSize.X + ItemSpacing.X + FramePadding.X) * 3);
 
         _headerCache.UpdateCurrentTerritory();
         using var _ = ImRaii.Group();
-        DrawEorzeaTime($"艾欧泽亚时间 {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
+        DrawEorzeaTime($"ET {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
         ImGui.SameLine();
-        DrawNextEorzeaHour($"距下一小时还有 {nextHourM:D2}:{nextHourS:D2} 分钟", new Vector2(width, WeatherIconSize.Y));
+        DrawNextEorzeaHour($"{nextHourM:D2}:{nextHourS:D2} Min to next hour.", new Vector2(width, WeatherIconSize.Y));
         ImGui.SameLine();
         DrawNextWeather(nextWeatherString);
     }

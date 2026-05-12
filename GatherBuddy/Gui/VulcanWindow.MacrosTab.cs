@@ -101,8 +101,8 @@ public partial class VulcanWindow
     private void DrawImportPanel()
     {
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "导入宏");
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "从 TeamCraft 粘贴一个制作宏(游戏内宏格式)。");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "Import Macro");
+        ImGui.TextWrapped("Paste a crafting macro from Teamcraft or Artisan. /ac lines, plain one-action-per-line imports, and Artisan JSON exports are supported.");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -166,7 +166,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
         ImGui.Text("宏文本:");
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 10000, new Vector2(-1, 200));
+        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 500000, new Vector2(-1, 200));
 
         ImGui.Spacing();
         using (ImRaii.Disabled(string.IsNullOrWhiteSpace(_inGameMacroText)))
@@ -232,19 +232,19 @@ public partial class VulcanWindow
 
         try
         {
-            var macroName = string.IsNullOrWhiteSpace(_inGameMacroName) ? "已导入的宏" : _inGameMacroName;
+            var macroName = string.IsNullOrWhiteSpace(_inGameMacroName) ? null : _inGameMacroName;
             var macro = MacroParser.ParseInGameMacro(_inGameMacroText, macroName);
 
             if (macro == null || macro.Actions.Count == 0)
             {
-                _inGameMacroError = "解析宏失败, 请确认内容包含有效的 /ac 或 /action 指令。";
+                _inGameMacroError = "Failed to parse macro. Ensure it contains recognizable crafting action names or a supported Artisan JSON export.";
             }
             else
             {
                 _previewInGameMacro = macro;
-                _previewMinCraft = 0;
-                _previewMinCtrl = 0;
-                _previewMinCP = 0;
+                _previewMinCraft    = macro.MinCraftsmanship;
+                _previewMinCtrl     = macro.MinControl;
+                _previewMinCP       = macro.MinCP;
             }
         }
         catch (Exception ex)

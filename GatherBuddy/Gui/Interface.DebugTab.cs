@@ -187,7 +187,7 @@ public partial class Interface
                 GatherBuddy.UptimeManager.ResetLocations();
             if (ImGui.Button("Populate Diadem List"))
             {
-                var diademItems = GatherBuddy.GameData.Gatherables.Values.Where(g => g.Name[ClientLanguage.ChineseSimplified].Contains("Grade 4 Skybuilder", StringComparison.InvariantCultureIgnoreCase));
+                var diademItems = GatherBuddy.GameData.Gatherables.Values.Where(g => g.Name[ClientLanguage.English].Contains("Grade 4 Skybuilder", StringComparison.InvariantCultureIgnoreCase));
                 var list = new AutoGatherList()
                 {
                     Name        = "Diadem Debug",
@@ -393,10 +393,10 @@ public partial class Interface
         ImGuiUtil.DrawTableColumn(record.Hook.ToString());
         ImGuiUtil.DrawTableColumn("Last Catch");
         ImGuiUtil.DrawTableColumn(
-            $"{_plugin.FishRecorder.LastCatch?.Name[ClientLanguage.ChineseSimplified] ?? "None"} ({_plugin.FishRecorder.LastCatch?.ItemId ?? 0} - {_plugin.FishRecorder.LastCatch?.FishId ?? 0})");
+            $"{_plugin.FishRecorder.LastCatch?.Name[ClientLanguage.English] ?? "None"} ({_plugin.FishRecorder.LastCatch?.ItemId ?? 0} - {_plugin.FishRecorder.LastCatch?.FishId ?? 0})");
         ImGuiUtil.DrawTableColumn("Current Catch");
         ImGuiUtil.DrawTableColumn(
-            $"{record.Catch?.Name[ClientLanguage.ChineseSimplified] ?? "None"} ({record.Catch?.ItemId ?? 0} - {record.Catch?.FishId ?? 0}) - of size {record.Size / 10f} times {record.Amount}");
+            $"{record.Catch?.Name[ClientLanguage.English] ?? "None"} ({record.Catch?.ItemId ?? 0} - {record.Catch?.FishId ?? 0}) - of size {record.Size / 10f} times {record.Amount}");
         foreach (var flag in Enum.GetValues<Effects>())
         {
             ImGuiUtil.DrawTableColumn(flag.ToString());
@@ -415,7 +415,7 @@ public partial class Interface
 
         foreach (var (fishId, data) in _plugin.FishRecorder.Times)
         {
-            ImGuiUtil.DrawTableColumn(GatherBuddy.GameData.Fishes[fishId].Name[ClientLanguage.ChineseSimplified]);
+            ImGuiUtil.DrawTableColumn(GatherBuddy.GameData.Fishes[fishId].Name[ClientLanguage.English]);
             ImGuiUtil.DrawTableColumn("Overall");
             ImGuiUtil.DrawTableColumn(data.All.Min.ToString());
             ImGuiUtil.DrawTableColumn(data.All.Max.ToString());
@@ -451,7 +451,7 @@ public partial class Interface
                 continue;
 
             ImGuiUtil.DrawTableColumn(Math.Abs(item.InternalLocationId).ToString("0000"));
-            ImGuiUtil.DrawTableColumn(item.Name[ClientLanguage.ChineseSimplified]);
+            ImGuiUtil.DrawTableColumn(item.Name[ClientLanguage.English]);
             ImGuiUtil.DrawTableColumn(item.NodeList.Count.ToString());
             var (loc, time) = GatherBuddy.UptimeManager.BestLocation(item);
             ImGuiUtil.DrawTableColumn(loc.Name);
@@ -486,7 +486,7 @@ public partial class Interface
                 continue;
 
             ImGuiUtil.DrawTableColumn(Math.Abs(fish.InternalLocationId).ToString("0000"));
-            ImGuiUtil.DrawTableColumn(fish.Name[ClientLanguage.ChineseSimplified]);
+            ImGuiUtil.DrawTableColumn(fish.Name[ClientLanguage.English]);
             ImGuiUtil.DrawTableColumn(fish.FishingSpots.Count.ToString());
             var (loc, time) = GatherBuddy.UptimeManager.BestLocation(fish);
             ImGuiUtil.DrawTableColumn(loc.Name);
@@ -545,7 +545,7 @@ public partial class Interface
         ImGuiUtil.DrawTableColumn(_plugin.AlarmManager.ActiveAlarms.Count.ToString());
         foreach (var (alarm, state) in _plugin.AlarmManager.ActiveAlarms)
         {
-            ImGuiUtil.DrawTableColumn(alarm.Name.Any() ? alarm.Name : alarm.Item.Name[ClientLanguage.ChineseSimplified]);
+            ImGuiUtil.DrawTableColumn(alarm.Name.Any() ? alarm.Name : alarm.Item.Name[ClientLanguage.English]);
             ImGuiUtil.DrawTableColumn($"{state} ({TimeInterval.DurationString(state, GatherBuddy.Time.ServerTime, false)})");
         }
     }
@@ -695,11 +695,11 @@ public partial class Interface
 
     private class FishBaitCombo()
         : FilterComboCache<FishBaitCombo.StringId>(
-            () => GatherBuddy.GameData.Fishes.Values.Select(f => new StringId(f.Name.English, f.ItemId))
-                .Concat(GatherBuddy.GameData.Bait.Values.Select(b => new StringId(b.Name, b.Id))).ToList(), MouseWheelType.Control,
+            () => GatherBuddy.GameData.Fishes.Values.Select(f => new StringId(f.Name.English, f.ItemId, true))
+                .Concat(GatherBuddy.GameData.Bait.Values.Select(b => new StringId(b.Name, b.Id, false))).ToList(), MouseWheelType.Control,
             GatherBuddy.Log)
     {
-        public record StringId(string Name, uint Id);
+        public record StringId(string Name, uint Id, bool Mooch);
 
         protected override string ToString(StringId obj)
             => obj.Name;
@@ -743,6 +743,11 @@ public partial class Interface
             ImUtf8.Text(text);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 ImGui.SetClipboardText(text);
+            if (fish.Mooch)
+            {
+                ImGui.SameLine();
+                ImUtf8.Text("(Mooch)");
+            }
         }
     }
 
@@ -750,7 +755,7 @@ public partial class Interface
     {
         using var id = ImRaii.PushId("Debug");
         using var tab = ImRaii.TabItem("Debug");
-        ImGuiUtil.HoverTooltip("我真希望你不是随便点到这里来的。");
+        ImGuiUtil.HoverTooltip("I really hope there is a good reason for you seeing this.");
 
         if (!tab)
             return;

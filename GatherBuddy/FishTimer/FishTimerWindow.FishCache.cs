@@ -52,6 +52,11 @@ public partial class FishTimerWindow
     public static readonly ISharedImmediateTexture ShrimpIcon =
         Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(065932));
     
+    public static readonly ISharedImmediateTexture PrehistoricIcon =
+        Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(065933));
+    
+    public static readonly ISharedImmediateTexture MantisIcon =
+        Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(065934));
 
     private readonly struct FishCache
     {
@@ -314,8 +319,8 @@ public partial class FishTimerWindow
                         
                         if (_fish.MutliHookUpper == _fish.MultiHookLower)
                         {
-                            ImUtf8.Text($"双重提钩: {_fish.MultiHookLower} 条鱼{(_fish.Points > 0 ? $" 价值 {_fish.Points * _fish.MultiHookLower} 点" : "")}");
-                            ImUtf8.Text($"三重提钩: {TripleHookCount(_fish.MultiHookLower)} 条鱼{(_fish.Points > 0 ? $" 价值 {_fish.Points * TripleHookCount(_fish.MultiHookLower)} 点" : "")}"); 
+                            ImUtf8.Text($"Double Hook for {_fish.MultiHookLower} fish{(_fish.Points > 0 ? $" worth {_fish.Points * _fish.MultiHookLower} points" : "")}");
+                            ImUtf8.Text($"Triple Hook for {TripleHookCount(_fish.MultiHookLower)} fish{(_fish.Points > 0 ? $" worth {_fish.Points * TripleHookCount(_fish.MultiHookLower)} points" : "")}"); 
                         }
                         else
                         {
@@ -340,17 +345,19 @@ public partial class FishTimerWindow
                 
                 var typeIcon = _fish.OceanSpecies switch
                 {
-                    OceanSpecies.Octopus   => OctopusIcon,
-                    OceanSpecies.Shark     => SharkIcon,
-                    OceanSpecies.Jellyfish => JellyfishIcon,
-                    OceanSpecies.Seadragon => SeadragonIcon,
-                    OceanSpecies.Fugu      => FuguIcon,
-                    OceanSpecies.Crab      => CrabIcon,
-                    OceanSpecies.Manta     => MantaIcon,
-                    OceanSpecies.Shellfish => ShellfishIcon,
-                    OceanSpecies.Squid     => SquidIcon,
-                    OceanSpecies.Shrimp    => ShrimpIcon,
-                    _                      => null,
+                    OceanSpecies.Octopus     => OctopusIcon,
+                    OceanSpecies.Shark       => SharkIcon,
+                    OceanSpecies.Jellyfish   => JellyfishIcon,
+                    OceanSpecies.Seadragon   => SeadragonIcon,
+                    OceanSpecies.Fugu        => FuguIcon,
+                    OceanSpecies.Crab        => CrabIcon,
+                    OceanSpecies.Manta       => MantaIcon,
+                    OceanSpecies.Shellfish   => ShellfishIcon,
+                    OceanSpecies.Squid       => SquidIcon,
+                    OceanSpecies.Shrimp      => ShrimpIcon,
+                    OceanSpecies.Prehistoric => PrehistoricIcon,
+                    OceanSpecies.Mantis      => MantisIcon,
+                    _                        => null,
                 };
                 
                 if (typeIcon?.TryGetWrap(out var wrap2, out _) ?? false)
