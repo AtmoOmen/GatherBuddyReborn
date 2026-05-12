@@ -251,7 +251,7 @@ public partial class FishTimerWindow
                 : NextUptime.Start > GatherBuddy.Time.ServerTime
                     ? TimeInterval.DurationString(NextUptime.Start, GatherBuddy.Time.ServerTime, true)
                     : NextUptime.End < GatherBuddy.Time.ServerTime
-                        ? "(ended)"
+                        ? "(已结束)"
                         : TimeInterval.DurationString(NextUptime.End, GatherBuddy.Time.ServerTime, true);
             var textWidth = timeString is null ? 0 : ImUtf8.CalcTextSize(timeString).X;
 
@@ -319,15 +319,15 @@ public partial class FishTimerWindow
                         
                         if (_fish.MutliHookUpper == _fish.MultiHookLower)
                         {
-                            ImUtf8.Text($"Double Hook for {_fish.MultiHookLower} fish{(_fish.Points > 0 ? $" worth {_fish.Points * _fish.MultiHookLower} points" : "")}");
-                            ImUtf8.Text($"Triple Hook for {TripleHookCount(_fish.MultiHookLower)} fish{(_fish.Points > 0 ? $" worth {_fish.Points * TripleHookCount(_fish.MultiHookLower)} points" : "")}"); 
+                            ImUtf8.Text($"双重提钩钓 {_fish.MultiHookLower} 条鱼{(_fish.Points > 0 ? $" 价值 {_fish.Points * _fish.MultiHookLower} 分" : "")}");
+                            ImUtf8.Text($"三重提钩钓 {TripleHookCount(_fish.MultiHookLower)} 条鱼{(_fish.Points > 0 ? $" 价值 {_fish.Points * TripleHookCount(_fish.MultiHookLower)} 分" : "")}"); 
                         }
                         else
                         {
-                            ImUtf8.Text($"Double Hook for {_fish.MultiHookLower}-{_fish.MutliHookUpper} fish" +
-                                $"{(_fish.Points > 0 ? $" worth between {_fish.Points * _fish.MultiHookLower} and {_fish.Points * _fish.MutliHookUpper} points" : "")}");
-                            ImUtf8.Text($"Triple Hook for {TripleHookCount(_fish.MultiHookLower)}-{TripleHookCount(_fish.MutliHookUpper)} fish" +
-                                $"{(_fish.Points > 0 ? $" worth between {_fish.Points * (TripleHookCount(_fish.MultiHookLower))} and {_fish.Points * TripleHookCount(_fish.MutliHookUpper)} points" : "")}");
+                            ImUtf8.Text($"双重提钩钓 {_fish.MultiHookLower}-{_fish.MutliHookUpper} 条鱼" +
+                                $"{(_fish.Points > 0 ? $" 价值 {_fish.Points * _fish.MultiHookLower} 到 {_fish.Points * _fish.MutliHookUpper} 分" : "")}");
+                            ImUtf8.Text($"三重提钩钓 {TripleHookCount(_fish.MultiHookLower)}-{TripleHookCount(_fish.MutliHookUpper)} 条鱼" +
+                                $"{(_fish.Points > 0 ? $" 价值 {_fish.Points * (TripleHookCount(_fish.MultiHookLower))} 到 {_fish.Points * TripleHookCount(_fish.MutliHookUpper)} 分" : "")}");
                         }
 
                         window._style.Pop();
@@ -368,7 +368,7 @@ public partial class FishTimerWindow
                         using var tooltip = ImRaii.Tooltip();
                         window._style.Push(ImGuiStyleVar.ItemSpacing, window._originalSpacing);
                         
-                        ImUtf8.Text($"This fish is a {_fish.OceanSpecies.ToString().ToLower()}");
+                        ImUtf8.Text($"鱼种: {_fish.OceanSpecies.ToString().ToLower()}");
                         
                         window._style.Pop();
                     }

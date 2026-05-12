@@ -102,7 +102,7 @@ public static class VendorShopResolver
 
         if (shouldRefreshForDataShare)
         {
-            GatherBuddy.Log.Debug($"[VendorShopResolver] Full AllaganTools DataShare became available after an early fallback build, rebuilding vendor shop cache ({AllVendorNpcIds.Count} NPCs; {DescribeShopDataShareAvailability(gilMap, specialMap, gcMap, inclusionMap)})");
+            GatherBuddy.Log.Debug($"[VendorShopResolver] 早期回退构建后 AllaganTools DataShare 已完整可用，重建商人商店缓存 ({AllVendorNpcIds.Count} 个 NPC; {DescribeShopDataShareAvailability(gilMap, specialMap, gcMap, inclusionMap)})");
             _initialized = false;
         }
         _initializing = true;
@@ -117,7 +117,7 @@ public static class VendorShopResolver
             var npcNames = BuildNpcNameLookup();
             if (npcNames.Count == 0)
             {
-                GatherBuddy.Log.Warning("[VendorShopResolver] ENpcResident lookup is empty; deferring vendor cache initialization");
+                GatherBuddy.Log.Warning("[VendorShopResolver] ENpcResident 查找为空，推迟商人缓存初始化");
                 return;
             }
 
@@ -126,7 +126,7 @@ public static class VendorShopResolver
             var hasAnyDataShare      = HasAnyShopDataShare(gilMap, specialMap, gcMap, inclusionMap);
             var dataShareAvailability = DescribeShopDataShareAvailability(gilMap, specialMap, gcMap, inclusionMap);
 
-            GatherBuddy.Log.Debug($"[VendorShopResolver] AllaganTools DataShare: {(hasCompleteDataShare ? "ready" : hasAnyDataShare ? "partial" : "not available")} ({dataShareAvailability})");
+            GatherBuddy.Log.Debug($"[VendorShopResolver] AllaganTools DataShare: {(hasCompleteDataShare ? "就绪" : hasAnyDataShare ? "部分可用" : "不可用")} ({dataShareAvailability})");
 
             if (!hasCompleteDataShare)
             {
@@ -135,7 +135,7 @@ public static class VendorShopResolver
                 specialMap   = UseFallbackIfUnavailable(specialMap, lSpecial);
                 gcMap        = UseFallbackIfUnavailable(gcMap, lGc);
                 inclusionMap = UseFallbackIfUnavailable(inclusionMap, lInclusion);
-                GatherBuddy.Log.Debug($"[VendorShopResolver] Using Lumina fallback for missing shop maps ({dataShareAvailability})");
+                GatherBuddy.Log.Debug($"[VendorShopResolver] 对缺失的商店映射使用 Lumina 回退 ({dataShareAvailability})");
             }
 
             var directSpecialMap = CloneNpcMap(specialMap);
@@ -151,7 +151,7 @@ public static class VendorShopResolver
 
             if (gilEntries.Count == 0 && specialEntries.Count == 0 && gcEntries.Count == 0)
             {
-                GatherBuddy.Log.Warning("[VendorShopResolver] No vendor shop entries were built; deferring vendor cache initialization");
+                GatherBuddy.Log.Warning("[VendorShopResolver] 未构建任何商人商店条目，推迟商人缓存初始化");
                 return;
             }
 
@@ -167,14 +167,14 @@ public static class VendorShopResolver
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Warning($"[VendorShopResolver] Init failed: {ex.Message}");
+            GatherBuddy.Log.Warning($"[VendorShopResolver] 初始化失败: {ex.Message}");
         }
         finally
         {
             _initialized  = success;
             _initializing = false;
             if (!success)
-                GatherBuddy.Log.Debug("[VendorShopResolver] Vendor cache is still uninitialized and will retry when requested");
+                GatherBuddy.Log.Debug("[VendorShopResolver] 商人缓存仍未初始化，将在请求时重试");
         }
     }
 
@@ -232,7 +232,7 @@ public static class VendorShopResolver
         Dictionary<uint, HashSet<uint>>? specialMap,
         Dictionary<uint, HashSet<uint>>? gcMap,
         Dictionary<uint, HashSet<uint>>? inclusionMap)
-        => $"gil={(HasShopNpcMapData(gilMap) ? "ready" : "missing")}, special={(HasShopNpcMapData(specialMap) ? "ready" : "missing")}, gc={(HasShopNpcMapData(gcMap) ? "ready" : "missing")}, inclusion={(HasShopNpcMapData(inclusionMap) ? "ready" : "missing")}";
+        => $"gil={(HasShopNpcMapData(gilMap) ? "就绪" : "缺失")}, special={(HasShopNpcMapData(specialMap) ? "就绪" : "缺失")}, gc={(HasShopNpcMapData(gcMap) ? "就绪" : "缺失")}, inclusion={(HasShopNpcMapData(inclusionMap) ? "就绪" : "缺失")}";
 
     private static Dictionary<uint, HashSet<uint>> UseFallbackIfUnavailable(
         Dictionary<uint, HashSet<uint>>? preferredMap,
@@ -273,7 +273,7 @@ public static class VendorShopResolver
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Warning($"[VendorShopResolver] BuildCraftingRelevantIds failed: {ex.Message}");
+            GatherBuddy.Log.Warning($"[VendorShopResolver] BuildCraftingRelevantIds 失败: {ex.Message}");
         }
     }
 
@@ -651,7 +651,7 @@ public static class VendorShopResolver
         }
 
         if (mergedRowCount > 0)
-            GatherBuddy.Log.Debug($"[VendorShopResolver] Merged {mergedRowCount} Other rows into matching Tomestones rows, adding {mergedNpcCount} NPC mappings");
+            GatherBuddy.Log.Debug($"[VendorShopResolver] 将 {mergedRowCount} 行 Other 合并到匹配的诗学行，添加了 {mergedNpcCount} 个 NPC 映射");
 
         return mergedEntries;
     }

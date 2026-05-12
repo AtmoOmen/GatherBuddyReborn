@@ -93,7 +93,7 @@ public partial class FishTimerWindow : Window, IDisposable
         DrawCenteredText(_windowSize.X, "位于: /gatherbuddy -> 设置");
         DrawCenteredText(_windowSize.X, "-> 界面设置 -> 捕鱼计时器窗口");
         DrawCenteredText(_windowSize.X, "以实际启用功能, ");
-        DrawCenteredText(_windowSize.X, "此窗口在未捕鱼时保持隐藏。");
+        DrawCenteredText(_windowSize.X, "此窗口在未捕鱼时保持隐藏");
     }
 
     private void DrawProgressLine()
@@ -177,7 +177,7 @@ public partial class FishTimerWindow : Window, IDisposable
     private string GetSpotText(FishingSpot? spot)
     {
         if (spot == null)
-            return "Unknown";
+            return "未知";
 
         var name = spot.Name.AsSpan();
         if (name.EndsWith(')'))

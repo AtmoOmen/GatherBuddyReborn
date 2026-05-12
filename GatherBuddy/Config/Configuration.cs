@@ -224,7 +224,7 @@ public partial class Configuration : IPluginConfiguration
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Failed to load configuration, creating new one: {ex}");
+            GatherBuddy.Log.Error($"加载配置失败, 创建新配置: {ex}");
             try
             {
                 var configPath = Dalamud.PluginInterface.ConfigFile.FullName;
@@ -232,12 +232,12 @@ public partial class Configuration : IPluginConfiguration
                 if (File.Exists(configPath))
                 {
                     File.Copy(configPath, backupPath);
-                    GatherBuddy.Log.Warning($"Corrupted config backed up to: {backupPath}");
+                    GatherBuddy.Log.Warning($"已损坏配置备份到: {backupPath}");
                 }
             }
             catch (Exception backupEx)
             {
-                GatherBuddy.Log.Error($"Failed to backup corrupted config: {backupEx}");
+                GatherBuddy.Log.Error($"备份损坏配置失败: {backupEx}");
             }
         }
 
@@ -391,7 +391,7 @@ public partial class Configuration : IPluginConfiguration
         {
             VendorBuyLists.Add(new VendorBuyListDefinition
             {
-                Name = "Default",
+                Name = "默认",
                 Entries = new List<VendorBuyListEntry>(legacyVendorBuyListEntries),
             });
             changed = true;

@@ -33,13 +33,13 @@ public class UserMacroSolverDefinition : ISolverDefinition
                 var priority = statsOk ? 100 : 95;
                 var warningMsg = statsOk ? "" : "属性不满足该宏的最低要求";
                 
-                GatherBuddy.Log.Debug($"[UserMacroSolver] Using selected macro '{selectedMacro.Name}' for recipe {craft.RecipeId}");
+                GatherBuddy.Log.Debug($"[UserMacroSolver] 为配方 {craft.RecipeId} 使用选中的宏 '{selectedMacro.Name}'");
                 yield return new(this, flavorId, priority, $"用户宏: {selectedMacro.Name}", warningMsg);
                 yield break;
             }
             else
             {
-                GatherBuddy.Log.Warning($"[UserMacroSolver] Selected macro '{selectedMacroId}' not found");
+                GatherBuddy.Log.Warning($"[UserMacroSolver] 找不到选中的宏 '{selectedMacroId}'");
             }
         }
         
@@ -69,11 +69,11 @@ public class UserMacroSolverDefinition : ISolverDefinition
         var macro = _macroLibrary.GetMacroById(flavor);
         if (macro == null)
         {
-            GatherBuddy.Log.Warning($"[UserMacroSolver] Could not find macro with id {flavor}");
+            GatherBuddy.Log.Warning($"[UserMacroSolver] 找不到 id 为 {flavor} 的宏");
             return null!;
         }
 
-        GatherBuddy.Log.Debug($"[UserMacroSolver] Using user macro '{macro.Name}' for recipe {craft.RecipeId}");
+        GatherBuddy.Log.Debug($"[UserMacroSolver] 为配方 {craft.RecipeId} 使用用户宏 '{macro.Name}'");
         return new UserMacroSolver(macro, craft);
     }
 }
@@ -94,7 +94,7 @@ public class UserMacroSolver : Solver
             .Where(d => d.Def is not UserMacroSolverDefinition)
             .MaxBy(d => d.Priority);
         _fallback = fallbackDesc == default ? null : fallbackDesc.CreateSolver(craft);
-        GatherBuddy.Log.Debug($"[UserMacroSolver] Fallback solver: {(fallbackDesc == default ? "none" : fallbackDesc.Name)}");
+        GatherBuddy.Log.Debug($"[UserMacroSolver] 回退求解器: {(fallbackDesc == default ? "无" : fallbackDesc.Name)}");
     }
 
     public override Recommendation Solve(CraftState craft, StepState step)
@@ -108,21 +108,21 @@ public class UserMacroSolver : Solver
 
             if (GatherBuddy.Config.SkipMacroStepIfUnable && !Simulator.CanUseAction(craft, step, skill))
             {
-                GatherBuddy.Log.Debug($"[UserMacroSolver] Skipping unusable action {skill} at step {_currentActionIndex}");
+                GatherBuddy.Log.Debug($"[UserMacroSolver] 在第 {_currentActionIndex} 步跳过不可用的技能 {skill}");
                 continue;
             }
 
             var progress = _currentActionIndex * 100 / _macro.Actions.Count;
-            return new(skill, $"{_macro.Name} step {_currentActionIndex}/{_macro.Actions.Count} ({progress}%)");
+            return new(skill, $"{_macro.Name} 第 {_currentActionIndex}/{_macro.Actions.Count} 步 ({progress}%)");
         }
 
         if (GatherBuddy.Config.MacroFallbackEnabled && fallback.HasValue && fallback.Value.Action != VulcanSkill.None)
         {
-            GatherBuddy.Log.Debug($"[UserMacroSolver] Macro complete, falling back: {fallback.Value.Action}");
+            GatherBuddy.Log.Debug($"[UserMacroSolver] 宏已完成，回退到: {fallback.Value.Action}");
             return new(fallback.Value.Action, $"宏已完成 -- {fallback.Value.Comment}");
         }
 
-        GatherBuddy.Log.Debug("[UserMacroSolver] All macro actions completed");
+        GatherBuddy.Log.Debug("[UserMacroSolver] 所有宏步骤已执行完毕");
         return new(VulcanSkill.None, "宏已完成");
     }
 
@@ -177,7 +177,7 @@ public class UserMacroLibrary
             _macrosByRecipe[recipeId].Add(macro);
         }
 
-        GatherBuddy.Log.Debug($"[UserMacroLibrary] Added macro '{macro.Name}' (Recipe: {recipeId})");
+        GatherBuddy.Log.Debug($"[UserMacroLibrary] 已添加宏 '{macro.Name}' (配方: {recipeId})");
         SaveToConfig();
     }
 
@@ -191,7 +191,7 @@ public class UserMacroLibrary
             foreach (var list in _macrosByRecipe.Values)
                 list.RemoveAll(m => m.Id == macroId);
             
-            GatherBuddy.Log.Debug($"[UserMacroLibrary] Removed macro '{macro.Name}'");
+            GatherBuddy.Log.Debug($"[UserMacroLibrary] 已删除宏 '{macro.Name}'");
             SaveToConfig();
         }
     }
@@ -256,7 +256,7 @@ public class UserMacroLibrary
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[UserMacroLibrary] Failed to load macros: {ex.Message}");
+            GatherBuddy.Log.Error($"[UserMacroLibrary] 加载宏失败: {ex.Message}");
         }
     }
 
@@ -273,11 +273,11 @@ public class UserMacroLibrary
             var json = JsonSerializer.Serialize(data);
             GatherBuddy.Config.UserMacros = json;
             GatherBuddy.Config.Save();
-            GatherBuddy.Log.Debug($"[UserMacroLibrary] Saved {_macros.Count} macros to config");
+            GatherBuddy.Log.Debug($"[UserMacroLibrary] 已将 {_macros.Count} 个宏保存到配置");
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[UserMacroLibrary] Failed to save macros: {ex.Message}");
+            GatherBuddy.Log.Error($"[UserMacroLibrary] 保存宏失败: {ex.Message}");
         }
     }
 }

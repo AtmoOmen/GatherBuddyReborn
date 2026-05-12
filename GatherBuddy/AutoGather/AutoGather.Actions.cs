@@ -261,13 +261,13 @@ namespace GatherBuddy.AutoGather
                 
                 if (needsSnagging && !hasSnagStatus)
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] Enabling Snagging for {target.Fish!.Name[GatherBuddy.Language]}");
+                    GatherBuddy.Log.Debug($"[AutoGather] 为 {target.Fish!.Name[GatherBuddy.Language]} 启用钓组");
                     EnqueueActionWithDelay(() => UseAction(Actions.Snagging));
                     return;
                 }
                 else if (!needsSnagging && hasSnagStatus)
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] Disabling Snagging for {target.Fish!.Name[GatherBuddy.Language]}");
+                    GatherBuddy.Log.Debug($"[AutoGather] 为 {target.Fish!.Name[GatherBuddy.Language]} 禁用钓组");
                     EnqueueActionWithDelay(() => UseAction(Actions.Snagging));
                     return;
                 }

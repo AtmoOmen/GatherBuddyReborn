@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -101,8 +101,8 @@ public partial class VulcanWindow
     private void DrawImportPanel()
     {
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudYellow, "Import Macro");
-        ImGui.TextWrapped("Paste a crafting macro from Teamcraft or Artisan. /ac lines, plain one-action-per-line imports, and Artisan JSON exports are supported.");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, "导入宏");
+        ImGui.TextWrapped("粘贴来自 Teamcraft 或 Artisan 的制作宏, 支持 /ac 行、每行一个操作纯文本导入以及 Artisan JSON 导出");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -114,11 +114,11 @@ public partial class VulcanWindow
             {
                 Dalamud.Commands.ProcessCommand("/bw overlay teamcraft disabled off");
                 Dalamud.Commands.ProcessCommand("/bw overlay teamcraft url https://ffxivteamcraft.com/community-rotations");
-                GatherBuddy.Log.Information("Opening TeamCraft in Browsingway overlay");
+                GatherBuddy.Log.Information("在 Browsingway 覆盖层中打开 TeamCraft");
             }
             catch (Exception ex)
             {
-                GatherBuddy.Log.Warning($"Could not open Browsingway overlay: {ex.Message}");
+                GatherBuddy.Log.Warning($"无法打开 Browsingway 覆盖层: {ex.Message}");
                 ImGui.OpenPopup("BrowsingwayError");
             }
         }
@@ -131,7 +131,7 @@ public partial class VulcanWindow
                 "3. 创建一个新的覆盖层 (+ 按钮)\n" +
                 "4. 将命令名称设置为 'teamcraft'\n" +
                 "5. 关闭配置并点击此按钮\n\n" +
-                "完成后使用“隐藏覆盖层”按钮关闭覆盖层。\n\n" +
+                "完成后使用\"隐藏覆盖层\"按钮关闭覆盖层\n\n" +
                 "或者直接在浏览器中访问 https://ffxivteamcraft.com/community-rotations");
 
         ImGui.SameLine();
@@ -140,17 +140,17 @@ public partial class VulcanWindow
             try
             {
                 Dalamud.Commands.ProcessCommand("/bw overlay teamcraft disabled on");
-                GatherBuddy.Log.Information("Hiding Teamcraft overlay");
+                GatherBuddy.Log.Information("隐藏 Teamcraft 覆盖层");
             }
             catch (Exception ex)
             {
-                GatherBuddy.Log.Warning($"Could not hide Browsingway overlay: {ex.Message}");
+                GatherBuddy.Log.Warning($"无法隐藏 Browsingway 覆盖层: {ex.Message}");
             }
         }
 
         if (ImGui.BeginPopup("BrowsingwayError"))
         {
-            ImGui.TextColored(ImGuiColors.DalamudYellow, "Browsingway 插件未找到或未加载。");
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "Browsingway 插件未找到或未加载");
             ImGui.TextWrapped("可在浏览器中打开 TeamCraft, 然后在下方粘贴宏");
             ImGui.EndPopup();
         }
@@ -237,7 +237,7 @@ public partial class VulcanWindow
 
             if (macro == null || macro.Actions.Count == 0)
             {
-                _inGameMacroError = "Failed to parse macro. Ensure it contains recognizable crafting action names or a supported Artisan JSON export.";
+                _inGameMacroError = "解析宏失败, 请确认包含可识别的制作技能名或受支持的 Artisan JSON 导出";
             }
             else
             {
@@ -250,7 +250,7 @@ public partial class VulcanWindow
         catch (Exception ex)
         {
             _inGameMacroError = $"解析宏失败: {ex.Message}";
-            GatherBuddy.Log.Error($"Failed to parse in-game macro: {ex.Message}");
+            GatherBuddy.Log.Error($"解析游戏内宏失败: {ex.Message}");
         }
     }
 
@@ -261,7 +261,7 @@ public partial class VulcanWindow
             var macroLibrary = CraftingGameInterop.UserMacroLibrary;
             macroLibrary.AddMacro(macro, 0);
 
-            GatherBuddy.Log.Information($"Imported in-game macro: {macro.Name}");
+            GatherBuddy.Log.Information($"已导入游戏内宏: {macro.Name}");
 
             _selectedMacroId = macro.Id;
             _previewInGameMacro = null;
@@ -272,7 +272,7 @@ public partial class VulcanWindow
         catch (Exception ex)
         {
             _inGameMacroError = $"导入宏失败: {ex.Message}";
-            GatherBuddy.Log.Error($"Failed to import in-game macro: {ex.Message}");
+            GatherBuddy.Log.Error($"导入游戏内宏失败: {ex.Message}");
         }
     }
 
@@ -293,7 +293,7 @@ public partial class VulcanWindow
         {
             ImGui.Spacing();
             ImGui.TextColored(ImGuiColors.DalamudGrey, "尚未添加任何宏");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "请使用导入面板来添加。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "请使用导入面板来添加");
             return;
         }
 
@@ -306,7 +306,7 @@ public partial class VulcanWindow
 
         if (filtered.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有符合搜索条件的宏。");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有符合搜索条件的宏");
             return;
         }
 
@@ -416,7 +416,7 @@ public partial class VulcanWindow
             macro.MinCP = _editingMacroMinCP;
             MacroValidator.InvalidateByMacroId(macro.Id);
             macroLibrary.Save();
-            GatherBuddy.Log.Debug($"[MacrosTab] Saved min stats for macro '{macro.Name}'");
+            GatherBuddy.Log.Debug($"[MacrosTab] 已保存宏 '{macro.Name}' 的最低属性");
         }
 
         ImGui.Spacing();
@@ -476,7 +476,7 @@ public partial class VulcanWindow
         {
             macroLibrary.RemoveMacro(macro.Id);
             _selectedMacroId = null;
-            GatherBuddy.Log.Debug($"[MacrosTab] Deleted macro '{macro.Name}'");
+            GatherBuddy.Log.Debug($"[MacrosTab] 已删除宏 '{macro.Name}'");
         }
     }
 
@@ -503,7 +503,7 @@ public partial class VulcanWindow
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Debug($"[MacrosTab] Failed to get icon for skill {skillId}: {ex.Message}");
+            GatherBuddy.Log.Debug($"[MacrosTab] 获取技能图标失败 {skillId}: {ex.Message}");
         }
 
         _skillIconCache[skillId] = iconId;
@@ -514,7 +514,7 @@ public partial class VulcanWindow
     {
         { VulcanSkill.None, "无" },
         { VulcanSkill.TouchCombo, "加工连段" },
-        { VulcanSkill.TouchComboRefined, "加工连段(精炼加工路线)" },
+        { VulcanSkill.TouchComboRefined, "加工连段 (精炼加工路线)" },
 
         { VulcanSkill.BasicSynthesis, "制作" },
         { VulcanSkill.CarefulSynthesis, "模范制作" },

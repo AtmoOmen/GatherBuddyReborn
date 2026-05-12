@@ -82,7 +82,7 @@ public partial class Interface
         var alarmData = which ? _plugin.AlarmManager.LastItemAlarm : _plugin.AlarmManager.LastFishAlarm;
         if (alarmData == null)
         {
-            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "Click to /gather this alarm.", true);
+            ImGuiUtil.DrawDisabledButton(failureText, _headerCache.AlarmButtonSize, "点击以 /gather 此闹钟", true);
             return;
         }
 
@@ -90,7 +90,7 @@ public partial class Interface
 
         var text = $"{(alarm.Name.Any() ? alarm.Name : alarm.Item.Name[GatherBuddy.Language])}###{(which ? "itemAlarm" : "fishAlarm")}";
         var desc =
-            $"Click to /gather this alarm.\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "None"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
+            $"点击以 /gather 此闹钟\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "无"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
 
         if (!ImGuiUtil.DrawDisabledButton(text, _headerCache.AlarmButtonSize, desc, false))
             return;
@@ -102,10 +102,10 @@ public partial class Interface
     }
 
     private void DrawLastItemAlarm()
-        => DrawLastAlarm(true, "No Item Alarm Triggered");
+        => DrawLastAlarm(true, "无物品闹钟触发");
 
     private void DrawLastFishAlarm()
-        => DrawLastAlarm(false, "No Fish Alarm Triggered");
+        => DrawLastAlarm(false, "无鱼类闹钟触发");
 
 
     private void DrawAlarmRow()
@@ -124,16 +124,16 @@ public partial class Interface
             {
                 if (GatherBuddy.VulcanWindow == null)
                 {
-                    GatherBuddy.Log.Debug("[Interface] Vulcan header button clicked, but the Vulcan window was unavailable.");
+                    GatherBuddy.Log.Debug("[Interface] Vulcan 标题按钮已点击, 但 Vulcan 窗口不可用");
                 }
                 else
                 {
-                    GatherBuddy.Log.Debug("[Interface] Restoring Vulcan from the main header button.");
+                    GatherBuddy.Log.Debug("[Interface] 从主标题按钮恢复 Vulcan");
                     GatherBuddy.VulcanWindow.RestoreWindow();
                 }
             }
         }
-        ImGuiUtil.HoverTooltip("Open the Vulcan crafting window.");
+            ImGuiUtil.HoverTooltip("打开 Vulcan 制作窗口");
         ImGui.SameLine();
         _headerCache.AlarmButtonSize = (ImGui.GetContentRegionAvail().X - ItemSpacing.X) / 2 * Vector2.UnitX;
         DrawLastItemAlarm();
@@ -147,12 +147,12 @@ public partial class Interface
         if (ImGui.IsItemHovered())
         {
             using var tt = ImRaii.Tooltip();
-            ImGui.TextUnformatted("If this does not correspond to your in-game Eorzea Time, verify that your windows system time is accurate.");
-            ImGui.TextUnformatted($"Next Aldenard Ocean Routes:");
+            ImGui.TextUnformatted("如果此时间与游戏中艾欧泽亚时间不一致, 请确认 Windows 系统时间准确");
+            ImGui.TextUnformatted($"下次阿尔迪纳德出海航路:");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow)}");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow.AddHours(2))}");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Aldenard,                              TimeStamp.UtcNow.AddHours(4))}");
-            ImGui.TextUnformatted($"Next Othard Ocean Routes:");
+            ImGui.TextUnformatted($"下次奥萨德出海航路:");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow)}");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow.AddHours(2))}");
             ImGui.BulletText($"{OceanUptime.NextOceanRoute(OceanArea.Othard, TimeStamp.UtcNow.AddHours(4))}");
@@ -211,7 +211,7 @@ public partial class Interface
         using var _ = ImRaii.Group();
         DrawEorzeaTime($"ET {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
         ImGui.SameLine();
-        DrawNextEorzeaHour($"{nextHourM:D2}:{nextHourS:D2} Min to next hour.", new Vector2(width, WeatherIconSize.Y));
+        DrawNextEorzeaHour($"{nextHourM:D2}:{nextHourS:D2} 分钟后进入下个小时", new Vector2(width, WeatherIconSize.Y));
         ImGui.SameLine();
         DrawNextWeather(nextWeatherString);
     }

@@ -292,7 +292,7 @@ namespace GatherBuddy.AutoGather
             }
             catch (Exception ex)
             {
-                GatherBuddy.Log.Debug($"Failed to deserialize config preset: {ex}");
+                GatherBuddy.Log.Debug($"反序列化配置预设失败: {ex}");
                 return null;
             }
         }

@@ -48,41 +48,41 @@ public static class VendorInteractionHelper
     public static unsafe string? GetVendorExitBlocker()
     {
         if (IsAddonVisible("Shop"))
-            return "Shop addon still open";
+            return "Shop 界面仍处于打开状态";
         if (IsAddonVisible("InclusionShop"))
-            return "InclusionShop addon still open";
+            return "InclusionShop 界面仍处于打开状态";
         if (IsAddonVisible("GrandCompanyExchange"))
-            return "GrandCompanyExchange addon still open";
+            return "GrandCompanyExchange 界面仍处于打开状态";
 
         if (IsAddonVisible("ShopExchangeItemDialog"))
-            return "ShopExchangeItemDialog still open";
+            return "ShopExchangeItemDialog 仍处于打开状态";
 
         if (IsAddonVisible("ShopExchangeCurrencyDialog"))
-            return "ShopExchangeCurrencyDialog still open";
+            return "ShopExchangeCurrencyDialog 仍处于打开状态";
 
         if (IsAddonVisible("ShopExchangeCurrency"))
-            return "ShopExchangeCurrency still open";
+            return "ShopExchangeCurrency 仍处于打开状态";
 
         if (IsAddonVisible("ShopExchangeItem"))
-            return "ShopExchangeItem still open";
+            return "ShopExchangeItem 仍处于打开状态";
 
         if (IsAddonVisible("SelectString"))
-            return "SelectString still open";
+            return "SelectString 仍处于打开状态";
 
         if (IsAddonVisible("SelectIconString"))
-            return "SelectIconString still open";
+            return "SelectIconString 仍处于打开状态";
 
         if (IsAddonVisible("Talk"))
-            return "Talk dialog still open";
+            return "Talk 对话框仍处于打开状态";
 
         if (IsAddonVisible("SelectYesno"))
-            return "SelectYesno still open";
+            return "SelectYesno 仍处于打开状态";
 
         if (!GenericHelpers.IsScreenReady())
-            return "screen not ready";
+            return "屏幕未就绪";
 
         if (global::GatherBuddy.Helpers.Player.IsAnimationLocked)
-            return "player animation locked";
+            return "玩家动画已锁定";
 
         if (Dalamud.Conditions[ConditionFlag.Occupied])
             return "Occupied";
@@ -196,7 +196,7 @@ public static class VendorInteractionHelper
         var targetSystem = TargetSystem.Instance();
         if (targetSystem == null)
         {
-            GatherBuddy.Log.Warning("[VendorInteractionHelper] TargetSystem unavailable");
+            GatherBuddy.Log.Warning("[VendorInteractionHelper] TargetSystem 不可用");
             return false;
         }
 
@@ -231,7 +231,7 @@ public static class VendorInteractionHelper
         if (selectionState.NextStepIndex >= selectionState.MenuIndices.Count)
         {
             ResetShopSelectionState(npcId, shopType, shopId);
-            error = $"{DescribeMenuShopType(shopType)} menu path for vendor {npcId} and shop {shopId} was exhausted before the shop opened.";
+            error = $"{DescribeMenuShopType(shopType)} 菜单路径(商人 {npcId}, 商店 {shopId})在商店打开前已耗尽";
             return false;
         }
 
@@ -242,7 +242,7 @@ public static class VendorInteractionHelper
             if (menuIndex >= iconMenu->PopupMenu.PopupMenu.EntryCount)
             {
                 ResetShopSelectionState(npcId, shopType, shopId);
-                error = $"{DescribeMenuShopType(shopType)} menu option {menuIndex} is not currently available in SelectIconString for vendor {npcId} and shop {shopId}.";
+                error = $"{DescribeMenuShopType(shopType)} 菜单选项 {menuIndex} 目前在 SelectIconString 中不可用(商人 {npcId}, 商店 {shopId})";
                 return false;
             }
 
@@ -257,7 +257,7 @@ public static class VendorInteractionHelper
             if (menuIndex >= master.EntryCount)
             {
                 ResetShopSelectionState(npcId, shopType, shopId);
-                error = $"{DescribeMenuShopType(shopType)} option {menuIndex} is not currently available in SelectString for vendor {npcId} and shop {shopId}.";
+                error = $"{DescribeMenuShopType(shopType)} 选项 {menuIndex} 目前在 SelectString 中不可用(商人 {npcId}, 商店 {shopId})";
                 return false;
             }
 
@@ -298,7 +298,7 @@ public static class VendorInteractionHelper
         error = null;
         if (pageIndex < 0)
         {
-            error = $"Invalid InclusionShop page index {pageIndex}.";
+            error = $"无效的 InclusionShop 页面索引 {pageIndex}";
             return false;
         }
 
@@ -335,7 +335,7 @@ public static class VendorInteractionHelper
         error = null;
         if (subPageIndex <= 0)
         {
-            error = $"Invalid InclusionShop subpage index {subPageIndex}.";
+            error = $"无效的 InclusionShop 子页面索引 {subPageIndex}";
             return false;
         }
 
@@ -356,7 +356,7 @@ public static class VendorInteractionHelper
         error = null;
         if (itemIndex < 0)
         {
-            error = $"Invalid InclusionShop item index {itemIndex}.";
+            error = $"无效的 InclusionShop 物品索引 {itemIndex}";
             return false;
         }
 
@@ -372,12 +372,12 @@ public static class VendorInteractionHelper
         var liveItemIndex = FindInclusionShopItemIndex(addon, requestedItemId);
         if (liveItemIndex < 0)
         {
-            error = $"Could not find requested item {requestedItemId} in live InclusionShop rows.";
+            error = $"在实时 InclusionShop 行中找不到请求的物品 {requestedItemId}";
             return false;
         }
 
         if (liveItemIndex != itemIndex)
-            GatherBuddy.Log.Debug($"[VendorInteractionHelper] Remapped InclusionShop item index from stored index {itemIndex} to live index {liveItemIndex} for requested item {requestedItemId}");
+            GatherBuddy.Log.Debug($"[VendorInteractionHelper] 将 InclusionShop 物品索引从存储索引 {itemIndex} 映射到实时索引 {liveItemIndex}(请求物品 {requestedItemId})");
 
         selectItem[1].UInt = (uint)liveItemIndex;
         addon->FireCallback(3, selectItem);
@@ -389,7 +389,7 @@ public static class VendorInteractionHelper
         error = null;
         if (itemIndex < 0)
         {
-            error = $"Invalid SpecialShop item index {itemIndex}.";
+            error = $"无效的 SpecialShop 物品索引 {itemIndex}";
             return false;
         }
 
@@ -405,12 +405,12 @@ public static class VendorInteractionHelper
             var liveItemIndex = FindShopExchangeCurrencyItemIndex(currencyShop, requestedItemId);
             if (liveItemIndex < 0)
             {
-                error = $"Could not find requested item {requestedItemId} in live ShopExchangeCurrency rows.";
+                error = $"在实时 ShopExchangeCurrency 行中找不到请求的物品 {requestedItemId}";
                 return false;
             }
 
             if (liveItemIndex != itemIndex)
-                GatherBuddy.Log.Debug($"[VendorInteractionHelper] Remapped ShopExchangeCurrency row from stored index {itemIndex} to live index {liveItemIndex} for requested item {requestedItemId}");
+                GatherBuddy.Log.Debug($"[VendorInteractionHelper] 将 ShopExchangeCurrency 行从存储索引 {itemIndex} 映射到实时索引 {liveItemIndex}(请求物品 {requestedItemId})");
 
             Callback.Fire(currencyShop, true, 0, liveItemIndex, batchQuantity, 0);
             return true;
@@ -444,13 +444,13 @@ public static class VendorInteractionHelper
         var targetItem = reader.Items.FirstOrDefault(item => item.ItemId == requestedItemId);
         if (targetItem == null)
         {
-            error = $"Could not find requested item {requestedItemId} in live GrandCompanyExchange rows.";
+            error = $"在实时 GrandCompanyExchange 行中找不到请求的物品 {requestedItemId}";
             return false;
         }
 
         if (currentGrandCompanyRank < targetItem.RequiredRank)
         {
-            error = $"The current Grand Company rank is too low to buy {targetItem.Name}.";
+            error = $"当前国防联军军衔太低，无法购买 {targetItem.Name}";
             return false;
         }
 
@@ -477,7 +477,7 @@ public static class VendorInteractionHelper
         error = null;
         if (quantity == 0)
         {
-            error = "Grand Company exchange quantity must be greater than zero.";
+            error = "国防联军兑换数量必须大于零";
             return false;
         }
 
@@ -486,14 +486,14 @@ public static class VendorInteractionHelper
 
         if (addon->UldManager.NodeListCount <= 8 || addon->UldManager.NodeList[8] == null)
         {
-            error = "Could not find the quantity input in ShopExchangeCurrencyDialog.";
+            error = "无法找到 ShopExchangeCurrencyDialog 中的数量输入框";
             return false;
         }
 
         var numericInput = addon->UldManager.NodeList[8]->GetAsAtkComponentNumericInput();
         if (numericInput == null)
         {
-            error = "ShopExchangeCurrencyDialog quantity input is unavailable.";
+            error = "ShopExchangeCurrencyDialog 数量输入框不可用";
             return false;
         }
 
@@ -581,7 +581,7 @@ public static class VendorInteractionHelper
 
         if (!TryBuildShopMenuSelectionPath(npcId, shopType, shopId, out var menuIndices))
         {
-            error = $"Could not determine the {DescribeMenuShopType(shopType)} menu path for vendor {npcId} and shop {shopId}.";
+            error = $"无法确定 {DescribeMenuShopType(shopType)} 菜单路径(商人 {npcId}, 商店 {shopId})";
             selectionState = null!;
             return false;
         }
@@ -691,20 +691,20 @@ public static class VendorInteractionHelper
 
         var matched = npcFateShop.SpecialShop.Any(specialShop => specialShop.RowId == shopId);
         if (matched)
-            GatherBuddy.Log.Debug($"[VendorInteractionHelper] Matched special shop {shopId} via untyped FateShop row {menuEntry.RowId} for vendor {npcId}");
+            GatherBuddy.Log.Debug($"[VendorInteractionHelper] 通过未类型化的 FateShop 行 {menuEntry.RowId} 为商人 {npcId} 匹配到特殊商店 {shopId}");
         return matched;
     }
 
     private static string DescribeMenuShopType(VendorMenuShopType shopType)
         => shopType switch
         {
-            VendorMenuShopType.GilShop               => "gil-shop",
-            VendorMenuShopType.SpecialShop           => "special-shop",
-            VendorMenuShopType.InclusionShop         => "inclusion-shop",
-            VendorMenuShopType.CollectablesShop      => "collectables-shop",
-            VendorMenuShopType.GrandCompanyShop      => "grand-company shop",
-            VendorMenuShopType.FreeCompanyCreditShop => "free-company shop",
-            _                                        => "vendor",
+            VendorMenuShopType.GilShop               => "金币商店",
+            VendorMenuShopType.SpecialShop           => "特殊商店",
+            VendorMenuShopType.InclusionShop         => "综合商店",
+            VendorMenuShopType.CollectablesShop      => "收藏品商店",
+            VendorMenuShopType.GrandCompanyShop      => "国防联军商店",
+            VendorMenuShopType.FreeCompanyCreditShop => "部队商店",
+            _                                        => "商人",
         };
 
     private static unsafe bool TryGetVisibleMenuRowIds(uint npcId, IReadOnlyList<RowRef> menuEntries, out List<uint> visibleMenuRowIds)
@@ -769,7 +769,7 @@ public static class VendorInteractionHelper
                 continue;
 
             if (index != visibleFallbackIndex)
-                GatherBuddy.Log.Debug($"[VendorInteractionHelper] Remapped menu row {rowId} from slot-based index {visibleFallbackIndex} to visible index {index}");
+                GatherBuddy.Log.Debug($"[VendorInteractionHelper] 将菜单行 {rowId} 从槽位索引 {visibleFallbackIndex} 映射到可见索引 {index}");
             return index;
         }
 
@@ -917,7 +917,7 @@ public static class VendorInteractionHelper
 
         if (!TryClickGrandCompanyTab(addon, button))
         {
-            error = $"GrandCompanyExchange {tabType} tab {tabIndex + 1} is not currently clickable.";
+            error = $"GrandCompanyExchange {tabType} 选项卡 {tabIndex + 1} 当前不可点击";
             return false;
         }
         return true;
@@ -931,7 +931,7 @@ public static class VendorInteractionHelper
         error = null;
         if (tabIndex < 0)
         {
-            error = $"Invalid GrandCompanyExchange {tabType} tab index {tabIndex}.";
+            error = $"无效的 GrandCompanyExchange {tabType} 选项卡索引 {tabIndex}";
             return false;
         }
 
@@ -941,7 +941,7 @@ public static class VendorInteractionHelper
         var tabNode = addon->GetNodeById(baseNodeId + (uint)tabIndex);
         if (tabNode == null || !tabNode->IsVisible())
         {
-            error = $"Could not find GrandCompanyExchange {tabType} tab {tabIndex + 1}.";
+            error = $"找不到 GrandCompanyExchange {tabType} 选项卡 {tabIndex + 1}";
             return false;
         }
 
@@ -949,7 +949,7 @@ public static class VendorInteractionHelper
         if (button != null)
             return true;
 
-        error = $"Could not find GrandCompanyExchange {tabType} tab {tabIndex + 1}.";
+        error = $"找不到 GrandCompanyExchange {tabType} 选项卡 {tabIndex + 1}";
         return false;
     }
 
@@ -996,7 +996,7 @@ public static class VendorInteractionHelper
         {
             var atkValueItemIndex = FindShopExchangeCurrencyItemIndexFromAtkValues(addon, requestedItemId);
             if (atkValueItemIndex >= 0 && atkValueItemIndex != agentShopItemIndex)
-                GatherBuddy.Log.Debug($@"[VendorInteractionHelper] AgentShop remapped ShopExchangeCurrency row for requested item {requestedItemId} from AtkValues index {atkValueItemIndex} to live agent index {agentShopItemIndex}");
+                GatherBuddy.Log.Debug($@"[VendorInteractionHelper] AgentShop 将 ShopExchangeCurrency 行从 AtkValues 索引 {atkValueItemIndex} 映射到实时 agent 索引 {agentShopItemIndex}(请求物品 {requestedItemId})");
             return agentShopItemIndex;
         }
 
@@ -1004,7 +1004,7 @@ public static class VendorInteractionHelper
         if (fallbackItemIndex >= 0)
             return fallbackItemIndex;
 
-        GatherBuddy.Log.Debug($@"[VendorInteractionHelper] Could not find requested item {requestedItemId} in ShopExchangeCurrency. AgentShop rows: {DescribeAgentShopReceiveItems()}");
+        GatherBuddy.Log.Debug($@"[VendorInteractionHelper] 在 ShopExchangeCurrency 中找不到请求的物品 {requestedItemId}, AgentShop 行: {DescribeAgentShopReceiveItems()}");
         return -1;
     }
 
@@ -1049,11 +1049,11 @@ public static class VendorInteractionHelper
     private static unsafe string DescribeAgentShopReceiveItems(int maxItems = 12)
     {
         if (!TryGetAgentShop(out var agentShop))
-            return "unavailable";
+            return "不可用";
 
         var receiveItems = agentShop->ItemReceiveSpan;
         if (receiveItems.Length == 0)
-            return "empty";
+            return "空";
 
         var count = Math.Min(maxItems, receiveItems.Length);
         var descriptions = new List<string>(count);
@@ -1064,7 +1064,7 @@ public static class VendorInteractionHelper
         }
 
         if (receiveItems.Length > count)
-            descriptions.Add($@"+{receiveItems.Length - count} more");
+            descriptions.Add($@"+{receiveItems.Length - count} 更多");
 
         return string.Join(", ", descriptions);
     }
