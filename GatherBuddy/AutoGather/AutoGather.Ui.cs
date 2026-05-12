@@ -26,18 +26,18 @@ namespace GatherBuddy.AutoGather
         public static void DrawAutoGatherStatus()
         {
             var enabled = GatherBuddy.AutoGather.Enabled;
-            if (ImGui.Checkbox("ÆôÓÃ", ref enabled))
+            if (ImGui.Checkbox("å¯ç”¨", ref enabled))
             {
                 GatherBuddy.AutoGather.Enabled = enabled;
             }
 
-            ImGui.Text($"×´Ì¬: {GatherBuddy.AutoGather.AutoStatus}");
+            ImGui.Text($"çŠ¶æ€: {GatherBuddy.AutoGather.AutoStatus}");
         }
 
 
         public static void DrawDebugTables()
         {
-            if (ImGui.Button("´Ó¼ôÌù°åµ¼Èë½ÚµãÆ«ÒÆÉèÖÃ"))
+            if (ImGui.Button("ä»å‰ªè´´æ¿å¯¼å…¥èŠ‚ç‚¹åç§»æ•°æ®"))
             {
                 var settings = new JsonSerializerSettings();
                 var                          text    = ImGuiUtil.GetClipboardText();
@@ -45,29 +45,29 @@ namespace GatherBuddy.AutoGather
                 foreach (var offset in vectors)
                 {
                     WorldData.NodeOffsets[offset.Original] = offset.Offset;
-                    GatherBuddy.Log.Information($"ÒÑÌí¼ÓÆ«ÒÆ {offset} µ½×Öµä");
+                    GatherBuddy.Log.Information($"å¯¼å…¥åç§» {offset} åˆ°æ•°æ®");
                 }
                 WorldData.SaveOffsetsToFile();
-                GatherBuddy.Log.Information("µ¼ÈëÍê³É");
+                GatherBuddy.Log.Information("å·²ä¿å­˜");
             }
             ImGui.SameLine();
-            if (ImGui.Button("µ¼³ö½ÚµãÆ«ÒÆÉèÖÃÖÁ¼ôÌù°å"))
+            if (ImGui.Button("å¤åˆ¶èŠ‚ç‚¹åç§»æ•°æ®åˆ°å‰ªè´´æ¿"))
             {
                 var settings = new JsonSerializerSettings();
                 var offsetString = JsonConvert.SerializeObject(WorldData.NodeOffsets.Select(x => new OffsetPair(x.Key, x.Value)).ToList(), Formatting.Indented, settings);
                 ImGui.SetClipboardText(offsetString);
-                GatherBuddy.Log.Information("½ÚµãÆ«ÒÆÉèÖÃÒÑµ¼³öÖÁ¼ôÌù°å");
+                GatherBuddy.Log.Information("èŠ‚ç‚¹åç§»æ•°æ®å·²å¤åˆ¶åˆ°å‰ªè´´æ¿");
             }
             // First column: Nearby nodes table
             if (ImGui.BeginTable("##nearbyNodesTable", 7, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
             {
-                ImGui.TableSetupColumn("Ãû³Æ");
-                ImGui.TableSetupColumn("¿ÉÑ¡ÖĞ");
-                ImGui.TableSetupColumn("½Úµã ID");
-                ImGui.TableSetupColumn("Î»ÖÃ");
-                ImGui.TableSetupColumn("¾àÀë");
-                ImGui.TableSetupColumn("×Ô¶¯Æ«ÒÆ");
-                ImGui.TableSetupColumn("²Ù×÷");
+                ImGui.TableSetupColumn("åç§°");
+                ImGui.TableSetupColumn("å¯é€‰æ‹©");
+                ImGui.TableSetupColumn("èŠ‚ç‚¹ ID");
+                ImGui.TableSetupColumn("ä½ç½®");
+                ImGui.TableSetupColumn("è·ç¦»");
+                ImGui.TableSetupColumn("è‡ªåŠ¨åç§»");
+                ImGui.TableSetupColumn("æ“ä½œ");
 
                 ImGui.TableHeadersRow();
 
@@ -79,7 +79,7 @@ namespace GatherBuddy.AutoGather
                     ImGui.TableSetColumnIndex(0);
                     ImGui.Text(node.Name.ToString());
                     ImGui.TableSetColumnIndex(1);
-                    ImGui.Text(node.IsTargetable ? "ÊÇ" : "·ñ");
+                    ImGui.Text(node.IsTargetable ? "æ˜¯" : "å¦");
                     ImGui.TableSetColumnIndex(2);
                     ImGui.Text(node.BaseId.ToString());
                     ImGui.TableSetColumnIndex(3);
@@ -98,7 +98,7 @@ namespace GatherBuddy.AutoGather
 
                     if (isBlacklisted && list != null)
                     {
-                        if (ImGui.Button($"ÒÆ³ıºÚÃûµ¥##{node.Position}"))
+                        if (ImGui.Button($"ç§»å‡ºé»‘åå•##{node.Position}"))
                         {
                             list.Remove(node.Position);
                             if (list.Count == 0)
@@ -111,7 +111,7 @@ namespace GatherBuddy.AutoGather
                     }
                     else
                     {
-                        if (ImGui.Button($"Ìí¼ÓºÚÃûµ¥##{node.Position}"))
+                        if (ImGui.Button($"åŠ å…¥é»‘åå•##{node.Position}"))
                         {
                             if (list == null)
                             {
@@ -124,11 +124,11 @@ namespace GatherBuddy.AutoGather
                         }
                     }
 
-                    if (ImGui.Button($"µ¼º½ÖÁ##{node.Position}"))
+                    if (ImGui.Button($"å¯¼èˆªåˆ°##{node.Position}"))
                     {
                         if (GatherBuddy.AutoGather.Enabled)
                         {
-                            Communicator.PrintError("[GatherBuddyReborn] ÒÑÆôÓÃ×Ô¶¯²É¼¯, ÎŞ·¨Ê¹ÓÃÊÖ¶¯µ¼º½");
+                            Communicator.PrintError("[GatherBuddyReborn] è¯·å…ˆç¦ç”¨è‡ªåŠ¨é‡‡é›†, æ— æ³•ä½¿ç”¨æ‰‹åŠ¨å¯¼èˆª");
                             return;
                         }
                         //VNavmesh_IPCSubscriber.Nav_PathfindCancelAll();
@@ -138,17 +138,17 @@ namespace GatherBuddy.AutoGather
 
                     if (WorldData.NodeOffsets.TryGetValue(node.Position, out var offset))
                     {
-                        if (ImGui.Button($"ÒÆ³ı¸ÃÆ«ÒÆ##{node.Position}"))
+                        if (ImGui.Button($"ç§»å‡ºåç§»##{node.Position}"))
                         {
                             WorldData.NodeOffsets.Remove(node.Position);
                             WorldData.SaveOffsetsToFile();
                         }
                         ImGui.Text(offset.ToString());
-                        if (ImGui.Button($"µ¼º½ÖÁÆ«ÒÆ##{node.Position}"))
+                        if (ImGui.Button($"å¯¼èˆªåˆ°åç§»##{node.Position}"))
                         {
                             if (GatherBuddy.AutoGather.Enabled)
                             {
-                                Communicator.PrintError("[GatherBuddyReborn] ÒÑÆôÓÃ×Ô¶¯²É¼¯, ÎŞ·¨Ê¹ÓÃÊÖ¶¯µ¼º½");
+                                Communicator.PrintError("[GatherBuddyReborn] è¯·å…ˆç¦ç”¨è‡ªåŠ¨é‡‡é›†, æ— æ³•ä½¿ç”¨æ‰‹åŠ¨å¯¼èˆª");
                                 return;
                             }
                             //VNavmesh_IPCSubscriber.Nav_PathfindCancelAll();
@@ -158,7 +158,7 @@ namespace GatherBuddy.AutoGather
                     }
                     else
                     {
-                        if (ImGui.Button($"Ìí¼Ó´ËÆ«ÒÆ##{node.Position}"))
+                        if (ImGui.Button($"æ·»åŠ æ­¤åç§»##{node.Position}"))
                         {
                             WorldData.AddOffset(node.Position, playerPosition);
                         }
@@ -178,10 +178,10 @@ namespace GatherBuddy.AutoGather
             var preview = Dalamud.GameData.GetExcelSheet<Mount>().First(x => x.RowId == GatherBuddy.Config.AutoGatherConfig.AutoGatherMountId)
                 .Singular.ToString().ToProperCase();
             if (string.IsNullOrEmpty(preview))
-                preview = "Ëæ»ú×øÆï";
-            if (ImGui.BeginCombo("Ëæ»ú×øÆï", preview))
+                preview = "æ— åéª‘";
+            if (ImGui.BeginCombo("è‡ªåŠ¨é‡‡é›†åéª‘", preview))
             {
-                if (ImGui.Selectable("Ëæ»ú×øÆï", GatherBuddy.Config.AutoGatherConfig.AutoGatherMountId == 0))
+                if (ImGui.Selectable("æ— åéª‘", GatherBuddy.Config.AutoGatherConfig.AutoGatherMountId == 0))
                 {
                     GatherBuddy.Config.AutoGatherConfig.AutoGatherMountId = 0;
                     GatherBuddy.Config.Save();
@@ -217,4 +217,3 @@ namespace GatherBuddy.AutoGather
         }
     }
 }
-

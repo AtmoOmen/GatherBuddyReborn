@@ -685,8 +685,8 @@ public partial class Interface
                 "在宇宙探索和海钓中显示该鱼是否可被双重提钩或三重提钩",
                 GatherBuddy.Config.ShowMultiHookHints, b => GatherBuddy.Config.ShowMultiHookHints = b);
         public static void DrawOceanTypeHintPopupBox()
-            => DrawCheckbox("Show Ocean Type Hints",
-                "Show what type of fish in Ocean Fishing",
+            => DrawCheckbox("显示海钓鱼类类型",
+                "在海钓中显示鱼类的类型",
                 GatherBuddy.Config.ShowOceanTypeHints, b => GatherBuddy.Config.ShowOceanTypeHints = b);
         
         // Fish Stats Window

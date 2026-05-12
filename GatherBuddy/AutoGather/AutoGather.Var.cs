@@ -169,7 +169,7 @@ namespace GatherBuddy.AutoGather
             }
         }
 
-        public  string      AutoStatus { get; private set; } = "¿ÕÏÐÖÐ";
+        public  string      AutoStatus { get; private set; } = "ç©ºé—²ä¸­...";
         public  int         LastCollectability = 0;
         public  int         LastIntegrity      = 0;
         private bool LuckUsed;

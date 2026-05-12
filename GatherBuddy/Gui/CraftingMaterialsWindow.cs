@@ -402,11 +402,11 @@ public class CraftingMaterialsWindow : Window
                 switch (retainerColumnMode)
                 {
                     case RetainerColumnMode.Total:
-                        ImGui.TableSetupColumn("Ret", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                     case RetainerColumnMode.Split:
-                        ImGui.TableSetupColumn("RNQ", ImGuiTableColumnFlags.WidthFixed, numW);
-                        ImGui.TableSetupColumn("RHQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇NQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇HQ", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                 }
                 ImGui.TableSetupColumn("需要", ImGuiTableColumnFlags.WidthFixed, numW);
@@ -429,13 +429,13 @@ public class CraftingMaterialsWindow : Window
                 {
                     case RetainerColumnMode.Total:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("Ret", "雇员总数(通过 Allagan Tools)");
+                        DrawCenteredHeader("雇", "雇员总数(通过 Allagan Tools)");
                         break;
                     case RetainerColumnMode.Split:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("RNQ", "雇员 NQ 数量(通过 Allagan Tools)");
+                        DrawCenteredHeader("雇NQ", "雇员 NQ 数量(通过 Allagan Tools)");
                         ImGui.TableSetColumnIndex(3);
-                        DrawCenteredHeader("RHQ", "雇员 HQ 数量(通过 Allagan Tools)");
+                        DrawCenteredHeader("雇HQ", "雇员 HQ 数量(通过 Allagan Tools)");
                         break;
                 }
                 ImGui.TableSetColumnIndex(needIdx);

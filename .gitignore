@@ -4,3 +4,4 @@ obj/
 .idea/
 SecretKeys.generated.cs
 .vscode/
+GatherBuddy/raphael-rs/

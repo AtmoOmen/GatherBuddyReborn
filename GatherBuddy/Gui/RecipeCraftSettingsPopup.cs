@@ -295,7 +295,7 @@ public class RecipeCraftSettingsPopup
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Clear All", new Vector2(100, 0)))
+            if (ImGui.Button("全部清除", new Vector2(100, 0)))
             {
                 _editingSettings.Clear();
                 
@@ -535,12 +535,12 @@ public class RecipeCraftSettingsPopup
                 _editingSettings.SolverOverride = SolverOverrideMode.ProgressOnlySolver;
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Use only progress-building actions, no quality steps. Fast NQ crafts.");
+                ImGui.SetTooltip("仅使用推进度的动作, 不含品质步骤。快速制作 NQ 物品。");
 
             if (allMacros.Count > 0)
             {
                 ImGui.Separator();
-                ImGui.InputTextWithHint("##MacroSearch", "Search macros...", ref _macroSearch, 128);
+                ImGui.InputTextWithHint("##MacroSearch", "搜索宏...", ref _macroSearch, 128);
                 var filteredMacros = string.IsNullOrWhiteSpace(_macroSearch)
                     ? allMacros
                     : allMacros.Where(m => m.Name.Contains(_macroSearch, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -999,14 +999,14 @@ public class RecipeCraftSettingsPopup
         }
         else
         {
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "Ingredient Quality:");
+            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1), "材料品质:");
         }
         
         ImGui.Spacing();
         
-        ImGui.Checkbox("Prefer NQ##ingredientNQ", ref _useAllNQ);
+        ImGui.Checkbox("优先 NQ##ingredientNQ", ref _useAllNQ);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Use NQ materials by default, falling back to HQ only when there isn't enough NQ.\nPer-ingredient HQ amounts below still apply.");
+            ImGui.SetTooltip("默认使用 NQ 材料, 仅在 NQ 不足时回退到 HQ。\n下方按材料单独设置的 HQ 数量仍有效。");
         
         ImGui.Spacing();
         
@@ -1019,15 +1019,15 @@ public class RecipeCraftSettingsPopup
         ImGui.SetColumnWidth(3, 50);
         ImGui.SetColumnWidth(4, 100);
         
-        ImGui.Text("Ingredient");
+        ImGui.Text("材料");
         ImGui.NextColumn();
-        ImGui.Text("Need");
+        ImGui.Text("需要");
         ImGui.NextColumn();
         ImGui.Text("NQ");
         ImGui.NextColumn();
         ImGui.Text("HQ");
         ImGui.NextColumn();
-        ImGui.Text("Use HQ");
+        ImGui.Text("使用 HQ");
         ImGui.NextColumn();
         ImGui.Separator();
         

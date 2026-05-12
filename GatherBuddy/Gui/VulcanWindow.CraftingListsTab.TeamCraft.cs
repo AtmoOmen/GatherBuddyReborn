@@ -141,7 +141,7 @@ public partial class VulcanWindow
         }
 
         var listName = string.IsNullOrWhiteSpace(_teamCraftListName)
-            ? "Imported from TeamCraft"
+            ? "从 TeamCraft 导入"
             : _teamCraftListName;
 
         var newList = GatherBuddy.CraftingListManager.CreateNewList(listName, ephemeral);

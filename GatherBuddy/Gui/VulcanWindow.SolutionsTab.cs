@@ -73,7 +73,7 @@ public partial class VulcanWindow
                 GatherBuddy.Config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Clears cached solutions each time a new crafting queue starts.\nDisable to reuse solutions across queue runs when your stats haven't changed.");
+                ImGui.SetTooltip("每次新队列开始时清空缓存的求解结果。\n禁用此选项可在属性未变化时跨队列复用结果。");
 
             var activeColor = coordinator.ActiveSolves > 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey;
             var pendingColor = coordinator.PendingSolves > 0 ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;

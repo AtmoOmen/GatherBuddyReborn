@@ -1815,7 +1815,7 @@ namespace GatherBuddy.AutoGather
                 {
                     _diademPathIndex = (_diademPathIndex + 1) % path.Length;
                     if (prevIndex == _diademPathIndex)
-                        AbortAutoGather("All active nodes in The Diadem are blacklisted");
+                        AbortAutoGather("云冠群岛所有活跃节点均已被屏蔽");
                 }
             }
 
