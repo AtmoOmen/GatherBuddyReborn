@@ -313,7 +313,6 @@ public partial class VulcanWindow
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
         ImGui.TextColored(ImGuiColors.DalamudGrey3, "次数:");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(100f);
         ImGui.InputInt("##workshopLoopCount", ref _workshopLoopCount, 1);
         _workshopLoopCount = Math.Max(1, _workshopLoopCount);
 
@@ -339,7 +338,7 @@ public partial class VulcanWindow
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
         using (ImRaii.Disabled(scope.CraftableRequirementCount == 0))
         {
-            if (ImGui.Button("创建制作清单##createWorkshopList", new Vector2(-1, 22f)))
+            if (ImGui.Button("创建制作清单##createWorkshopList"))
                 CreateWorkshopCraftingList(scope, _workshopListName);
         }
 
@@ -351,7 +350,7 @@ public partial class VulcanWindow
         var canAddToExistingList = scope.CraftableRequirementCount > 0 && GatherBuddy.CraftingListManager.Lists.Count > 0;
         using (ImRaii.Disabled(!canAddToExistingList))
         {
-            if (ImGui.Button("加入已有清单##addWorkshopToExistingList", new Vector2(-1, 22f)))
+            if (ImGui.Button("加入已有清单##addWorkshopToExistingList"))
                 QueueWorkshopAddToListPopup();
         }
 
@@ -368,7 +367,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var detailHeight = ImGui.GetContentRegionAvail().Y;
-        ImGui.BeginChild("##workshopDetailScroll", new Vector2(-1, detailHeight), false);
+        ImGui.BeginChild("##workshopDetailScroll", new Vector2(-1, detailHeight));
 
         var showRetainer = AllaganTools.Enabled;
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();

@@ -48,7 +48,7 @@ public partial class VulcanWindow
             ImGui.PushStyleColor(ImGuiCol.Button, selectedColor);
         
         ImGui.PushID("jobAll");
-        if (ImGui.Button("全部", new Vector2(btnSide, btnSide)))
+        if (ImGui.Button("全部"))
         {
             _selectedJobFilters.Clear();
             _filtersDirty = true;
@@ -118,8 +118,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("按物品装备等级筛选和排序, 而不是按制作等级");
         ImGui.Spacing();
 
-        var sliderWidth = 150f;
-        ImGui.SetNextItemWidth(sliderWidth);
+        ImGui.SetNextItemWidth(-1f);
         if (ImGui.SliderInt("##minLevel", ref _minLevel, 1, 100, "最低: %d", ImGuiSliderFlags.AlwaysClamp))
         {
             _minLevel = Math.Clamp(_minLevel, 1, _maxLevel);
@@ -130,7 +129,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("按住 Ctrl 并点击可直接输入数值");
         }
 
-        ImGui.SetNextItemWidth(sliderWidth);
+        ImGui.SetNextItemWidth(-1f);
         if (ImGui.SliderInt("##maxLevel", ref _maxLevel, 1, 100, "最高: %d", ImGuiSliderFlags.AlwaysClamp))
         {
             _maxLevel = Math.Clamp(_maxLevel, _minLevel, 100);
@@ -503,7 +502,6 @@ public partial class VulcanWindow
                     ImGui.AlignTextToFramePadding();
                     ImGui.Text("数量:");
                     ImGui.SameLine();
-                    ImGui.SetNextItemWidth(100);
                     ImGui.InputInt("##ContextQty", ref _contextMenuAddQuantity, 1);
                     if (_contextMenuAddQuantity < 1) _contextMenuAddQuantity = 1;
                     ImGui.SetNextItemWidth(-1);
@@ -774,10 +772,9 @@ public partial class VulcanWindow
         var avail = ImGui.GetContentRegionAvail();
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + Math.Max(0, avail.Y - 96));
 
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.AlignTextToFramePadding();
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "数量:");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(100);
         ImGui.InputInt("##browserQty", ref _browserCraftQuantity, 1);
         if (_browserCraftQuantity < 1) _browserCraftQuantity = 1;
 

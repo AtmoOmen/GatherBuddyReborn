@@ -43,7 +43,6 @@ public partial class VulcanWindow
         ImGui.Text("  最近清单上限:");
         ImGui.SameLine();
         var maxRecentLists = GatherBuddy.Config.MaxRecentCraftingListsInContextMenu;
-        ImGui.SetNextItemWidth(100);
         if (ImGui.InputInt("###MaxRecentLists", ref maxRecentLists, 1, 1))
         {
             GatherBuddy.Config.MaxRecentCraftingListsInContextMenu = Math.Max(1, Math.Min(50, maxRecentLists));

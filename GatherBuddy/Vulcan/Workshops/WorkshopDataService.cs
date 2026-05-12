@@ -113,7 +113,7 @@ internal sealed class WorkshopPhaseNode : WorkshopScopeNode
     public uint PhaseId { get; }
     public int PhaseIndex { get; }
     public override WorkshopScopeKind Kind => WorkshopScopeKind.Phase;
-    public override string DisplayName => $"{PartName} - Phase {PhaseIndex}";
+    public override string DisplayName => $"{PartName} - 阶段 {PhaseIndex}";
 }
 
 internal sealed record WorkshopListDraft(string Name, string Description, IReadOnlyList<(uint RecipeId, int Quantity)> Recipes);
@@ -373,7 +373,7 @@ internal static class WorkshopDataService
         {
             WorkshopProjectNode project => $"{project.ProjectName} x{loopCount}",
             WorkshopPartNode part => $"{part.ProjectName} - {part.PartName} x{loopCount}",
-            WorkshopPhaseNode phase => $"{phase.ProjectName} - {phase.PartName}, Phase {phase.PhaseIndex} x{loopCount}",
+            WorkshopPhaseNode phase => $"{phase.ProjectName} - {phase.PartName}, 阶段 {phase.PhaseIndex} x{loopCount}",
             _ => $"{scope.ProjectName} x{loopCount}",
         };
 

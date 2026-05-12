@@ -388,7 +388,7 @@ public partial class VulcanWindow
 
         using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
         {
-            ImGui.BeginChild("##FilterPanel", new Vector2(180, avail.Y), true);
+            ImGui.BeginChild("##FilterPanel", new Vector2(180 * ImGuiHelpers.GlobalScale, avail.Y), true);
             DrawFilterPanel();
             ImGui.EndChild();
         }

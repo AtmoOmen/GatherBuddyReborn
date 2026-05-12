@@ -129,19 +129,19 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
     {
         if (this == Always)
         {
-            timeString = "��פ";
+            timeString = "总是";
             return true;
         }
 
         if (this == Never)
         {
-            timeString = "�Ӳ�";
+            timeString = "从不";
             return false;
         }
 
         if (this == Invalid)
         {
-            timeString = "δ֪";
+            timeString = "无效";
             return false;
         }
 
@@ -149,7 +149,7 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
         {
             if (End < now)
             {
-                timeString = "�Ӳ�";
+                timeString = "从不";
                 return false;
             }
 

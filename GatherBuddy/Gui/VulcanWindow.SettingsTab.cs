@@ -126,7 +126,6 @@ public partial class VulcanWindow
             ImGui.Text("  最大并发: ");
             ImGui.SameLine();
             var maxConcurrent = raphaelConfig.MaxConcurrentRaphaelProcesses;
-            ImGui.SetNextItemWidth(100);
             if (ImGui.InputInt("###MaxConcurrent", ref maxConcurrent, 1, 1))
             {
                 raphaelConfig.MaxConcurrentRaphaelProcesses = Math.Max(1, maxConcurrent);
@@ -136,7 +135,6 @@ public partial class VulcanWindow
             ImGui.Text("  求解超时 (分钟): ");
             ImGui.SameLine();
             var timeoutMinutes = raphaelConfig.RaphaelTimeoutMinutes;
-            ImGui.SetNextItemWidth(100);
             if (ImGui.InputInt("###RaphaelTimeout", ref timeoutMinutes, 1, 1))
             {
                 raphaelConfig.RaphaelTimeoutMinutes = Math.Max(1, Math.Min(60, timeoutMinutes));
@@ -148,7 +146,6 @@ public partial class VulcanWindow
             ImGui.Text("  缓存最长保留 (天): ");
             ImGui.SameLine();
             var maxAgeDays = raphaelConfig.SolutionCacheMaxAgeDays;
-            ImGui.SetNextItemWidth(100);
             if (ImGui.InputInt("###CacheMaxAge", ref maxAgeDays, 1, 10))
             {
                 raphaelConfig.SolutionCacheMaxAgeDays = Math.Max(1, Math.Min(365, maxAgeDays));
