@@ -56,10 +56,10 @@ public partial class VulcanWindow
             var coordinator = GatherBuddy.RaphaelSolveCoordinator;
             var raphaelConfig = GatherBuddy.Config.RaphaelSolverConfig;
 
-            ImGui.SetNextItemWidth(220);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(220f));
             ImGui.InputTextWithHint("##solutionsSearch", "Search items...", ref _solutionsSearch, 128);
             ImGui.SameLine();
-            if (ImGui.Button("Clear All", new Vector2(90, 0)))
+            if (ImGui.Button("Clear All", VulcanUiScaling.Scaled(90f, 0f)))
             {
                 coordinator.Clear();
                 _selectedSolutionKey = null;
@@ -101,7 +101,7 @@ public partial class VulcanWindow
             }
 
             var avail = ImGui.GetContentRegionAvail();
-            var leftWidth = 290f;
+            var leftWidth = VulcanUiScaling.Scaled(290f);
             var rightWidth = avail.X - leftWidth - ImGui.GetStyle().ItemSpacing.X;
 
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
@@ -124,7 +124,7 @@ public partial class VulcanWindow
 
     private void DrawSolutionsList(List<CachedRaphaelSolution> solutions)
     {
-        var iconSize = new Vector2(28f, 28f);
+        var iconSize = VulcanUiScaling.Scaled(28f, 28f);
         var itemHeight = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
         var contentMaxX = ImGui.GetContentRegionMax().X;
 
@@ -148,7 +148,7 @@ public partial class VulcanWindow
             else
                 ImGui.Dummy(iconSize);
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f);
 
             if (ImGui.Selectable($"{name}##sol_{solution.Key}", isSelected, ImGuiSelectableFlags.None,
@@ -178,7 +178,7 @@ public partial class VulcanWindow
 
         var req = solution.Request;
         var (name, iconId) = GetSolutionItemInfo(req.RecipeId);
-        var largeIconSize = new Vector2(48f, 48f);
+        var largeIconSize = VulcanUiScaling.Scaled(48f, 48f);
 
         if (iconId > 0)
         {
@@ -188,7 +188,7 @@ public partial class VulcanWindow
             if (wrap != null)
             {
                 ImGui.Image(wrap.Handle, largeIconSize);
-                ImGui.SameLine(0, 10);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(10f));
             }
         }
 
@@ -206,12 +206,12 @@ public partial class VulcanWindow
 
         ImGui.Text($"Level:          {req.Level}");
         ImGui.Text($"Craftsmanship:  {req.Craftsmanship}");
-        ImGui.SameLine(180);
+        ImGui.SameLine(VulcanUiScaling.Scaled(180f));
         ImGui.Text($"Control:  {req.Control}");
-        ImGui.SameLine(340);
+        ImGui.SameLine(VulcanUiScaling.Scaled(340f));
         ImGui.Text($"CP:  {req.CP}");
         ImGui.Text($"Manipulation:   {(req.Manipulation ? "Yes" : "No")}");
-        ImGui.SameLine(180);
+        ImGui.SameLine(VulcanUiScaling.Scaled(180f));
         ImGui.Text($"Specialist:  {(req.Specialist ? "Yes" : "No")}");
         ImGui.Text($"Initial Quality: {req.InitialQuality}");
         ImGui.Spacing();
@@ -224,7 +224,7 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.ParsedGold, $"Actions ({solution.ActionIds.Count})");
         ImGui.Spacing();
 
-        var actionIconSize = new Vector2(24f, 24f);
+        var actionIconSize = VulcanUiScaling.Scaled(24f, 24f);
         var remainH = ImGui.GetContentRegionAvail().Y;
         ImGui.BeginChild("##solActions", new Vector2(-1, remainH), false);
 
@@ -249,7 +249,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(actionIconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (actionIconSize.Y - ImGui.GetTextLineHeight()) / 2f);
             ImGui.Text($"{i + 1}. {skillName}");
         }

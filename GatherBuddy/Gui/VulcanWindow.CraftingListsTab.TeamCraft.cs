@@ -44,7 +44,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        var footerHeight = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 3f + 2f;
+        var footerHeight = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 3f + VulcanUiScaling.Scaled(2f);
         ImGui.BeginChild("##teamCraftImportContent", new Vector2(0, -footerHeight), false);
         ImGui.Text("List Name:");
         ImGui.SetNextItemWidth(-1);
@@ -57,7 +57,7 @@ public partial class VulcanWindow
 
         ImGui.Spacing();
         ImGui.Text("Final Items:");
-        var finalItemsHeight = Math.Max(150f, ImGui.GetContentRegionAvail().Y);
+        var finalItemsHeight = Math.Max(VulcanUiScaling.Scaled(150f), ImGui.GetContentRegionAvail().Y);
         ImGui.InputTextMultiline("##FinalItems", ref _teamCraftFinalItems, 500000, new Vector2(-1, finalItemsHeight));
         ImGui.EndChild();
 
@@ -65,7 +65,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Import", new Vector2(100, 0)))
+        if (ImGui.Button("Import", VulcanUiScaling.Scaled(100f, 0f)))
         {
             var importedList = ParseTeamCraftImport(_teamCraftEphemeral);
             if (importedList != null)
@@ -89,7 +89,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel", new Vector2(100, 0)))
+        if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(100f, 0f)))
         {
             _teamCraftListName   = string.Empty;
             _teamCraftFinalItems = string.Empty;
@@ -103,7 +103,11 @@ public partial class VulcanWindow
     }
 
     private static Vector2 NormalizeTeamCraftImportWindowSize(Vector2 size)
-        => size.X > 0 && size.Y > 0 ? size : DefaultTeamCraftImportWindowSize;
+        => size.X <= 0f || size.Y <= 0f
+            ? DefaultTeamCraftImportWindowSize
+            : HasTeamCraftImportWindowSizeChanged(size, LegacyTeamCraftImportWindowSize)
+                ? size
+                : DefaultTeamCraftImportWindowSize;
 
     private static bool HasTeamCraftImportWindowSizeChanged(Vector2 lhs, Vector2 rhs)
         => MathF.Abs(lhs.X - rhs.X) > 0.5f || MathF.Abs(lhs.Y - rhs.Y) > 0.5f;

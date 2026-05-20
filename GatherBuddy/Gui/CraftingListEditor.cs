@@ -250,7 +250,7 @@ public class CraftingListEditor
         var availableHeight = ImGui.GetContentRegionAvail().Y;
         
         var leftPaneWidth = availableWidth * 0.4f;
-        var rightPaneWidth = availableWidth - leftPaneWidth - 8;
+        var rightPaneWidth = availableWidth - leftPaneWidth - VulcanUiScaling.Scaled(8f);
         
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
         {
@@ -633,7 +633,7 @@ public class CraftingListEditor
 
         if (IPCSubscriber.IsReady("Artisan"))
         {
-            ImGuiUtil.DrawDisabledButton("Artisan Detected", new Vector2(-1, 22),
+            ImGuiUtil.DrawDisabledButton("Artisan Detected", VulcanUiScaling.Scaled(-1f, 22f),
                 "Artisan plugin is loaded. Please unload Artisan to use Vulcan's crafting system.", true);
         }
         else
@@ -644,7 +644,7 @@ public class CraftingListEditor
             else if (warnings > 0)
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.40f, 0.05f, 1f));
 
-            if (ImGui.Button("Start Gather/Crafting", new Vector2(-1, 22)))
+            if (ImGui.Button("Start Gather/Crafting", VulcanUiScaling.Scaled(-1f, 22f)))
             {
                 if (hardFails > 0)
                     ImGui.OpenPopup("ConfirmFailedMacros##startCraft");
@@ -666,13 +666,13 @@ public class CraftingListEditor
                 ImGui.TextColored(new Vector4(0.78f, 0.25f, 0.25f, 1f), $"{hardFails} macro(s) are predicted to FAIL their craft.");
                 ImGui.TextWrapped("These items may not be completed. Start crafting anyway?");
                 ImGui.Spacing();
-                if (ImGui.Button("Start Anyway", new Vector2(120, 0)))
+                if (ImGui.Button("Start Anyway", VulcanUiScaling.Scaled(120f, 0f)))
                 {
                     OnStartCrafting?.Invoke(_list);
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel", new Vector2(80, 0)))
+                if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(80f, 0f)))
                     ImGui.CloseCurrentPopup();
                 ImGui.EndPopup();
             }
@@ -680,18 +680,18 @@ public class CraftingListEditor
 
         var hSpacing = ImGui.GetStyle().ItemSpacing.X;
         var thirdW = (ImGui.GetContentRegionAvail().X - hSpacing * 2f) / 3f;
-        if (ImGui.Button("Generate Gather List##gatherList", new Vector2(thirdW, 22)))
+        if (ImGui.Button("Generate Gather List##gatherList", new Vector2(thirdW, VulcanUiScaling.Scaled(22f))))
         {
             var materials = new Dictionary<uint, int>(GetCachedMaterials());
             CraftingGatherBridge.CreatePersistentGatherList($"{_list.Name}...Auto-Generated", materials);
         }
         ImGui.SameLine();
         var matsBtnLabel = GatherBuddy.CraftingMaterialsWindow?.IsOpen == true ? "Hide Materials" : "View Materials";
-        if (ImGui.Button($"{matsBtnLabel}##viewMats", new Vector2(thirdW, 22)) && GatherBuddy.CraftingMaterialsWindow != null)
+        if (ImGui.Button($"{matsBtnLabel}##viewMats", new Vector2(thirdW, VulcanUiScaling.Scaled(22f))) && GatherBuddy.CraftingMaterialsWindow != null)
             GatherBuddy.CraftingMaterialsWindow.IsOpen = !GatherBuddy.CraftingMaterialsWindow.IsOpen;
         ImGui.SameLine();
         var treeBtnLabel = GatherBuddy.CraftingTreeWindow?.IsOpen == true ? "Hide Tree" : "View Tree";
-        if (ImGui.Button($"{treeBtnLabel}##viewTree", new Vector2(-1, 22)) && GatherBuddy.CraftingTreeWindow != null)
+        if (ImGui.Button($"{treeBtnLabel}##viewTree", VulcanUiScaling.Scaled(-1f, 22f)) && GatherBuddy.CraftingTreeWindow != null)
         {
             GatherBuddy.CraftingTreeWindow.SetEditor(this);
             GatherBuddy.CraftingTreeWindow.IsOpen = !GatherBuddy.CraftingTreeWindow.IsOpen;
@@ -767,7 +767,7 @@ public class CraftingListEditor
                 _focusDescNext = false;
             }
             ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextMultiline("##listDesc", ref _editingDescription, 512, new Vector2(-1, 60));
+            ImGui.InputTextMultiline("##listDesc", ref _editingDescription, 512, VulcanUiScaling.Scaled(-1f, 60f));
             if (ImGui.IsItemDeactivated())
             {
                 _list.Description = _editingDescription;
@@ -780,7 +780,7 @@ public class CraftingListEditor
         {
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.18f, 1f)))
             {
-                ImGui.BeginChild("##notesDisplay", new Vector2(-1, 60f), true);
+                ImGui.BeginChild("##notesDisplay", VulcanUiScaling.Scaled(-1f, 60f), true);
 
                 if (string.IsNullOrEmpty(_editingDescription))
                     ImGui.TextColored(ImGuiColors.DalamudGrey, "Click to add notes...");
@@ -835,7 +835,7 @@ public class CraftingListEditor
     private void DrawListConsumablesSection()
     {
         var labelColor = new Vector4(0.80f, 0.80f, 0.80f, 1f);
-        var valueX     = 80f;
+        var valueX     = VulcanUiScaling.Scaled(80f);
         var hasAny     = false;
 
         if (_list.Consumables.FoodItemId.HasValue)
@@ -881,7 +881,7 @@ public class CraftingListEditor
 
         DrawRecipeComboWithKeywordFilter();
 
-        ImGui.SetNextItemWidth(120);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(120f));
         ImGui.InputInt("##quantity", ref _searchQuantity, 1);
         if (_searchQuantity < 1)
             _searchQuantity = 1;

@@ -84,11 +84,15 @@ internal static class CraftingRowIcons
         return icon;
     }
 
-    public static void DrawIconsRightAligned(IReadOnlyList<RowIcon> icons, float iconSize = 16f, float spacing = 4f)
+    public static void DrawIconsRightAligned(IReadOnlyList<RowIcon> icons, float iconSize = -1f, float spacing = -1f)
     {
         if (icons.Count == 0)
             return;
 
+        if (iconSize <= 0f)
+            iconSize = VulcanUiScaling.Scaled(16f);
+        if (spacing < 0f)
+            spacing = VulcanUiScaling.Scaled(4f);
         var size = new Vector2(iconSize, iconSize);
         for (var i = 0; i < icons.Count; i++)
         {

@@ -20,7 +20,7 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null)
         {
-        var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("Settings##settingsTab", 6, 9);
+            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("Settings##settingsTab", 6, 9);
             tabItem = handle;
             tabOpen = handle;
         }
@@ -42,7 +42,7 @@ public partial class VulcanWindow
             var currentMode = raphaelConfig.SolverMode;
             var modeNames = new[] { "Pure Raphael", "Standard Solver", "Progress Only" };
             var safeModeIndex = Math.Clamp((int)currentMode, 0, modeNames.Length - 1);
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.BeginCombo("Solver Mode###SolverMode", modeNames[safeModeIndex]))
             {
                 if (ImGui.Selectable("Pure Raphael", currentMode == RaphaelSolverMode.PureRaphael))
@@ -90,7 +90,7 @@ public partial class VulcanWindow
             }
 
             var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.SliderInt("Action Delay (ms)", ref delay, 0, 1000))
             {
                 GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);
@@ -126,7 +126,7 @@ public partial class VulcanWindow
             ImGui.Text("  Max Concurrent: ");
             ImGui.SameLine();
             var maxConcurrent = raphaelConfig.MaxConcurrentRaphaelProcesses;
-            ImGui.SetNextItemWidth(100);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###MaxConcurrent", ref maxConcurrent, 1, 1))
             {
                 raphaelConfig.MaxConcurrentRaphaelProcesses = Math.Max(1, maxConcurrent);
@@ -136,7 +136,7 @@ public partial class VulcanWindow
             ImGui.Text("  Solve Timeout (minutes): ");
             ImGui.SameLine();
             var timeoutMinutes = raphaelConfig.RaphaelTimeoutMinutes;
-            ImGui.SetNextItemWidth(100);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###RaphaelTimeout", ref timeoutMinutes, 1, 1))
             {
                 raphaelConfig.RaphaelTimeoutMinutes = Math.Max(1, Math.Min(60, timeoutMinutes));
@@ -148,7 +148,7 @@ public partial class VulcanWindow
             ImGui.Text("  Cache Max Age (days): ");
             ImGui.SameLine();
             var maxAgeDays = raphaelConfig.SolutionCacheMaxAgeDays;
-            ImGui.SetNextItemWidth(100);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###CacheMaxAge", ref maxAgeDays, 1, 10))
             {
                 raphaelConfig.SolutionCacheMaxAgeDays = Math.Max(1, Math.Min(365, maxAgeDays));
@@ -187,7 +187,7 @@ public partial class VulcanWindow
             var cachedColor = coordinator.CachedSolutionCount > 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey;
             ImGui.TextColored(cachedColor, $"  Cached Solutions: {coordinator.CachedSolutionCount}");
 
-            if (ImGui.Button("Clear Cache", new Vector2(150, 0)))
+            if (ImGui.Button("Clear Cache", VulcanUiScaling.Scaled(150f, 0f)))
             {
                 coordinator.Clear();
             }
@@ -209,7 +209,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("Automatically repair equipment between crafts when needed");
 
         var threshold = config.RepairThreshold;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("Repair Threshold (%)", ref threshold, 0, 99))
         {
             config.RepairThreshold = threshold;
@@ -234,7 +234,7 @@ public partial class VulcanWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Select a repair NPC to travel to when repair is needed");
             
-            ImGui.SetNextItemWidth(300);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(300f));
             var currentNPC = config.PreferredRepairNPC;
             var displayText = currentNPC != null 
                 ? $"{currentNPC.Name} ({GetTerritoryName(currentNPC.TerritoryType)})"
@@ -242,7 +242,7 @@ public partial class VulcanWindow
             
             if (ImGui.BeginCombo("##PreferredRepairNPC", displayText))
             {
-                ImGui.SetNextItemWidth(280);
+                ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(280f));
                 ImGui.InputTextWithHint("##RepairNPCSearch", "Search NPCs...", ref _repairNPCSearchInput, 256);
                 ImGui.Separator();
                 

@@ -87,7 +87,7 @@ public partial class VulcanWindow
                 _mbHistorySnapshot  = new();
                 _mbFilteredSnapshot = new();
             }
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             if (ImGui.SmallButton("Refresh All##mbrefreshall"))
                 svc.RefreshAll();
 
@@ -95,7 +95,7 @@ public partial class VulcanWindow
             ImGui.Spacing();
 
             var avail     = ImGui.GetContentRegionAvail();
-            const float leftWidth = 270f;
+            var leftWidth = VulcanUiScaling.Scaled(270f);
 
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
             {
@@ -171,7 +171,7 @@ public partial class VulcanWindow
             return;
         }
 
-        var iconSize   = new Vector2(28f, 28f);
+        var iconSize   = VulcanUiScaling.Scaled(28f, 28f);
         var itemHeight = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
         var maxX       = ImGui.GetContentRegionMax().X;
         var dcScope    = _mbScopeOptions.Count > 0 ? _mbScopeOptions[0] : svc.GetDataCenter();
@@ -201,7 +201,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(iconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             var textRowY = ImGui.GetCursorPosY() + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f;
             ImGui.SetCursorPosY(textRowY);
 
@@ -255,7 +255,7 @@ public partial class VulcanWindow
         {
             var h = ImGui.GetContentRegionAvail().Y;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "Select an item to view prices.");
             return;
         }
@@ -277,7 +277,7 @@ public partial class VulcanWindow
         var hasErr  = svc.HasError(itemId, scope);
         var data    = svc.GetCached(itemId, scope);
 
-        var largeIcon = new Vector2(48f, 48f);
+        var largeIcon = VulcanUiScaling.Scaled(48f, 48f);
 
         if (iconId > 0)
         {
@@ -287,7 +287,7 @@ public partial class VulcanWindow
             if (wrap != null)
             {
                 ImGui.Image(wrap.Handle, largeIcon);
-                ImGui.SameLine(0, 10);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(10f));
             }
         }
 
@@ -296,7 +296,7 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.ParsedGold, name);
 
         var currentScopeLabel = (isDcScope ? $"DC: " : string.Empty) + scope;
-        ImGui.SetNextItemWidth(160f);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(160f));
         if (ImGui.BeginCombo("##mbdetailscope", currentScopeLabel))
         {
             for (var i = 0; i < _mbScopeOptions.Count; i++)
@@ -312,10 +312,10 @@ public partial class VulcanWindow
             ImGui.EndCombo();
         }
 
-        ImGui.SameLine(0, 8);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(8f));
         if (ImGui.SmallButton("Refresh##mbrefresh"))
             svc.ForceRefresh(itemId, scope);
-        ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         if (ImGui.SmallButton("Universalis##mbweb"))
         {
             try { Process.Start(new ProcessStartInfo($"https://universalis.app/market/{itemId}") { UseShellExecute = true }); }
@@ -397,8 +397,8 @@ public partial class VulcanWindow
         if (!ImGui.BeginTable($"##mb{label}tbl", colCount, tableFlags, new Vector2(-1, 0)))
             return;
 
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed,   120f);
-        ImGui.TableSetupColumn("Qty",   ImGuiTableColumnFlags.WidthFixed,    55f);
+        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(120f));
+        ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(55f));
         if (showWorld)
             ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthStretch, 1f);
         ImGui.TableHeadersRow();

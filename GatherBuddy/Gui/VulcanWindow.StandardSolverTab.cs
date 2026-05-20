@@ -72,7 +72,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var maxPercentage = config.MaxPercentage;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("Target HQ %##maxPercentage", ref maxPercentage, 0, 100))
         {
             config.MaxPercentage = maxPercentage;
@@ -91,7 +91,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("Use Reflect at the start for quality instead of Muscle Memory for progress");
 
         var maxIQPrepTouch = config.MaxIQPrepTouch;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("Max IQ for Prep Touch##maxIQPrepTouch", ref maxIQPrepTouch, 0, 10))
         {
             config.MaxIQPrepTouch = maxIQPrepTouch;
@@ -109,7 +109,7 @@ public partial class VulcanWindow
         ImGui.Text("Collectible Settings");
         ImGui.Spacing();
 
-        ImGui.SetNextItemWidth(200);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(200f));
         var collectibleModes = new[] { "Tier 1 (Min)", "Tier 2 (Mid)", "Tier 3 (Max)" };
         var collectibleMode = Math.Clamp(config.SolverCollectibleMode - 1, 0, collectibleModes.Length - 1);
         if (ImGui.Combo("Collectible Target##collectibleMode", ref collectibleMode, collectibleModes, collectibleModes.Length))
@@ -159,7 +159,7 @@ public partial class VulcanWindow
         if (config.UseMaterialMiracle)
         {
             var minSteps = config.MinimumStepsBeforeMiracle;
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.SliderInt("Min Steps Before Miracle##minSteps", ref minSteps, 1, 10))
             {
                 config.MinimumStepsBeforeMiracle = minSteps;
@@ -183,7 +183,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Reset to Defaults", new Vector2(200, 0)))
+        if (ImGui.Button("Reset to Defaults", VulcanUiScaling.Scaled(200f, 0f)))
         {
             GatherBuddy.Config.StandardSolverConfig = new Vulcan.StandardSolverConfig();
             GatherBuddy.Config.Save();

@@ -139,19 +139,19 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Create New List", new Vector2(115, 0)))
+        if (ImGui.Button("Create New List", VulcanUiScaling.Scaled(115f, 0f)))
         {
             PrepareCreateListPopup();
             ImGui.OpenPopup("CreateListPopup");
         }
         ImGui.SameLine();
-        if (ImGui.Button("New Folder", new Vector2(95, 0)))
+        if (ImGui.Button("New Folder", VulcanUiScaling.Scaled(95f, 0f)))
             QueueCreateFolderPopup();
         ImGui.SameLine();
-        if (ImGui.Button("TeamCraft Import", new Vector2(115, 0)))
+        if (ImGui.Button("TeamCraft Import", VulcanUiScaling.Scaled(115f, 0f)))
             _showTeamCraftImport = true;
         ImGui.SameLine();
-        if (ImGui.Button("Import List", new Vector2(95, 0)))
+        if (ImGui.Button("Import List", VulcanUiScaling.Scaled(95f, 0f)))
         {
             _importListText  = string.Empty;
             _importListError = null;
@@ -161,7 +161,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var avail  = ImGui.GetContentRegionAvail();
-        var leftW  = 220f;
+        var leftW  = VulcanUiScaling.Scaled(220f);
         var rightW = avail.X - leftW - ImGui.GetStyle().ItemSpacing.X;
 
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
@@ -355,7 +355,7 @@ public partial class VulcanWindow
         {
             var h = ImGui.GetContentRegionAvail().Y;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "Hover over a list or folder to preview it.");
             return;
         }
@@ -369,23 +369,23 @@ public partial class VulcanWindow
         _previewList = list;
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.ParsedGold, list.Name);
 
         if (!string.IsNullOrEmpty(list.FolderPath))
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             ImGui.TextColored(ImGuiColors.DalamudGrey3, $"Folder: {CraftingListManager.FormatFolderPath(list.FolderPath)}");
         }
 
         if (!string.IsNullOrWhiteSpace(list.Description))
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey3))
                 ImGui.TextWrapped(list.Description);
         }
 
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         var recipeWord = list.Recipes.Count == 1 ? "recipe" : "recipes";
         ImGui.TextColored(ImGuiColors.DalamudGrey3,
             $"{list.Recipes.Count} {recipeWord}  \u00b7  Created {list.CreatedAt.ToLocalTime():yyyy-MM-dd}");
@@ -395,8 +395,8 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var style   = ImGui.GetStyle();
-        var buttonH = 22f * 2 + style.ItemSpacing.Y * 3 + 4f;
-        var listH   = Math.Max(ImGui.GetContentRegionAvail().Y - buttonH, 40f);
+        var buttonH = VulcanUiScaling.Scaled(22f) * 2 + style.ItemSpacing.Y * 3 + VulcanUiScaling.Scaled(4f);
+        var listH   = Math.Max(ImGui.GetContentRegionAvail().Y - buttonH, VulcanUiScaling.Scaled(40f));
 
         ImGui.BeginChild("##previewRecipeList", new Vector2(-1, listH), false);
 
@@ -406,7 +406,7 @@ public partial class VulcanWindow
         }
         else
         {
-            var iconSz = new Vector2(22f, 22f);
+            var iconSz = VulcanUiScaling.Scaled(22f, 22f);
             var rowHeight = iconSz.Y + ImGui.GetStyle().ItemSpacing.Y;
             var clipper = ImGui.ImGuiListClipper();
             clipper.Begin(list.Recipes.Count, rowHeight);
@@ -431,7 +431,7 @@ public partial class VulcanWindow
                     else
                         ImGui.Dummy(iconSz);
 
-                    ImGui.SameLine(0, 6);
+                    ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
                     ImGui.SetCursorPosY(textY);
                     ImGui.Text(resultItem.Name.ExtractText());
                     ImGui.SameLine();
@@ -450,21 +450,21 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var halfW = (ImGui.GetContentRegionAvail().X - style.ItemSpacing.X) / 2f;
-        if (ImGui.Button("Edit List##previewEdit", new Vector2(halfW, 22)))
+        if (ImGui.Button("Edit List##previewEdit", new Vector2(halfW, VulcanUiScaling.Scaled(22f))))
             OpenCraftingList(list);
         ImGui.SameLine();
         if (IPCSubscriber.IsReady("Artisan"))
         {
-            ImGuiUtil.DrawDisabledButton("Artisan Detected##previewStart", new Vector2(-1, 22),
+            ImGuiUtil.DrawDisabledButton("Artisan Detected##previewStart", VulcanUiScaling.Scaled(-1f, 22f),
                 "Artisan plugin is loaded. Please unload Artisan to use Vulcan's crafting system.", true);
         }
-        else if (ImGui.Button("Start Crafting##previewStart", new Vector2(-1, 22)))
+        else if (ImGui.Button("Start Crafting##previewStart", VulcanUiScaling.Scaled(-1f, 22f)))
         {
             StartCraftingList(list);
             MinimizeWindow();
         }
 
-        if (ImGui.Button("Export##previewExport", new Vector2(halfW, 22)))
+        if (ImGui.Button("Export##previewExport", new Vector2(halfW, VulcanUiScaling.Scaled(22f))))
         {
             var exported = GatherBuddy.CraftingListManager.ExportList(list.ID);
             if (exported != null)
@@ -476,7 +476,7 @@ public partial class VulcanWindow
         ImGui.SameLine();
         using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.45f, 0.12f, 0.12f, 1f)))
         {
-            if (ImGui.Button("Delete##previewDelete", new Vector2(-1, 22)))
+            if (ImGui.Button("Delete##previewDelete", VulcanUiScaling.Scaled(-1f, 22f)))
             {
                 GatherBuddy.CraftingListManager.DeleteList(list.ID);
                 _previewList = null;
@@ -495,11 +495,11 @@ public partial class VulcanWindow
         var entries = GetFolderPreviewEntries(folderPath);
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.ParsedGold, CraftingListManager.GetFolderDisplayName(folderPath));
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, $"Folder: {CraftingListManager.FormatFolderPath(folderPath)}");
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         var listWord = entries.Count == 1 ? "list" : "lists";
         ImGui.TextColored(ImGuiColors.DalamudGrey3, $"{entries.Count} {listWord} in this folder tree");
 

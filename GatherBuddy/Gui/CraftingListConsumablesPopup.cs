@@ -30,6 +30,10 @@ public class CraftingListConsumablesPopup
     private List<(uint ItemId, string Name)> _manualItems = new();
     private List<(uint ItemId, string Name)> _squadronManualItems = new();
     public System.Action? OnSaved { get; set; }
+    private static float SelectorLabelWidth => VulcanUiScaling.Scaled(160f);
+    private static float SelectorComboWidth => VulcanUiScaling.Scaled(240f);
+    private static Vector2 SaveButtonSize => VulcanUiScaling.Scaled(140f, 0f);
+    private static Vector2 CancelButtonSize => VulcanUiScaling.Scaled(100f, 0f);
 
     public void OpenListDefaults(CraftingListDefinition list)
     {
@@ -61,14 +65,14 @@ public class CraftingListConsumablesPopup
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Save Defaults", new Vector2(140, 0)))
+            if (ImGui.Button("Save Defaults", SaveButtonSize))
             {
                 Save();
                 _isOpen = false;
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Cancel", new Vector2(100, 0)))
+            if (ImGui.Button("Cancel", CancelButtonSize))
             {
                 _isOpen = false;
             }
@@ -139,10 +143,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text(label);
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var currentName = GetMacroSelectionName(selectedMacroId, solverOverride, allMacros);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (!ImGui.BeginCombo(comboId, currentName))
             return;
 
@@ -211,10 +215,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Food:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var current = GetDisplayName(itemId, hq);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Food{idSuffix}", current))
         {
             if (ImGui.Selectable("None", !itemId.HasValue))
@@ -250,10 +254,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Medicine:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var current = GetDisplayName(itemId, hq);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Medicine{idSuffix}", current))
         {
             if (ImGui.Selectable("None", !itemId.HasValue))
@@ -289,11 +293,11 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Manual:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var manualId = itemId ?? 0;
         var current = manualId == 0 ? "None" : GetItemName(manualId);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Manual{idSuffix}", current))
         {
             if (ImGui.Selectable("None", manualId == 0))
@@ -314,11 +318,11 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Squadron Manual:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var squadronId = itemId ?? 0;
         var current = squadronId == 0 ? "None" : GetItemName(squadronId);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Squadron{idSuffix}", current))
         {
             if (ImGui.Selectable("None", squadronId == 0))

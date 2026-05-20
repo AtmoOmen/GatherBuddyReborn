@@ -28,7 +28,7 @@ public sealed class CollectablesWindow : Window
     public CollectablesWindow()
         : base(WindowId)
     {
-        Size = new Vector2(860f, 560f);
+        Size = VulcanUiScaling.Scaled(860f, 560f);
         SizeCondition = ImGuiCond.FirstUseEver;
         RespectCloseHotkey = true;
         ShowCloseButton = true;
@@ -88,13 +88,13 @@ public sealed class CollectablesWindow : Window
         var turnInsAvailable = CollectableTurnInRequirements.IsAvailable;
         if (manager.IsRunning)
         {
-            if (ImGui.Button("Stop Collectables Run", new Vector2(180f, 0f)))
+            if (ImGui.Button("Stop Collectables Run", VulcanUiScaling.Scaled(180f, 0f)))
                 manager.Stop();
         }
         else
         {
             using var disabledRunButton = ImRaii.Disabled(!turnInsAvailable);
-            if (ImGui.Button("Run Turn-Ins Now", new Vector2(180f, 0f)) && turnInsAvailable)
+            if (ImGui.Button("Run Turn-Ins Now", VulcanUiScaling.Scaled(180f, 0f)) && turnInsAvailable)
                 manager.Start(CollectableRunSource.Manual);
             if (ImGui.IsItemHovered(turnInsAvailable ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(turnInsAvailable
@@ -104,11 +104,11 @@ public sealed class CollectablesWindow : Window
 
         ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "Requires one of these plugins:", all: false);
         ImGui.SameLine();
-        if (ImGui.Button("Open Vendor Buy Lists", new Vector2(170f, 0f)))
+        if (ImGui.Button("Open Vendor Buy Lists", VulcanUiScaling.Scaled(170f, 0f)))
             GatherBuddy.VendorBuyListWindow?.Open();
 
         ImGui.SameLine();
-        if (ImGui.Button("Open Vulcan", new Vector2(110f, 0f)))
+        if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(110f, 0f)))
             GatherBuddy.VulcanWindow?.RestoreWindow();
     }
 
@@ -183,7 +183,7 @@ public sealed class CollectablesWindow : Window
         if (useInventoryFullThreshold)
         {
             var inventoryThreshold = config.InventoryFullThreshold;
-            ImGui.SetNextItemWidth(130f);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
             if (ImGui.DragInt("Inventory threshold", ref inventoryThreshold, 1f, 1, 140))
             {
                 config.InventoryFullThreshold = Math.Clamp(inventoryThreshold, 1, 140);
@@ -193,7 +193,7 @@ public sealed class CollectablesWindow : Window
         else
         {
             var collectableThreshold = config.CollectableInventoryThreshold;
-            ImGui.SetNextItemWidth(130f);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
             if (ImGui.DragInt("Collectable threshold", ref collectableThreshold, 1f, 1, 140))
             {
                 config.CollectableInventoryThreshold = Math.Clamp(collectableThreshold, 1, 140);
@@ -253,7 +253,7 @@ public sealed class CollectablesWindow : Window
         ImGui.TextColored(ImGuiColors.ParsedGold, "Purchase Lists");
 
         var reserveScripAmount = config.ReserveScripAmount;
-        ImGui.SetNextItemWidth(130f);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
         if (ImGui.DragInt("Reserve scrips", ref reserveScripAmount, 1f, 0, 4000))
         {
             config.ReserveScripAmount = Math.Clamp(reserveScripAmount, 0, 4000);
@@ -280,7 +280,7 @@ public sealed class CollectablesWindow : Window
 
         using (var disabled = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.GatheringPurchaseListId))
         {
-            if (ImGui.Button("Use Active Vendor List for Gathering", new Vector2(250f, 0f)) && manager.ActiveList != null)
+            if (ImGui.Button("Use Active Vendor List for Gathering", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
             {
                 config.GatheringPurchaseListId = manager.ActiveList.Id;
                 GatherBuddy.Config.Save();
@@ -297,7 +297,7 @@ public sealed class CollectablesWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudGrey3, GetPurchaseListSummary(manager, selectedCraftingList));
 
         using var disabledCrafting = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.CraftingPurchaseListId);
-        if (ImGui.Button("Use Active Vendor List for Crafting", new Vector2(250f, 0f)) && manager.ActiveList != null)
+        if (ImGui.Button("Use Active Vendor List for Crafting", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
         {
             config.CraftingPurchaseListId = manager.ActiveList.Id;
             GatherBuddy.Config.Save();

@@ -43,7 +43,7 @@ public partial class VulcanWindow
         ImGui.Text("  Max Recent Lists:");
         ImGui.SameLine();
         var maxRecentLists = GatherBuddy.Config.MaxRecentCraftingListsInContextMenu;
-        ImGui.SetNextItemWidth(100);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
         if (ImGui.InputInt("###MaxRecentLists", ref maxRecentLists, 1, 1))
         {
             GatherBuddy.Config.MaxRecentCraftingListsInContextMenu = Math.Max(1, Math.Min(50, maxRecentLists));
@@ -95,7 +95,7 @@ public partial class VulcanWindow
         ImGui.Text("Gearset Stat Test");
         ImGui.Text("  Select Job:");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.BeginCombo("###JobSelector", GetDebugJobName(_debugSelectedJobId)))
         {
             var jobs = new[] { (8u, "Carpenter (CRP)"), (9u, "Blacksmith (BSM)"), (10u, "Armorer (ARM)"), (11u, "Goldsmith (GSM)"), (12u, "Leatherworker (LTW)"), (13u, "Weaver (WVR)"), (14u, "Alchemist (ALC)"), (15u, "Culinarian (CUL)") };
@@ -111,7 +111,7 @@ public partial class VulcanWindow
         }
 
         ImGui.Spacing();
-        if (ImGui.Button("Test Stat Read", new Vector2(150, 0)))
+        if (ImGui.Button("Test Stat Read", VulcanUiScaling.Scaled(150f, 0f)))
         {
             var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
             if (stats != null)
@@ -125,7 +125,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Refresh Gearset", new Vector2(150, 0)))
+        if (ImGui.Button("Refresh Gearset", VulcanUiScaling.Scaled(150f, 0f)))
         {
             GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
             _debugLastTestResult = "Gearset refreshed from currently equipped items";
@@ -232,7 +232,7 @@ public partial class VulcanWindow
         var navKeyboardEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableKeyboard) != 0;
         var navGamepadEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) != 0;
         
-        if (ImGui.Button(navGamepadEnabled ? "Disable Gamepad Nav" : "Enable Gamepad Nav", new Vector2(200, 0)))
+        if (ImGui.Button(navGamepadEnabled ? "Disable Gamepad Nav" : "Enable Gamepad Nav", VulcanUiScaling.Scaled(200f, 0f)))
         {
             io = ImGui.GetIO();
             if (navGamepadEnabled)
@@ -248,7 +248,7 @@ public partial class VulcanWindow
         }
         
         ImGui.SameLine();
-        if (ImGui.Button(navKeyboardEnabled ? "Disable Keyboard Nav" : "Enable Keyboard Nav", new Vector2(200, 0)))
+        if (ImGui.Button(navKeyboardEnabled ? "Disable Keyboard Nav" : "Enable Keyboard Nav", VulcanUiScaling.Scaled(200f, 0f)))
         {
             io = ImGui.GetIO();
             if (navKeyboardEnabled)

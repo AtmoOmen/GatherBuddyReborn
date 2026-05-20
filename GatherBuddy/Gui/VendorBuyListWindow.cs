@@ -44,11 +44,11 @@ public sealed partial class VendorBuyListWindow : Window
         : base(WindowId)
     {
         Flags |= ImGuiWindowFlags.NoScrollbar;
-        Size          = new Vector2(900, 520);
+        Size          = VulcanUiScaling.Scaled(900f, 520f);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(640, 320),
+            MinimumSize = VulcanUiScaling.Scaled(640f, 320f),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
         _teamCraftImportWindowSize = NormalizeTeamCraftImportWindowSize(GatherBuddy.Config.VendorTeamCraftImportWindowSize);
@@ -148,7 +148,7 @@ public sealed partial class VendorBuyListWindow : Window
         DrawHeader();
 
         var avail = ImGui.GetContentRegionAvail();
-        var leftWidth = Math.Clamp(avail.X * 0.22f, 190f, 220f);
+        var leftWidth = Math.Clamp(avail.X * 0.22f, VulcanUiScaling.Scaled(190f), VulcanUiScaling.Scaled(220f));
 
         using (VulcanUiStyle.PushPanel())
         {
@@ -241,7 +241,7 @@ public sealed partial class VendorBuyListWindow : Window
             ImGui.PopStyleColor();
 
         var cursorX = ImGui.GetCursorPosX();
-        ImGui.SetCursorPosX(cursorX + 8f);
+        ImGui.SetCursorPosX(cursorX + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, summary);
         ImGui.Spacing();
     }
@@ -278,7 +278,7 @@ public sealed partial class VendorBuyListWindow : Window
         {
             using (ImRaii.Disabled(entries.Count == 0 || pending == 0 || manager.IsBusy || !vendorAutomationAvailable))
             {
-                if (ImGui.Button("Start List", new Vector2(120f, 0)) && vendorAutomationAvailable)
+                if (ImGui.Button("Start List", VulcanUiScaling.Scaled(120f, 0f)) && vendorAutomationAvailable)
                     manager.Start();
             }
             if (ImGui.IsItemHovered(vendorAutomationAvailable ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled))
@@ -286,7 +286,7 @@ public sealed partial class VendorBuyListWindow : Window
                     ? "Run the active vendor list."
                     : VendorAutomationRequirements.UnavailableHelpText);
         }
-        else if (ImGui.Button("Stop", new Vector2(120f, 0)))
+        else if (ImGui.Button("Stop", VulcanUiScaling.Scaled(120f, 0f)))
         {
             manager.Stop();
         }
@@ -294,7 +294,7 @@ public sealed partial class VendorBuyListWindow : Window
         ImGui.SameLine();
         using (ImRaii.Disabled(entries.Count == 0 || manager.IsBusy))
         {
-            if (ImGui.Button("Clear List", new Vector2(120f, 0)))
+            if (ImGui.Button("Clear List", VulcanUiScaling.Scaled(120f, 0f)))
                 manager.Clear();
         }
 
@@ -395,7 +395,7 @@ public sealed partial class VendorBuyListWindow : Window
 
     private void DrawCurrencyRequirementInline(VendorCurrencyRequirement requirement)
     {
-        const float iconSize = 18f;
+        var iconSize = VulcanUiScaling.Scaled(18f);
         var haveColor = requirement.AvailableAmount >= requirement.RequiredAmount
             ? ImGuiColors.HealerGreen
             : new Vector4(1.0f, 0.5f, 0.5f, 1.0f);
@@ -408,15 +408,15 @@ public sealed partial class VendorBuyListWindow : Window
             if (icon.TryGetWrap(out var wrap, out _))
             {
                 ImGui.Image(wrap.Handle, iconVec);
-                ImGui.SameLine(0, 4f);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
                 ImGui.SetCursorPosY(rowStartY + (iconSize - ImGui.GetTextLineHeight()) / 2f);
             }
         }
 
         ImGui.TextColored(haveColor, $"{requirement.AvailableAmount:N0}");
-        ImGui.SameLine(0, 4f);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, "/");
-        ImGui.SameLine(0, 4f);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         ImGui.TextUnformatted($"{requirement.RequiredAmount:N0}");
         ImGui.EndGroup();
         if (ImGui.IsItemHovered())
@@ -433,16 +433,16 @@ public sealed partial class VendorBuyListWindow : Window
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("Item",     ImGuiTableColumnFlags.WidthStretch, 1.25f);
-        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, 58f);
-        ImGui.TableSetupColumn("Want",     ImGuiTableColumnFlags.WidthFixed, 78f);
-        ImGui.TableSetupColumn("Have",     ImGuiTableColumnFlags.WidthFixed, 54f);
-        ImGui.TableSetupColumn("Need",     ImGuiTableColumnFlags.WidthFixed, 54f);
+        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(58f));
+        ImGui.TableSetupColumn("Want",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(78f));
+        ImGui.TableSetupColumn("Have",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
+        ImGui.TableSetupColumn("Need",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
         ImGui.TableSetupColumn("Vendor",   ImGuiTableColumnFlags.WidthStretch, 0.80f);
         ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 1.00f);
-        ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, 68f);
+        ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(68f));
         ImGui.TableHeadersRow();
 
-        const float iconSize = 20f;
+        var iconSize = VulcanUiScaling.Scaled(20f);
         var iconVec = new Vector2(iconSize, iconSize);
         var clipper = ImGui.ImGuiListClipper();
         clipper.Begin(entries.Count);
@@ -491,7 +491,7 @@ public sealed partial class VendorBuyListWindow : Window
             _focusListNameInput = false;
         }
 
-        ImGui.SetNextItemWidth(320f);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(320f));
         var submitted = ImGui.InputText("##vendorBuyListNameInput", ref _listNameInput, 128, ImGuiInputTextFlags.EnterReturnsTrue);
 
         if (submitted || ImGui.Button("Save"))
@@ -536,17 +536,17 @@ public sealed partial class VendorBuyListWindow : Window
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(isEnabled ? "Enabled" : "Disabled");
-        ImGui.SameLine(0, 4f);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(entry.IconId));
         if (icon.TryGetWrap(out var wrap, out _))
         {
             ImGui.Image(wrap.Handle, iconVec);
-            ImGui.SameLine(0, 4f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         }
         else
         {
             ImGui.Dummy(iconVec);
-            ImGui.SameLine(0, 4f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         }
 
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSize - ImGui.GetTextLineHeight()) / 2f);

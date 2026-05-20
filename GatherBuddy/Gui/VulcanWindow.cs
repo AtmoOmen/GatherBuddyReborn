@@ -39,7 +39,8 @@ public partial class VulcanWindow : Window, IDisposable
     private bool _wasFocusedLastFrame = false;
     
     // TeamCraft import state
-    private static readonly Vector2 DefaultTeamCraftImportWindowSize = new(520, 310);
+    private static readonly Vector2 LegacyTeamCraftImportWindowSize = new(520f, 310f);
+    private static readonly Vector2 DefaultTeamCraftImportWindowSize = VulcanUiScaling.Scaled(520f, 310f);
     private bool _showTeamCraftImport    = false;
     private string _teamCraftListName    = string.Empty;
     private string _teamCraftFinalItems  = string.Empty;
@@ -65,7 +66,7 @@ public partial class VulcanWindow : Window, IDisposable
         Flags |= ImGuiWindowFlags.NoScrollbar;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(500, 300),
+            MinimumSize = VulcanUiScaling.Scaled(500f, 300f),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
         _teamCraftImportWindowSize = NormalizeTeamCraftImportWindowSize(GatherBuddy.Config.TeamCraftImportWindowSize);
