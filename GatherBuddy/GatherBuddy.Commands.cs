@@ -111,6 +111,12 @@ public partial class GatherBuddy
             ShowInHelp  = true,
         };
 
+        _commands["/vcollect"] = new CommandInfo(OnCollectablesWindow)
+        {
+            HelpMessage = "Open the Collectables turn-in and purchase window.",
+            ShowInHelp  = true,
+        };
+
         foreach (var (command, info) in _commands)
             Dalamud.Commands.AddHandler(command, info);
     }
@@ -281,6 +287,9 @@ public partial class GatherBuddy
 
     private void OnVulcanMarketboard(string command, string arguments)
         => _vulcanWindow?.OpenToMarketboard();
+
+    private void OnCollectablesWindow(string command, string arguments)
+        => CollectablesWindow?.Open();
 
     private void OnVulcanCraft(string[] parts)
     {
