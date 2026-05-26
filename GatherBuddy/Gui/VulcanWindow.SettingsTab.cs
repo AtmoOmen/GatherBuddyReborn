@@ -4,7 +4,9 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
 using ElliLib.Raii;
+using ElliLib.Widgets;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using GatherBuddy.Config;
 using GatherBuddy.Crafting;
 using GatherBuddy.Plugin;
 using ImRaii = ElliLib.Raii.ImRaii;
@@ -116,6 +118,16 @@ public partial class VulcanWindow
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Show the native item tooltip when hovering recipe results in the Recipes tab.");
+
+            if (Widget.ModifiableKeySelector("Hotkey to Open Recipes Tab",
+                    "Set a hotkey to open Vulcan directly to the Recipes tab.",
+                    VulcanUiScaling.Scaled(220f),
+                    GatherBuddy.Config.VulcanRecipesTabHotkey,
+                    k => GatherBuddy.Config.VulcanRecipesTabHotkey = k,
+                    Configuration.ValidKeys))
+            {
+                GatherBuddy.Config.Save();
+            }
 
             DrawVulcanRepairConfig();
 

@@ -99,6 +99,18 @@ public partial class GatherBuddy
             ShowInHelp  = true,
         };
 
+        _commands["/vvendor"] = new CommandInfo(OnVendor)
+        {
+            HelpMessage = "Open the Vulcan Vendors tab.",
+            ShowInHelp  = true,
+        };
+
+        _commands["/vulcanmb"] = new CommandInfo(OnVulcanMarketboard)
+        {
+            HelpMessage = "Open the Vulcan Marketboard tab.",
+            ShowInHelp  = true,
+        };
+
         foreach (var (command, info) in _commands)
             Dalamud.Commands.AddHandler(command, info);
     }
@@ -263,6 +275,12 @@ public partial class GatherBuddy
 
         _vulcanWindow?.OpenToList(trimmed);
     }
+
+    private void OnVendor(string command, string arguments)
+        => _vulcanWindow?.OpenToVendors();
+
+    private void OnVulcanMarketboard(string command, string arguments)
+        => _vulcanWindow?.OpenToMarketboard();
 
     private void OnVulcanCraft(string[] parts)
     {

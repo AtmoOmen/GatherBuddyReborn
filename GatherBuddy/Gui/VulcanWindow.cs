@@ -16,6 +16,7 @@ using GatherBuddy.Utility;
 using GatherBuddy.Vulcan;
 using Lumina.Excel.Sheets;
 using ElliLib.Raii;
+using Functions = GatherBuddy.Plugin.Functions;
 using ImRaii = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
@@ -30,6 +31,7 @@ public partial class VulcanWindow : Window, IDisposable
     private bool                    _deferEditorDraw = false;
     private bool                    _craftingListsRequestFocus = false;
     private bool                    _recipesTabRequestFocus    = false;
+    private bool                    _vendorsTabRequestFocus    = false;
     private uint?                   _pendingRecipeId           = null;
     private uint?                   _pendingRecipeScrollId     = null;
     private bool                    _openCreateListPopup = false;
@@ -37,6 +39,7 @@ public partial class VulcanWindow : Window, IDisposable
 
     private bool? _pendingCollapseState = null;
     private bool _wasFocusedLastFrame = false;
+    private DateTime _recipesTabHotkeyAvailableAt = DateTime.MinValue;
     
     // TeamCraft import state
     private static readonly Vector2 LegacyTeamCraftImportWindowSize = new(520f, 310f);
@@ -92,23 +95,39 @@ public partial class VulcanWindow : Window, IDisposable
         _pendingCollapseState = false;
         IsOpen = true;
     }
+    public void OpenToMarketboard()
+    {
+        _pendingCollapseState = false;
+        IsOpen                = true;
+        _mbRequestFocus       = true;
+    }
 
     public void OpenToMarketboardItem(uint itemId)
     {
-        _pendingCollapseState = false;
-        IsOpen             = true;
-        _mbRequestFocus    = true;
-        _mbSelectedItemId  = itemId;
+        OpenToMarketboard();
+        _mbSelectedItemId   = itemId;
         _mbDetailLastItemId = 0;
     }
-
-    public void OpenToRecipe(uint recipeId)
+    public void OpenToRecipes()
     {
         _pendingCollapseState   = false;
         IsOpen                  = true;
         _recipesTabRequestFocus = true;
+        _pendingRecipeId        = null;
+    }
+
+    public void OpenToRecipe(uint recipeId)
+    {
+        OpenToRecipes();
         _pendingRecipeId        = recipeId;
         GatherBuddy.Log.Debug($"[VulcanWindow] OpenToRecipe requested for recipe {recipeId}");
+    }
+
+    public void OpenToVendors()
+    {
+        _pendingCollapseState  = false;
+        IsOpen                 = true;
+        _vendorsTabRequestFocus = true;
     }
 
     public void OpenToList(string argument)
@@ -204,6 +223,15 @@ public partial class VulcanWindow : Window, IDisposable
 
         if (_recipesTabRequestFocus)
             ImGui.SetNextWindowFocus();
+    }
+
+    public override void PreOpenCheck()
+    {
+        if (_recipesTabHotkeyAvailableAt > DateTime.UtcNow || !Functions.CheckKeyState(GatherBuddy.Config.VulcanRecipesTabHotkey, false))
+            return;
+
+        _recipesTabHotkeyAvailableAt = DateTime.UtcNow.AddMilliseconds(500);
+        OpenToRecipes();
     }
 
     public override void Draw()

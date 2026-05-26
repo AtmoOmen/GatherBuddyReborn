@@ -189,20 +189,51 @@ public partial class VulcanWindow
 
     private void DrawVendorsTab()
     {
-        using var tab = ImRaii.TabItem("Vendors##vendorsTab");
-        if (!tab.Success) return;
+        IDisposable tabItem;
+        bool tabOpen;
 
-        if (!VendorShopResolver.IsInitialized && !VendorShopResolver.IsInitializing)
-            VendorShopResolver.InitializeAsync();
-
-        if (VendorShopResolver.IsInitializing)
+        if (GatherBuddy.ControllerSupport != null && !_vendorsTabRequestFocus)
         {
-            ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
-            return;
+            var handle = ImRaii.TabItem("Vendors##vendorsTab");
+            tabItem = handle;
+            tabOpen = handle.Success;
+        }
+        else
+        {
+            ImRaii.IEndObject handle;
+            if (_vendorsTabRequestFocus)
+            {
+                bool dummy = true;
+                handle = ImRaii.TabItem("Vendors##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
+            }
+            else
+            {
+                handle = ImRaii.TabItem("Vendors##vendorsTab");
+            }
+
+            tabItem = handle;
+            tabOpen = handle.Success;
+            if (tabOpen)
+                _vendorsTabRequestFocus = false;
         }
 
-        DrawVendorsTabContent();
+        using (tabItem)
+        {
+            if (!tabOpen)
+                return;
+
+            if (!VendorShopResolver.IsInitialized && !VendorShopResolver.IsInitializing)
+                VendorShopResolver.InitializeAsync();
+
+            if (VendorShopResolver.IsInitializing)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
+                return;
+            }
+
+            DrawVendorsTabContent();
+        }
     }
 
     private void DrawVendorsTabContent()
