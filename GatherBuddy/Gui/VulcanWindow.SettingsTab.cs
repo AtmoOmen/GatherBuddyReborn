@@ -108,6 +108,15 @@ public partial class VulcanWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Show Vulcan-related entries (Open in Vulcan, Add to Crafting List, Add to Vendor Buy List) in the in-game right-click menu.");
 
+            var showRecipeBrowserTooltips = GatherBuddy.Config.ShowRecipeBrowserTooltips;
+            if (ImGui.Checkbox("Show Recipe Browser Item Tooltips", ref showRecipeBrowserTooltips))
+            {
+                GatherBuddy.Config.ShowRecipeBrowserTooltips = showRecipeBrowserTooltips;
+                GatherBuddy.Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Show the native item tooltip when hovering recipe results in the Recipes tab.");
+
             DrawVulcanRepairConfig();
 
             DrawVulcanMateriaConfig();

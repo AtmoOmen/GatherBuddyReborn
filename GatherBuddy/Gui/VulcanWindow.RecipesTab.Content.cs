@@ -421,6 +421,11 @@ public partial class VulcanWindow
             {
                 _selectedRecipe = recipe;
             }
+            if (GatherBuddy.Config.ShowRecipeBrowserTooltips && ImGui.IsItemHovered())
+            {
+                if (TryGetRecipesTooltipAnchor(out var tooltipAnchorMin, out var tooltipAnchorMax, out var tooltipExpandRight))
+                    GatherBuddy.NativeItemTooltipBridge?.RequestItemTooltip(recipe.Recipe.ItemResult.RowId, tooltipAnchorMin, tooltipAnchorMax, tooltipExpandRight);
+            }
 
             if (_pendingRecipeScrollId == recipe.Recipe.RowId)
             {
