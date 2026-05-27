@@ -17,6 +17,7 @@ namespace GatherBuddy.Gui;
 public sealed class CollectablesWindow : Window
 {
     public const string WindowId = "Collectables###GatherBuddyCollectablesWindow";
+    private const string SetupGuidePopupId = "Collectables Setup Guide###GatherBuddyCollectablesSetupGuide";
     private static readonly ImGuiEx.RequiredPluginInfo[] RequiredCollectablePlugins =
     [
         new("InventoryTools", "Allagan Tools"),
@@ -28,7 +29,7 @@ public sealed class CollectablesWindow : Window
     public CollectablesWindow()
         : base(WindowId)
     {
-        Size = new Vector2(860f, 560f);
+        Size = VulcanUiScaling.Scaled(860f, 560f);
         SizeCondition = ImGuiCond.FirstUseEver;
         RespectCloseHotkey = true;
         ShowCloseButton = true;
@@ -81,20 +82,27 @@ public sealed class CollectablesWindow : Window
         ImGui.Separator();
         ImGui.Spacing();
         DrawStatus(manager, selectedGatheringList, selectedCraftingList);
+        DrawSetupGuidePopup();
     }
 
     private static void DrawExecutionControls(CollectableManager manager)
     {
         var turnInsAvailable = CollectableTurnInRequirements.IsAvailable;
+        if (ImGui.Button("Setup Guide", VulcanUiScaling.Scaled(120f, 0f)))
+            ImGui.OpenPopup(SetupGuidePopupId);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Explain how to build and assign collectables purchase lists using Vulcan Vendors and Vendor Buy Lists.");
+
+        ImGui.SameLine();
         if (manager.IsRunning)
         {
-            if (ImGui.Button("Stop Collectables Run", new Vector2(180f, 0f)))
+            if (ImGui.Button("Stop Collectables Run", VulcanUiScaling.Scaled(180f, 0f)))
                 manager.Stop();
         }
         else
         {
             using var disabledRunButton = ImRaii.Disabled(!turnInsAvailable);
-            if (ImGui.Button("Run Turn-Ins Now", new Vector2(180f, 0f)) && turnInsAvailable)
+            if (ImGui.Button("Run Turn-Ins Now", VulcanUiScaling.Scaled(180f, 0f)) && turnInsAvailable)
                 manager.Start(CollectableRunSource.Manual);
             if (ImGui.IsItemHovered(turnInsAvailable ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(turnInsAvailable
@@ -103,13 +111,13 @@ public sealed class CollectablesWindow : Window
         }
 
         ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "Requires one of these plugins:", all: false);
-        ImGui.SameLine();
-        if (ImGui.Button("Open Vendor Buy Lists", new Vector2(170f, 0f)))
-            GatherBuddy.VendorBuyListWindow?.Open();
+
+        if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
+            GatherBuddy.VulcanWindow?.RestoreWindow();
 
         ImGui.SameLine();
-        if (ImGui.Button("Open Vulcan", new Vector2(110f, 0f)))
-            GatherBuddy.VulcanWindow?.RestoreWindow();
+        if (ImGui.Button("Open Vendor Buy Lists", VulcanUiScaling.Scaled(170f, 0f)))
+            GatherBuddy.VendorBuyListWindow?.Open();
     }
 
     private static void DrawAutomationSettings(CollectableManager manager, CollectableConfig config)
@@ -183,7 +191,7 @@ public sealed class CollectablesWindow : Window
         if (useInventoryFullThreshold)
         {
             var inventoryThreshold = config.InventoryFullThreshold;
-            ImGui.SetNextItemWidth(130f);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
             if (ImGui.DragInt("Inventory threshold", ref inventoryThreshold, 1f, 1, 140))
             {
                 config.InventoryFullThreshold = Math.Clamp(inventoryThreshold, 1, 140);
@@ -193,7 +201,7 @@ public sealed class CollectablesWindow : Window
         else
         {
             var collectableThreshold = config.CollectableInventoryThreshold;
-            ImGui.SetNextItemWidth(130f);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
             if (ImGui.DragInt("Collectable threshold", ref collectableThreshold, 1f, 1, 140))
             {
                 config.CollectableInventoryThreshold = Math.Clamp(collectableThreshold, 1, 140);
@@ -244,6 +252,53 @@ public sealed class CollectablesWindow : Window
         }
     }
 
+
+    private static void DrawSetupGuidePopup()
+    {
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(640f, 430f), ImGuiCond.Appearing);
+        if (!ImGui.BeginPopup(SetupGuidePopupId, ImGuiWindowFlags.NoResize))
+            return;
+
+        ImGui.TextColored(ImGuiColors.ParsedGold, "Collectables Setup Guide");
+        DrawWrappedText("Use Vulcan's Vendors tab to build the scrip purchase list, then assign that list here so collectables runs know what to buy after turn-ins.");
+        ImGui.Spacing();
+
+        if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
+            GatherBuddy.VulcanWindow?.RestoreWindow();
+        ImGui.SameLine();
+        if (ImGui.Button("Open Vendor Buy Lists", VulcanUiScaling.Scaled(170f, 0f)))
+            GatherBuddy.VendorBuyListWindow?.Open();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawSetupGuideStep(
+            "1. Build the purchase list in Vulcan Vendors",
+            "Open Vulcan, switch to the Vendors tab, search for the scrip item you want, set Qty, then use the + button to add it to the active vendor list. Right-click the + button if you want to create a new list or add the item to a different existing list.");
+        DrawSetupGuideStep(
+            "2. Review the list in Vendor Buy Lists",
+            "Open Vendor Buy Lists to rename the list, adjust target quantities, and confirm the selected vendor route if an item has multiple NPC options.");
+        DrawSetupGuideStep(
+            "3. Assign the list in Collectables",
+            "Choose a list under Gathering collectables purchase list for Auto-Gather runs and gathering manual turn-ins. Choose a list under Crafting collectables purchase list for Vulcan queue runs and crafting manual turn-ins. The 'Use Active Vendor List' buttons copy the currently active vendor list into that slot.");
+        DrawSetupGuideStep(
+            "4. Enable the purchase behavior you want",
+            "Turn on Run vendor purchase list after turn-in if you want collectables runs to spend scrips automatically. Reserve scrips keeps a buffer so the list does not spend your last scrip. Turn on Auto turn in collectables if you want Auto-Gather or Vulcan queue runs to trigger turn-ins automatically.");
+
+        ImGui.Spacing();
+        DrawWrappedColoredText(ImGuiColors.DalamudYellow,
+            "If turn-ins or purchase automation are unavailable, install or enable Allagan Tools or Allagan Item Search first.");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        if (ImGui.Button("Close", VulcanUiScaling.Scaled(100f, 0f)))
+            ImGui.CloseCurrentPopup();
+
+        ImGui.EndPopup();
+    }
     private static void DrawPurchaseSettings(
         CollectableConfig config,
         VendorBuyListManager manager,
@@ -253,7 +308,7 @@ public sealed class CollectablesWindow : Window
         ImGui.TextColored(ImGuiColors.ParsedGold, "Purchase Lists");
 
         var reserveScripAmount = config.ReserveScripAmount;
-        ImGui.SetNextItemWidth(130f);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
         if (ImGui.DragInt("Reserve scrips", ref reserveScripAmount, 1f, 0, 4000))
         {
             config.ReserveScripAmount = Math.Clamp(reserveScripAmount, 0, 4000);
@@ -280,7 +335,7 @@ public sealed class CollectablesWindow : Window
 
         using (var disabled = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.GatheringPurchaseListId))
         {
-            if (ImGui.Button("Use Active Vendor List for Gathering", new Vector2(250f, 0f)) && manager.ActiveList != null)
+            if (ImGui.Button("Use Active Vendor List for Gathering", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
             {
                 config.GatheringPurchaseListId = manager.ActiveList.Id;
                 GatherBuddy.Config.Save();
@@ -297,7 +352,7 @@ public sealed class CollectablesWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudGrey3, GetPurchaseListSummary(manager, selectedCraftingList));
 
         using var disabledCrafting = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.CraftingPurchaseListId);
-        if (ImGui.Button("Use Active Vendor List for Crafting", new Vector2(250f, 0f)) && manager.ActiveList != null)
+        if (ImGui.Button("Use Active Vendor List for Crafting", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
         {
             config.CraftingPurchaseListId = manager.ActiveList.Id;
             GatherBuddy.Config.Save();
@@ -376,5 +431,19 @@ public sealed class CollectablesWindow : Window
         ImGui.PushTextWrapPos();
         ImGui.TextColored(color, text);
         ImGui.PopTextWrapPos();
+    }
+
+    private static void DrawWrappedText(string text)
+    {
+        ImGui.PushTextWrapPos();
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+    }
+
+    private static void DrawSetupGuideStep(string title, string description)
+    {
+        ImGui.TextColored(ImGuiColors.ParsedGold, title);
+        DrawWrappedColoredText(ImGuiColors.DalamudGrey3, description);
+        ImGui.Spacing();
     }
 }

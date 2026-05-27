@@ -67,7 +67,7 @@ public partial class VulcanWindow
 
         ImGui.Spacing();
         var avail = ImGui.GetContentRegionAvail();
-        const float leftWidth = 220f;
+        var leftWidth = VulcanUiScaling.Scaled(220f);
         var spacing = ImGui.GetStyle().ItemSpacing.X;
         var remainingWidth = Math.Max(0f, avail.X - leftWidth - spacing * 2f);
         var middleWidth = remainingWidth * 0.40f;
@@ -136,8 +136,7 @@ public partial class VulcanWindow
     private void DrawWorkshopProjectsPanel(IReadOnlyList<WorkshopProjectNode> projects)
     {
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##workshopProjectSearch", "Search projects...", ref _workshopProjectSearch, 256);
+        DrawSearchInputWithInlineClear("##workshopProjectSearch", "Search projects...", ref _workshopProjectSearch, 256);
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -160,7 +159,7 @@ public partial class VulcanWindow
             return;
         }
 
-        var iconSize = new Vector2(28f, 28f);
+        var iconSize = VulcanUiScaling.Scaled(28f, 28f);
         var maxX = ImGui.GetContentRegionMax().X;
         foreach (var project in filteredProjects)
         {
@@ -172,7 +171,7 @@ public partial class VulcanWindow
             else
                 ImGui.Dummy(iconSize);
 
-            ImGui.SameLine(0, 6f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(rowY + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f);
             if (ImGui.Selectable(
                     $"{project.ProjectName}##workshopProject_{project.SequenceId}",
@@ -259,9 +258,9 @@ public partial class VulcanWindow
         if (_selectedWorkshopScope == null)
         {
             var center = ImGui.GetContentRegionAvail();
-            ImGui.SetCursorPos(new Vector2(12, center.Y / 2f - 20f));
+            ImGui.SetCursorPos(new Vector2(VulcanUiScaling.Scaled(12f), center.Y / 2f - VulcanUiScaling.Scaled(20f)));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "Select a workshop scope to view requirements.");
-            ImGui.SetCursorPosX(12);
+            ImGui.SetCursorPosX(VulcanUiScaling.Scaled(12f));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "The resulting list will use Vulcan's normal planner.");
             return;
         }
@@ -276,16 +275,16 @@ public partial class VulcanWindow
         };
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         var headerIcon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(scope.ProjectIconId));
         if (headerIcon.TryGetWrap(out var wrap, out _))
-            ImGui.Image(wrap.Handle, new Vector2(48f, 48f));
+            ImGui.Image(wrap.Handle, VulcanUiScaling.Scaled(48f, 48f));
         else
-            ImGui.Dummy(new Vector2(48f, 48f));
+            ImGui.Dummy(VulcanUiScaling.Scaled(48f, 48f));
 
-        ImGui.SameLine(0, 12f);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(12f));
         var headerStartY = ImGui.GetCursorPosY();
-        ImGui.SetCursorPosY(headerStartY + 4f);
+        ImGui.SetCursorPosY(headerStartY + VulcanUiScaling.Scaled(4f));
         ImGui.TextColored(ImGuiColors.ParsedGold, scope.DisplayName);
         ImGui.TextColored(ImGuiColors.DalamudGrey3, scopeLabel);
         if (scope.Kind != WorkshopScopeKind.Project)
@@ -310,20 +309,19 @@ public partial class VulcanWindow
         DrawWorkshopStatRow("Crafts:", scope.TotalCraftsNeeded.ToString(), scope.TotalCraftsNeeded > 0 ? new Vector4(0.75f, 1.0f, 0.75f, 1.0f) : ImGuiColors.DalamudGrey3);
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, "Times:");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(100f);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
         ImGui.InputInt("##workshopLoopCount", ref _workshopLoopCount, 1);
         _workshopLoopCount = Math.Max(1, _workshopLoopCount);
-
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         ImGui.Checkbox("Ephemeral##workshopEphemeral", ref _workshopEphemeral);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Delete this list automatically after crafting completes. Can be changed later in the list editor.");
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
 
         if (_workshopListNameScope != scope || _workshopListNameLoopCount != _workshopLoopCount)
         {
@@ -336,10 +334,10 @@ public partial class VulcanWindow
         ImGui.InputText("##workshopListName", ref _workshopListName, 256);
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         using (ImRaii.Disabled(scope.CraftableRequirementCount == 0))
         {
-            if (ImGui.Button("Create Crafting List##createWorkshopList", new Vector2(-1, 22f)))
+            if (ImGui.Button("Create Crafting List##createWorkshopList", VulcanUiScaling.Scaled(-1f, 22f)))
                 CreateWorkshopCraftingList(scope, _workshopListName);
         }
 
@@ -347,11 +345,11 @@ public partial class VulcanWindow
             ImGui.SetTooltip("This selection has no workshop supplies with recipes to add to a Vulcan crafting list.");
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         var canAddToExistingList = scope.CraftableRequirementCount > 0 && GatherBuddy.CraftingListManager.Lists.Count > 0;
         using (ImRaii.Disabled(!canAddToExistingList))
         {
-            if (ImGui.Button("Add to Existing List##addWorkshopToExistingList", new Vector2(-1, 22f)))
+            if (ImGui.Button("Add to Existing List##addWorkshopToExistingList", VulcanUiScaling.Scaled(-1f, 22f)))
                 QueueWorkshopAddToListPopup();
         }
 
@@ -376,7 +374,7 @@ public partial class VulcanWindow
 
         if (scope.Requirements.Count == 0)
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "No workshop requirements were found for this selection.");
         }
         else
@@ -396,9 +394,9 @@ public partial class VulcanWindow
 
     private static void DrawWorkshopStatRow(string label, string value, Vector4 valueColor)
     {
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, label);
-        ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         ImGui.TextColored(valueColor, value);
     }
 
@@ -414,16 +412,15 @@ public partial class VulcanWindow
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f));
         ImGui.TextColored(new Vector4(0.7f, 0.9f, 1.0f, 1.0f), "Recipes added to list");
-
-        const float iconSize = 22f;
+        var iconSize = VulcanUiScaling.Scaled(22f);
         var textColor = new Vector4(0.85f, 0.85f, 0.85f, 1.0f);
         foreach (var requirement in craftableRequirements)
         {
             var craftCount = requirement.CraftsNeeded * Math.Max(1, _workshopLoopCount);
             var rowY = ImGui.GetCursorPosY();
-            var rowStartX = ImGui.GetCursorPosX() + 12;
+            var rowStartX = ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(12f);
             var textY = rowY + (iconSize - ImGui.GetTextLineHeight()) / 2f;
             var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(requirement.IconId));
             ImGui.SetCursorPosX(rowStartX);
@@ -431,11 +428,10 @@ public partial class VulcanWindow
                 ImGui.Image(wrap.Handle, new Vector2(iconSize, iconSize));
             else
                 ImGui.Dummy(new Vector2(iconSize, iconSize));
-
-            ImGui.SameLine(0, 6f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(textY);
             ImGui.TextColored(textColor, requirement.ItemName);
-            ImGui.SameLine(0, 6f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(textY);
             ImGui.TextColored(ImGuiColors.DalamudGrey3, $"x{craftCount} craft(s)");
         }
@@ -481,7 +477,7 @@ public partial class VulcanWindow
 
     private void DrawWorkshopAddToListPopup()
     {
-        var popupSize = new Vector2(520f, 380f);
+        var popupSize = VulcanUiScaling.Scaled(520f, 380f);
         var viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(viewport.WorkPos + viewport.WorkSize * 0.5f, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(popupSize, ImGuiCond.Always);
@@ -496,7 +492,7 @@ public partial class VulcanWindow
             ImGui.Spacing();
             ImGui.TextColored(ImGuiColors.DalamudGrey, "No workshop scope selected.");
             ImGui.Spacing();
-            if (ImGui.Button("Close", new Vector2(100f, 0f)))
+            if (ImGui.Button("Close", VulcanUiScaling.Scaled(100f, 0f)))
                 ImGui.CloseCurrentPopup();
             ImGui.EndPopup();
             return;
@@ -518,8 +514,8 @@ public partial class VulcanWindow
              || CraftingListManager.FormatFolderPath(list.FolderPath).Contains(_workshopExistingListSearch, StringComparison.OrdinalIgnoreCase))
             .OrderBy(list => list.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var footerHeight = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 3f + 6f;
-        var listHeight = Math.Max(120f, ImGui.GetContentRegionAvail().Y - footerHeight);
+        var footerHeight = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().ItemSpacing.Y * 3f + VulcanUiScaling.Scaled(6f);
+        var listHeight = Math.Max(VulcanUiScaling.Scaled(120f), ImGui.GetContentRegionAvail().Y - footerHeight);
         ImGui.BeginChild("##WorkshopExistingListScroll", new Vector2(-1, listHeight), true);
         if (filteredLists.Count == 0)
         {
@@ -537,7 +533,7 @@ public partial class VulcanWindow
 
                 if (!string.IsNullOrEmpty(list.FolderPath))
                 {
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20f);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(20f));
                     ImGui.TextColored(ImGuiColors.DalamudGrey3, CraftingListManager.FormatFolderPath(list.FolderPath));
                 }
             }
@@ -548,7 +544,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Cancel", new Vector2(100f, 0f)))
+        if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(100f, 0f)))
             ImGui.CloseCurrentPopup();
 
         ImGui.EndPopup();

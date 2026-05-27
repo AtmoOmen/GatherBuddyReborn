@@ -101,7 +101,7 @@ public partial class VulcanWindow
         => _vendorPurchaseQuantities[VendorQuantityKey(entry)] = Math.Max(1, quantity);
 
     private static float GetVendorQuantityInputWidth()
-        => Math.Max(80f, ImGui.CalcTextSize("99999").X + ImGui.GetStyle().FramePadding.X * 2f + 12f);
+        => Math.Max(VulcanUiScaling.Scaled(80f), ImGui.CalcTextSize("99999").X + ImGui.GetStyle().FramePadding.X * 2f + VulcanUiScaling.Scaled(12f));
 
     private bool IsEditingVendorQuantity(VendorShopEntry entry)
         => _vendorEditingQuantityKey is { } key && key == VendorQuantityKey(entry);
@@ -189,26 +189,57 @@ public partial class VulcanWindow
 
     private void DrawVendorsTab()
     {
-        using var tab = ImRaii.TabItem("Vendors##vendorsTab");
-        if (!tab.Success) return;
+        IDisposable tabItem;
+        bool tabOpen;
 
-        if (!VendorShopResolver.IsInitialized && !VendorShopResolver.IsInitializing)
-            VendorShopResolver.InitializeAsync();
-
-        if (VendorShopResolver.IsInitializing)
+        if (GatherBuddy.ControllerSupport != null && !_vendorsTabRequestFocus)
         {
-            ImGui.Spacing();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
-            return;
+            var handle = ImRaii.TabItem("Vendors##vendorsTab");
+            tabItem = handle;
+            tabOpen = handle.Success;
+        }
+        else
+        {
+            ImRaii.IEndObject handle;
+            if (_vendorsTabRequestFocus)
+            {
+                bool dummy = true;
+                handle = ImRaii.TabItem("Vendors##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
+            }
+            else
+            {
+                handle = ImRaii.TabItem("Vendors##vendorsTab");
+            }
+
+            tabItem = handle;
+            tabOpen = handle.Success;
+            if (tabOpen)
+                _vendorsTabRequestFocus = false;
         }
 
-        DrawVendorsTabContent();
+        using (tabItem)
+        {
+            if (!tabOpen)
+                return;
+
+            if (!VendorShopResolver.IsInitialized && !VendorShopResolver.IsInitializing)
+                VendorShopResolver.InitializeAsync();
+
+            if (VendorShopResolver.IsInitializing)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
+                return;
+            }
+
+            DrawVendorsTabContent();
+        }
     }
 
     private void DrawVendorsTabContent()
     {
         var avail = ImGui.GetContentRegionAvail();
-        const float leftW = 220f;
+        var leftW = VulcanUiScaling.Scaled(220f);
 
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1f)))
         {
@@ -498,11 +529,11 @@ public partial class VulcanWindow
     private static (float ButtonSize, float ButtonPad, Vector2 IconSize) GetVendorIconButtonMetrics(float availableWidth)
     {
         const int columns = 4;
-        const float buttonPad = 4f;
+        var buttonPad = VulcanUiScaling.Scaled(4f);
         var framePad = ImGui.GetStyle().FramePadding;
-        var buttonSize = Math.Max(32f, (availableWidth - (columns - 1) * buttonPad) / columns);
-        var iconWidth = Math.Max(18f, buttonSize - framePad.X * 2f);
-        var iconHeight = Math.Max(18f, buttonSize - framePad.Y * 2f);
+        var buttonSize = Math.Max(VulcanUiScaling.Scaled(32f), (availableWidth - (columns - 1) * buttonPad) / columns);
+        var iconWidth = Math.Max(VulcanUiScaling.Scaled(18f), buttonSize - framePad.X * 2f);
+        var iconHeight = Math.Max(VulcanUiScaling.Scaled(18f), buttonSize - framePad.Y * 2f);
         return (buttonSize, buttonPad, new Vector2(iconWidth, iconHeight));
     }
 
@@ -788,10 +819,10 @@ public partial class VulcanWindow
 
         ImGui.TextColored(ImGuiColors.DalamudGrey3, "Sort:");
         ImGui.SameLine();
-        if (ImGui.Button($"{GetVendorSortLabel()}##vendorSortBtn", new Vector2(90f, 0f)))
+        if (ImGui.Button($"{GetVendorSortLabel()}##vendorSortBtn", VulcanUiScaling.Scaled(90f, 0f)))
             ImGui.OpenPopup("##vendorSortMenu");
 
-        ImGui.SameLine(0f, 4f);
+        ImGui.SameLine(0f, VulcanUiScaling.Scaled(4f));
         using (ImRaii.PushFont(UiBuilder.IconFont))
             ImGui.Text(sortIcon.ToIconString());
 
@@ -824,7 +855,7 @@ public partial class VulcanWindow
             if (currencyIcon.TryGetWrap(out var wrap, out _))
             {
                 ImGui.Image(wrap.Handle, iconVec);
-                ImGui.SameLine(0, 4f);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
             }
         }
 
@@ -890,7 +921,7 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.DalamudGrey3, overflow
             ? $"Showing 500 of {_vendorDisplay.Count} \u2014 refine your search"
             : $"{_vendorDisplay.Count} result(s)");
-        ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 140f));
+        ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - VulcanUiScaling.Scaled(140f)));
         DrawVendorSortControl();
         ImGui.Spacing();
         var showAutomationControls = _vendorCategory is VendorShopType.GilShop or VendorShopType.SpecialCurrency or VendorShopType.GrandCompanySeals;
@@ -904,18 +935,18 @@ public partial class VulcanWindow
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("Item",     ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, 110f);
+        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(110f));
         if (showAutomationControls)
             ImGui.TableSetupColumn("Qty",      ImGuiTableColumnFlags.WidthFixed, quantityColumnWidth);
-        ImGui.TableSetupColumn("Vendor",   ImGuiTableColumnFlags.WidthFixed, 170f);
-        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthFixed, 180f);
-        ImGui.TableSetupColumn("##flag",   ImGuiTableColumnFlags.WidthFixed, 32f);
+        ImGui.TableSetupColumn("Vendor",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(170f));
+        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(180f));
+        ImGui.TableSetupColumn("##flag",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(32f));
         if (showAutomationControls)
-            ImGui.TableSetupColumn("##list",   ImGuiTableColumnFlags.WidthFixed, 32f);
-        ImGui.TableSetupColumn("##go",     ImGuiTableColumnFlags.WidthFixed, 32f);
+            ImGui.TableSetupColumn("##list",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(32f));
+        ImGui.TableSetupColumn("##go",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(32f));
         ImGui.TableHeadersRow();
 
-        const float iconSize = 20f;
+        var iconSize = VulcanUiScaling.Scaled(20f);
         var iconVec = new Vector2(iconSize, iconSize);
         var limit   = overflow ? 500 : _vendorDisplay.Count;
         var clipper = ImGui.ImGuiListClipper();
@@ -943,12 +974,12 @@ public partial class VulcanWindow
         if (tex.TryGetWrap(out var wrap, out _))
         {
             ImGui.Image(wrap.Handle, iconVec);
-            ImGui.SameLine(0, 4f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         }
         else
         {
             ImGui.Dummy(iconVec);
-            ImGui.SameLine(0, 4f);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         }
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSize - ImGui.GetTextLineHeight()) / 2f);
         ImGui.TextUnformatted(entry.ItemName);

@@ -83,6 +83,7 @@ public partial class GatherBuddy : IDalamudPlugin
     public static Gui.CraftingTreeWindow? CraftingTreeWindow { get; private set; }
     public static Gui.VendorBuyListWindow? VendorBuyListWindow { get; private set; }
     public static Gui.CollectablesWindow? CollectablesWindow { get; private set; }
+    internal static Gui.NativeItemTooltipBridge? NativeItemTooltipBridge { get; private set; }
     public static ControllerSupportManager?      ControllerSupport      { get; private set; }
     public static MarketboardService?             MarketboardService     { get; private set; }
     public static Vulcan.Vendors.VendorNavigator  VendorNavigator        { get; private set; } = null!;
@@ -193,6 +194,7 @@ public partial class GatherBuddy : IDalamudPlugin
             VendorBuyListWindow = _vendorBuyListWindow;
             _collectablesWindow = new Gui.CollectablesWindow();
             CollectablesWindow = _collectablesWindow;
+            NativeItemTooltipBridge = new Gui.NativeItemTooltipBridge();
             WindowSystem.AddWindow(Interface);
             WindowSystem.AddWindow(new GatherWindow(this));
             WindowSystem.AddWindow(new FishTimerWindow(FishRecorder));
@@ -203,7 +205,7 @@ public partial class GatherBuddy : IDalamudPlugin
             WindowSystem.AddWindow(_craftingTreeWindow);
             WindowSystem.AddWindow(_vendorBuyListWindow);
             WindowSystem.AddWindow(_collectablesWindow);
-            Dalamud.PluginInterface.UiBuilder.Draw         += WindowSystem.Draw;
+            Dalamud.PluginInterface.UiBuilder.Draw         += DrawUi;
             Dalamud.PluginInterface.UiBuilder.OpenConfigUi += Interface.Toggle;
             Dalamud.PluginInterface.UiBuilder.OpenMainUi   += Interface.Toggle;
             Dalamud.Framework.Update                       += Update;
@@ -243,6 +245,18 @@ public partial class GatherBuddy : IDalamudPlugin
         }
     }
 
+    private void DrawUi()
+    {
+        NativeItemTooltipBridge?.BeginImGuiFrame();
+        try
+        {
+            WindowSystem.Draw();
+        }
+        finally
+        {
+            NativeItemTooltipBridge?.EndImGuiFrame();
+        }
+    }
 
     private void CheckForOGGB()
     {
@@ -340,11 +354,13 @@ public partial class GatherBuddy : IDalamudPlugin
         VendorPurchaseManager?.Dispose();
         ControllerSupport?.Dispose();
         Ipc?.Dispose();
+        NativeItemTooltipBridge?.Dispose();
+        NativeItemTooltipBridge = null;
         //Wotsit?.Dispose();
         if (Interface != null)
             Dalamud.PluginInterface.UiBuilder.OpenConfigUi -= Interface.Toggle;
         if (WindowSystem != null)
-            Dalamud.PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            Dalamud.PluginInterface.UiBuilder.Draw -= DrawUi;
         Interface?.Dispose();
         WindowSystem?.RemoveAllWindows();
         DisposeCommands();

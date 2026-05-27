@@ -40,14 +40,14 @@ public partial class VulcanWindow
 
     private void DrawImportListPopup()
     {
-        ImGui.SetNextWindowSize(new Vector2(540, 260), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(540f, 260f), ImGuiCond.FirstUseEver);
         if (!ImGui.BeginPopupModal("ImportListPopup", ImGuiWindowFlags.None))
             return;
 
         ImGui.TextWrapped("Paste an exported list string below and click Import.");
         ImGui.Spacing();
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextMultiline("##importListText", ref _importListText, 65536, new Vector2(-1, 120));
+        ImGui.InputTextMultiline("##importListText", ref _importListText, 65536, VulcanUiScaling.Scaled(-1f, 120f));
 
         if (_importListError != null)
         {
@@ -66,7 +66,7 @@ public partial class VulcanWindow
 
         using (ImRaii.Disabled(string.IsNullOrWhiteSpace(_importListText)))
         {
-            if (ImGui.Button("Import", new Vector2(120, 0)))
+            if (ImGui.Button("Import", VulcanUiScaling.Scaled(120f, 0f)))
             {
                 var (imported, error) = GatherBuddy.CraftingListManager.ImportList(_importListText);
                 if (imported != null)
@@ -92,7 +92,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel", new Vector2(100, 0)))
+        if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(100f, 0f)))
         {
             _importListText     = string.Empty;
             _importListEphemeral = false;
@@ -138,7 +138,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Create", new Vector2(100, 0)) && !string.IsNullOrWhiteSpace(_newListName))
+        if (ImGui.Button("Create", VulcanUiScaling.Scaled(100f, 0f)) && !string.IsNullOrWhiteSpace(_newListName))
         {
             var newList = GatherBuddy.CraftingListManager.CreateNewList(_newListName, _newListEphemeral, _newListFolderPath);
             if (_newListRecipeId.HasValue)
@@ -156,7 +156,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel", new Vector2(100, 0)))
+        if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(100f, 0f)))
         {
             ResetCreateListPopupState();
             ImGui.CloseCurrentPopup();
@@ -189,7 +189,7 @@ public partial class VulcanWindow
 
         using (ImRaii.Disabled(!isAvailable))
         {
-            if (ImGui.Button("Create", new Vector2(100, 0)))
+            if (ImGui.Button("Create", VulcanUiScaling.Scaled(100f, 0f)))
             {
                 if (GatherBuddy.CraftingListManager.CreateFolder(_newFolderName, _newFolderParentPath))
                 {
@@ -200,7 +200,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Cancel", new Vector2(100, 0)))
+        if (ImGui.Button("Cancel", VulcanUiScaling.Scaled(100f, 0f)))
         {
             ResetCreateFolderPopupState();
             ImGui.CloseCurrentPopup();

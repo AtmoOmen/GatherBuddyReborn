@@ -21,6 +21,8 @@ namespace GatherBuddy.Gui;
 
 public class CraftingMaterialsWindow : Window
 {
+    private static float GetRemainingLineWidth()
+        => Math.Max(0f, ImGui.GetWindowPos().X + ImGui.GetContentRegionMax().X - ImGui.GetItemRectMax().X);
     private CraftingListEditor? _editor;
     private bool _matsOvercapPercent;
     private bool _matsShowPrecrafts;
@@ -34,8 +36,11 @@ public class CraftingMaterialsWindow : Window
     private static readonly Vector4 AccentCraft  = new(0.35f, 0.90f, 0.90f, 1f);
     private static readonly Vector4 MobDropMarkerButtonColor   = new(0.45f, 0.80f, 1.00f, 1f);
     private static readonly Vector4 MobDropTeleportButtonColor = new(0.60f, 0.95f, 0.60f, 1f);
-    private const float MaterialRowIconSpacing = 4f;
-    private const float MaterialRowIconGutter = 8f;
+    private static float MaterialRowIconSpacing
+        => VulcanUiScaling.Scaled(4f);
+
+    private static float MaterialRowIconGutter
+        => VulcanUiScaling.Scaled(8f);
     private static readonly Dictionary<string, bool> MobDropZoneOpenStates = new(StringComparer.Ordinal);
     private enum RetainerColumnMode
     {
@@ -85,12 +90,12 @@ public class CraftingMaterialsWindow : Window
 
     public CraftingMaterialsWindow() : base("Materials###CraftingMaterials")
     {
-        Size           = new Vector2(560, 520);
+        Size           = VulcanUiScaling.Scaled(560f, 520f);
         SizeCondition  = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 300),
-            MaximumSize = new Vector2(1200, 1400),
+            MinimumSize = VulcanUiScaling.Scaled(400f, 300f),
+            MaximumSize = VulcanUiScaling.Scaled(1200f, 1400f),
         };
     }
 
@@ -109,6 +114,24 @@ public class CraftingMaterialsWindow : Window
 
     public override void Draw()
     {
+        static float GetCheckboxWidth(string label)
+        {
+            var style = ImGui.GetStyle();
+            return ImGui.GetFrameHeight() + style.ItemInnerSpacing.X + ImGui.CalcTextSize(label).X;
+        }
+
+        static float GetSmallButtonWidth(string label)
+        {
+            var style = ImGui.GetStyle();
+            return ImGui.CalcTextSize(label).X + style.FramePadding.X * 2f;
+        }
+
+        static void SameLineIfFits(float nextItemWidth)
+        {
+            var style = ImGui.GetStyle();
+            if (GetRemainingLineWidth() >= style.ItemSpacing.X + nextItemWidth)
+                ImGui.SameLine();
+        }
         if (_editor == null)
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "No list open.");
@@ -137,16 +160,22 @@ public class CraftingMaterialsWindow : Window
             return;
         }
 
+        var overcapCheckboxWidth = GetCheckboxWidth("150%");
+        var precraftsCheckboxWidth = GetCheckboxWidth("Precrafts");
+        var preferVendorsCheckboxWidth = GetCheckboxWidth("Prefer Vendors");
+        var keepFulfilledCheckboxWidth = GetCheckboxWidth("Keep Fulfilled");
+        var refreshRetainersButtonWidth = GetSmallButtonWidth("Refresh Retainers");
+
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{_cachedTotalMissing} missing  ·  {_cachedTotalReady} ready");
-        ImGui.SameLine();
+        SameLineIfFits(overcapCheckboxWidth);
         ImGui.Checkbox("150%##overcap", ref _matsOvercapPercent);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Show % beyond 100 when you have more than needed");
-        ImGui.SameLine();
+        SameLineIfFits(precraftsCheckboxWidth);
         ImGui.Checkbox("Precrafts##precrafts", ref _matsShowPrecrafts);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Include intermediate craftable components and non-gear final craftables");
-        ImGui.SameLine();
+        SameLineIfFits(preferVendorsCheckboxWidth);
         ImGui.Checkbox("Prefer Vendors##preferVendors", ref _matsPreferVendors);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(
@@ -154,13 +183,13 @@ public class CraftingMaterialsWindow : Window
                 "  Gather > Fish > Scrip > Drops > Craft > Vendor > Tomes > Other\n\n" +
                 "When ON: Gil Vendor overrides Gather, Fish, Drops, and Craft\n" +
                 "for items also sold at a Gil shop.");
-        ImGui.SameLine();
+        SameLineIfFits(keepFulfilledCheckboxWidth);
         ImGui.Checkbox("Keep Fulfilled##keepFulfilled", ref _matsKeepFulfilled);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Keep fulfilled materials visible even when \"Skip if Already Have Enough\" is enabled on the list.");
         if (showRetainer)
         {
-            ImGui.SameLine();
+            SameLineIfFits(refreshRetainersButtonWidth);
             if (ImGui.SmallButton("Refresh Retainers"))
             {
                 _editor.InvalidateRetainerSnapshot();
@@ -178,17 +207,19 @@ public class CraftingMaterialsWindow : Window
 
         var avail   = ImGui.GetContentRegionAvail();
         var spacing = ImGui.GetStyle().ItemSpacing;
-        var panelW  = (avail.X - spacing.X) / 2f;
+        var minTwoColumnPanelWidth = VulcanUiScaling.Scaled(240f);
+        var panelColumns = avail.X >= minTwoColumnPanelWidth * 2f + spacing.X ? 2 : 1;
+        var panelW = panelColumns == 1 ? avail.X : (avail.X - spacing.X) / 2f;
 
-        var rows   = (_cachedPanels.Count + 1) / 2;
+        var rows   = (_cachedPanels.Count + panelColumns - 1) / panelColumns;
         var panelH = (avail.Y - spacing.Y * (rows - 1)) / rows;
         for (var i = 0; i < _cachedPanels.Count; i++)
         {
             var panel = _cachedPanels[i];
             var isLast   = i == _cachedPanels.Count - 1;
-            var spanFull = isLast && _cachedPanels.Count % 2 == 1;
+            var spanFull = panelColumns == 1 || isLast && _cachedPanels.Count % 2 == 1;
             DrawMaterialPanel(panel.Id, panel.Label, panel.Accent, panel.Entries, panel.RetainerColumns, spanFull ? avail.X : panelW, panelH, panel.VendorTargets, panel.ShowCurrencyTotals, panel.PreferBicolorDefault);
-            if (!spanFull && i % 2 == 0)
+            if (panelColumns == 2 && !spanFull && i % 2 == 0)
                 ImGui.SameLine();
         }
     }
@@ -466,8 +497,8 @@ public class CraftingMaterialsWindow : Window
                 RetainerColumnMode.Split => 6,
                 _                        => 4,
             };
-            const float numW = 36f;
-            const float barW = 46f;
+            var numW = VulcanUiScaling.Scaled(36f);
+            var barW = VulcanUiScaling.Scaled(46f);
             var tableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
                            | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingFixedFit;
 
@@ -596,7 +627,7 @@ public class CraftingMaterialsWindow : Window
             ImGui.Image(wrap.Handle, iconSize);
         else
             ImGui.Dummy(iconSize);
-        ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, MaterialRowIconSpacing);
         var nameTextStartX = ImGui.GetCursorScreenPos().X;
         if (ImGui.Selectable(name, false, ImGuiSelectableFlags.AllowItemOverlap))
         {
@@ -851,6 +882,13 @@ public class CraftingMaterialsWindow : Window
     {
         var lineH    = ImGui.GetTextLineHeight();
         var iconSize = new Vector2(lineH, lineH);
+        float GetCurrencyTotalWidth(CurrencyTotal total)
+        {
+            var width = ImGui.CalcTextSize($"{total.Amount:N0}").X;
+            if (total.IconId != 0)
+                width += iconSize.X + MaterialRowIconSpacing;
+            return width;
+        }
 
         using (ImRaii.PushColor(ImGuiCol.Text, accent))
             ImGui.TextUnformatted("Totals:");
@@ -858,7 +896,9 @@ public class CraftingMaterialsWindow : Window
         for (var i = 0; i < totals.Count; i++)
         {
             var t = totals[i];
-            ImGui.SameLine(0, i == 0 ? 8f : 12f);
+            var sameLineSpacing = i == 0 ? VulcanUiScaling.Scaled(8f) : VulcanUiScaling.Scaled(12f);
+            if (GetRemainingLineWidth() >= sameLineSpacing + GetCurrencyTotalWidth(t))
+                ImGui.SameLine(0, sameLineSpacing);
             if (t.IconId != 0)
             {
                 var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(t.IconId));
@@ -866,7 +906,7 @@ public class CraftingMaterialsWindow : Window
                     ImGui.Image(wrap.Handle, iconSize);
                 else
                     ImGui.Dummy(iconSize);
-                ImGui.SameLine(0, 4);
+                ImGui.SameLine(0, MaterialRowIconSpacing);
             }
             ImGui.TextUnformatted($"{t.Amount:N0}");
             if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(t.Name))
@@ -1021,11 +1061,11 @@ public class CraftingMaterialsWindow : Window
             .GroupBy(data => (data.Zone.TerritoryTypeId, data.Zone.ZoneName))
             .OrderBy(group => group.Key.ZoneName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        const float MaxPopupContentHeight = 440f;
+        var maxPopupContentHeight = VulcanUiScaling.Scaled(440f);
         var isAppearing = ImGui.IsWindowAppearing();
         var defaultZoneOpen = entry.DropInfo.ZoneCount == 1;
         var childHeight = CalculateMobDropPopupContentHeight(zoneGroups, popupId, defaultZoneOpen, isAppearing);
-        ImGui.BeginChild($"{popupId}_scroll", new Vector2(460f, Math.Min(childHeight, MaxPopupContentHeight)), false);
+        ImGui.BeginChild($"{popupId}_scroll", new Vector2(VulcanUiScaling.Scaled(460f), Math.Min(childHeight, maxPopupContentHeight)), false);
         for (var i = 0; i < zoneGroups.Count; i++)
         {
             var zoneGroup = zoneGroups[i];

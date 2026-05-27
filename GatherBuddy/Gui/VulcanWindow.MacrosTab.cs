@@ -58,7 +58,7 @@ public partial class VulcanWindow
                 GatherBuddy.Config.SkipMacroStepIfUnable = skipUnusable;
                 GatherBuddy.Config.Save();
             }
-            ImGui.SameLine(0, 20);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(20f));
             var fallbackEnabled = GatherBuddy.Config.MacroFallbackEnabled;
             if (ImGui.Checkbox("Fallback solver when macro exhausts##fallbackEnabled", ref fallbackEnabled))
             {
@@ -71,7 +71,7 @@ public partial class VulcanWindow
             ImGui.Spacing();
 
             var avail     = ImGui.GetContentRegionAvail();
-            var leftWidth = 270f;
+            var leftWidth = VulcanUiScaling.Scaled(270f);
 
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
             {
@@ -108,7 +108,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Browse on Teamcraft##browseTC", new Vector2(200, 0)))
+        if (ImGui.Button("Browse on Teamcraft##browseTC", VulcanUiScaling.Scaled(200f, 0f)))
         {
             try
             {
@@ -135,7 +135,7 @@ public partial class VulcanWindow
                 "in your web browser.");
 
         ImGui.SameLine();
-        if (ImGui.Button("Hide Overlay##hideTC", new Vector2(120, 0)))
+        if (ImGui.Button("Hide Overlay##hideTC", VulcanUiScaling.Scaled(120f, 0f)))
         {
             try
             {
@@ -166,12 +166,12 @@ public partial class VulcanWindow
         ImGui.Spacing();
         ImGui.Text("Macro Text:");
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 500000, new Vector2(-1, 200));
+        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 500000, VulcanUiScaling.Scaled(-1f, 200f));
 
         ImGui.Spacing();
         using (ImRaii.Disabled(string.IsNullOrWhiteSpace(_inGameMacroText)))
         {
-            if (ImGui.Button("Parse & Preview##parseBtn", new Vector2(150, 0)))
+            if (ImGui.Button("Parse & Preview##parseBtn", VulcanUiScaling.Scaled(150f, 0f)))
                 ParseInGameMacro();
         }
 
@@ -197,20 +197,20 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         ImGui.Text("Minimum Stats (optional):");
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("Craftsmanship##previewMinCraft", ref _previewMinCraft);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("Control##previewMinCtrl", ref _previewMinCtrl);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(90);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(90f));
         ImGui.InputInt("CP##previewMinCP", ref _previewMinCP);
         _previewMinCraft = Math.Max(0, _previewMinCraft);
         _previewMinCtrl  = Math.Max(0, _previewMinCtrl);
         _previewMinCP    = Math.Max(0, _previewMinCP);
 
         ImGui.Spacing();
-        if (ImGui.Button("Import##importInGameBtn", new Vector2(120, 0)))
+        if (ImGui.Button("Import##importInGameBtn", VulcanUiScaling.Scaled(120f, 0f)))
         {
             macro.MinCraftsmanship = _previewMinCraft;
             macro.MinControl       = _previewMinCtrl;
@@ -218,7 +218,7 @@ public partial class VulcanWindow
             ImportInGameMacro(macro);
         }
         ImGui.SameLine();
-        if (ImGui.Button("Cancel##cancelInGameBtn", new Vector2(90, 0)))
+        if (ImGui.Button("Cancel##cancelInGameBtn", VulcanUiScaling.Scaled(90f, 0f)))
         {
             _previewInGameMacro = null;
             _inGameMacroError   = null;
@@ -310,7 +310,7 @@ public partial class VulcanWindow
             return;
         }
 
-        var iconSize    = new Vector2(28f, 28f);
+        var iconSize    = VulcanUiScaling.Scaled(28f, 28f);
         var itemHeight  = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
         var contentMaxX = ImGui.GetContentRegionMax().X;
 
@@ -334,7 +334,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(iconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f);
 
             var displayName = string.IsNullOrEmpty(macro.Author)
@@ -355,9 +355,9 @@ public partial class VulcanWindow
 
     private void DrawMacroDetail(UserMacro macro, UserMacroLibrary macroLibrary)
     {
-        var largeIconSize = new Vector2(48f, 48f);
+        var largeIconSize = VulcanUiScaling.Scaled(48f, 48f);
 
-        var closeW = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
+        var closeW = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2 + VulcanUiScaling.Scaled(4f);
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - closeW);
         if (ImGui.SmallButton("X##closeDetail"))
             _selectedMacroId = null;
@@ -373,7 +373,7 @@ public partial class VulcanWindow
             if (wrap != null)
             {
                 ImGui.Image(wrap.Handle, largeIconSize);
-                ImGui.SameLine(0, 10);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(10f));
             }
         }
 
@@ -397,13 +397,13 @@ public partial class VulcanWindow
 
         ImGui.TextColored(ImGuiColors.DalamudYellow, "Minimum Stats");
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("Craftsmanship##editMinCraft", ref _editingMacroMinCraft);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("Control##editMinCtrl", ref _editingMacroMinCtrl);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(90);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(90f));
         ImGui.InputInt("CP##editMinCP", ref _editingMacroMinCP);
         _editingMacroMinCraft = Math.Max(0, _editingMacroMinCraft);
         _editingMacroMinCtrl  = Math.Max(0, _editingMacroMinCtrl);
@@ -431,8 +431,8 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.ParsedGold, $"Actions ({macro.Actions.Count})");
         ImGui.Spacing();
 
-        var actionIconSize = new Vector2(24f, 24f);
-        var remainH        = ImGui.GetContentRegionAvail().Y - 32f;
+        var actionIconSize = VulcanUiScaling.Scaled(24f, 24f);
+        var remainH        = ImGui.GetContentRegionAvail().Y - VulcanUiScaling.Scaled(32f);
         ImGui.BeginChild("##macroActions", new Vector2(-1, remainH), false);
 
         for (var i = 0; i < macro.Actions.Count; i++)
@@ -456,7 +456,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(actionIconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (actionIconSize.Y - ImGui.GetTextLineHeight()) / 2f);
             ImGui.Text($"{i + 1}. {skillName}");
         }
@@ -465,7 +465,7 @@ public partial class VulcanWindow
 
         ImGui.Separator();
         ImGui.Spacing();
-        if (ImGui.Button($"Delete##deleteMacro_{macro.Id}", new Vector2(100, 0)))
+        if (ImGui.Button($"Delete##deleteMacro_{macro.Id}", VulcanUiScaling.Scaled(100f, 0f)))
         {
             macroLibrary.RemoveMacro(macro.Id);
             _selectedMacroId = null;

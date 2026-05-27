@@ -70,6 +70,13 @@ public class RecipeCraftSettingsPopup
     private List<IngredientData> _ingredients = new();
     private bool _useAllNQ = false;
     public System.Action? OnSaved { get; set; }
+    private static float SettingLabelWidth => VulcanUiScaling.Scaled(120f);
+    private static float OverrideModeWidth => VulcanUiScaling.Scaled(90f);
+    private static Vector2 ActionButtonSize => VulcanUiScaling.Scaled(100f, 0f);
+    private static float IngredientNameColumnWidth => VulcanUiScaling.Scaled(150f);
+    private static float IngredientCountColumnWidth => VulcanUiScaling.Scaled(50f);
+    private static float IngredientUseHqColumnWidth => VulcanUiScaling.Scaled(100f);
+    private static float IngredientInputWidth => VulcanUiScaling.Scaled(80f);
     
 
     public void Open(uint recipeId, string recipeName)
@@ -207,7 +214,7 @@ public class RecipeCraftSettingsPopup
         
         if (!_isOpen) return;
         
-        ImGui.SetNextWindowSize(new Vector2(450, 0), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 0f), ImGuiCond.Appearing);
         
         if (ImGui.Begin($"Craft Settings - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize))
         {
@@ -223,7 +230,7 @@ public class RecipeCraftSettingsPopup
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Save", new Vector2(100, 0)))
+            if (ImGui.Button("Save", ActionButtonSize))
             {
                 if (!string.IsNullOrEmpty(_resolvedMacroId))
                     MacroValidator.Invalidate(_recipeId, _resolvedMacroId);
@@ -295,7 +302,7 @@ public class RecipeCraftSettingsPopup
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Clear All", new Vector2(100, 0)))
+            if (ImGui.Button("Clear All", ActionButtonSize))
             {
                 _editingSettings.Clear();
                 
@@ -320,7 +327,7 @@ public class RecipeCraftSettingsPopup
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Cancel", new Vector2(100, 0)))
+            if (ImGui.Button("Cancel", ActionButtonSize))
             {
                 _isOpen = false;
             }
@@ -477,14 +484,14 @@ public class RecipeCraftSettingsPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Macro:");
-        ImGui.SameLine(120);
+        ImGui.SameLine(SettingLabelWidth);
 
         var allMacros = CraftingGameInterop.UserMacroLibrary.GetAllMacros();
 
         if (_editingListItem != null || _isPrecraftMode)
         {
             var mode = (int)_editingSettings.MacroMode;
-            ImGui.SetNextItemWidth(90);
+            ImGui.SetNextItemWidth(OverrideModeWidth);
             if (ImGui.Combo("##MacroMode", ref mode, MacroModeLabels, MacroModeLabels.Length))
                 _editingSettings.MacroMode = (MacroOverrideMode)mode;
 
@@ -578,12 +585,12 @@ public class RecipeCraftSettingsPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Food:");
-        ImGui.SameLine(120);
+        ImGui.SameLine(SettingLabelWidth);
 
         if (_editingListItem != null || _isPrecraftMode)
         {
             var mode = (int)_editingSettings.FoodMode;
-            ImGui.SetNextItemWidth(90);
+            ImGui.SetNextItemWidth(OverrideModeWidth);
             if (ImGui.Combo("##FoodMode", ref mode, OverrideModeLabels, OverrideModeLabels.Length))
                 _editingSettings.FoodMode = (ConsumableOverrideMode)mode;
 
@@ -638,12 +645,12 @@ public class RecipeCraftSettingsPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Medicine:");
-        ImGui.SameLine(120);
+        ImGui.SameLine(SettingLabelWidth);
 
         if (_editingListItem != null || _isPrecraftMode)
         {
             var mode = (int)_editingSettings.MedicineMode;
-            ImGui.SetNextItemWidth(90);
+            ImGui.SetNextItemWidth(OverrideModeWidth);
             if (ImGui.Combo("##MedicineMode", ref mode, OverrideModeLabels, OverrideModeLabels.Length))
                 _editingSettings.MedicineMode = (ConsumableOverrideMode)mode;
 
@@ -698,12 +705,12 @@ public class RecipeCraftSettingsPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Manual:");
-        ImGui.SameLine(120);
+        ImGui.SameLine(SettingLabelWidth);
 
         if (_editingListItem != null || _isPrecraftMode)
         {
             var mode = (int)_editingSettings.ManualMode;
-            ImGui.SetNextItemWidth(90);
+            ImGui.SetNextItemWidth(OverrideModeWidth);
             if (ImGui.Combo("##ManualMode", ref mode, OverrideModeLabels, OverrideModeLabels.Length))
                 _editingSettings.ManualMode = (ConsumableOverrideMode)mode;
 
@@ -745,12 +752,12 @@ public class RecipeCraftSettingsPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("Squadron Manual:");
-        ImGui.SameLine(120);
+        ImGui.SameLine(SettingLabelWidth);
 
         if (_editingListItem != null || _isPrecraftMode)
         {
             var mode = (int)_editingSettings.SquadronManualMode;
-            ImGui.SetNextItemWidth(90);
+            ImGui.SetNextItemWidth(OverrideModeWidth);
             if (ImGui.Combo("##SquadronMode", ref mode, OverrideModeLabels, OverrideModeLabels.Length))
                 _editingSettings.SquadronManualMode = (ConsumableOverrideMode)mode;
 
@@ -1010,14 +1017,14 @@ public class RecipeCraftSettingsPopup
         
         ImGui.Spacing();
         
-        ImGui.BeginChild("IngredientsScrollRegion", new Vector2(0, 150), true);
+        ImGui.BeginChild("IngredientsScrollRegion", VulcanUiScaling.Scaled(-1f, 150f), true);
         
         ImGui.Columns(5, "IngredientColumns", true);
-        ImGui.SetColumnWidth(0, 150);
-        ImGui.SetColumnWidth(1, 50);
-        ImGui.SetColumnWidth(2, 50);
-        ImGui.SetColumnWidth(3, 50);
-        ImGui.SetColumnWidth(4, 100);
+        ImGui.SetColumnWidth(0, IngredientNameColumnWidth);
+        ImGui.SetColumnWidth(1, IngredientCountColumnWidth);
+        ImGui.SetColumnWidth(2, IngredientCountColumnWidth);
+        ImGui.SetColumnWidth(3, IngredientCountColumnWidth);
+        ImGui.SetColumnWidth(4, IngredientUseHqColumnWidth);
         
         ImGui.Text("Ingredient");
         ImGui.NextColumn();
@@ -1049,7 +1056,7 @@ public class RecipeCraftSettingsPopup
             
             if (ing.CanBeHQ)
             {
-                ImGui.SetNextItemWidth(80);
+                ImGui.SetNextItemWidth(IngredientInputWidth);
                 int desiredHQ = ing.DesiredHQ;
                 if (ImGui.InputInt($"##hq_{i}", ref desiredHQ, 1))
                 {

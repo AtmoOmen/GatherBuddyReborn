@@ -19,7 +19,7 @@ namespace GatherBuddy.Config;
 
 public partial class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 15;
+    public int Version { get; set; } = 17;
 
     // Set Names
     public string BotanistSetName { get; set; } = "Botanist";
@@ -82,7 +82,10 @@ public partial class Configuration : IPluginConfiguration
     public VulcanRetainerBellConfig VulcanRetainerBellConfig { get; set; } = new();
     public int VulcanExecutionDelayMs { get; set; } = 300;
     public bool VulcanContextMenuEntries { get; set; } = true;
+    public bool ShowRecipeBrowserTooltips { get; set; } = true;
+    public ModifiableHotkey VulcanRecipesTabHotkey { get; set; } = new();
     public string CraftingLists { get; set; } = string.Empty;
+    public List<string> CraftingFolders { get; set; } = [];
     public int MaxRecentCraftingListsInContextMenu { get; set; } = 10;
     public Vector2 TeamCraftImportWindowSize { get; set; } = new(520, 310);
     public Vector2 VendorTeamCraftImportWindowSize { get; set; } = new(520, 310);
@@ -219,6 +222,8 @@ public partial class Configuration : IPluginConfiguration
                 config.Migrate12To13();
                 config.Migrate13To14();
                 config.Migrate14To15();
+                config.Migrate15To16();
+                config.Migrate16To17();
                 changed |= config.HiddenGatherableLevelFilters == null;
                 config.HiddenGatherableLevelFilters ??= [];
                 changed |= config.HiddenGatherableFolkloreFilters == null;
@@ -229,6 +234,8 @@ public partial class Configuration : IPluginConfiguration
                 config.VendorRoutePreferences ??= new();
                 changed |= config.VendorBuyLists == null;
                 config.VendorBuyLists ??= new();
+                changed |= config.CraftingFolders == null;
+                config.CraftingFolders ??= [];
                 if (config.EnsureVendorBuyListState())
                     changed = true;
                 if (changed)
@@ -384,6 +391,25 @@ public partial class Configuration : IPluginConfiguration
 
         ShowItems |= ItemFilter.AlreadyGathered | ItemFilter.Ungathered | ItemFilter.UnknownLogState;
         Version   =  15;
+        Save();
+    }
+
+    public void Migrate15To16()
+    {
+        if (Version >= 16)
+            return;
+
+        ShowRecipeBrowserTooltips = true;
+        Version                   = 16;
+        Save();
+    }
+
+    public void Migrate16To17()
+    {
+        if (Version >= 17)
+            return;
+
+        Version = 17;
         Save();
     }
 

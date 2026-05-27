@@ -29,10 +29,13 @@ public class CraftingTreeWindow : Window
     private static readonly Vector4 ColorMuted    = new(0.55f, 0.55f, 0.60f, 1f);
     private static readonly Vector4 ColorConnector = new(0.55f, 0.55f, 0.62f, 0.9f);
 
-    private const float IndentPerLevel = 22f;
-    private const float ConnectorThickness = 1.4f;
+    private static float IndentPerLevel => VulcanUiScaling.Scaled(22f);
+    private static float ConnectorThickness => VulcanUiScaling.Scaled(1.4f);
     private const int MaxRecursionDepth = 24;
-    private const float IconColumnPadding = 12f;
+    private static float IconColumnPadding => VulcanUiScaling.Scaled(12f);
+    private static float PostDisclosureSpacing => VulcanUiScaling.Scaled(2f);
+    private static float PostIconSpacing => VulcanUiScaling.Scaled(4f);
+    private static float IconOverflowGap => VulcanUiScaling.Scaled(6f);
 
     private List<TreeNode> _cachedTree = [];
     private long _cachedVersion = -1;
@@ -44,12 +47,12 @@ public class CraftingTreeWindow : Window
 
     public CraftingTreeWindow() : base("Crafting Tree###CraftingTree")
     {
-        Size           = new Vector2(560, 600);
+        Size           = VulcanUiScaling.Scaled(560f, 600f);
         SizeCondition  = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(380, 240),
-            MaximumSize = new Vector2(1400, 1600),
+            MinimumSize = VulcanUiScaling.Scaled(380f, 240f),
+            MaximumSize = VulcanUiScaling.Scaled(1400f, 1600f),
         };
     }
 
@@ -103,8 +106,8 @@ public class CraftingTreeWindow : Window
         var lineHeight    = ImGui.GetTextLineHeight();
         var disclosureW   = lineHeight;
         var iconW         = lineHeight;
-        const float postDisclosure = 2f;
-        const float postIcon       = 4f;
+        var postDisclosure = PostDisclosureSpacing;
+        var postIcon       = PostIconSpacing;
 
         var max = 0f;
         foreach (var root in _cachedTree)
@@ -232,10 +235,10 @@ public class CraftingTreeWindow : Window
             DrawLeafBullet(drawList, ImGui.GetCursorScreenPos(), lineHeight);
             ImGui.Dummy(new Vector2(lineHeight, lineHeight));
         }
-        ImGui.SameLine(0, 2);
+        ImGui.SameLine(0, PostDisclosureSpacing);
 
         DrawIcon(node.IconId, lineHeight);
-        ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, PostIconSpacing);
 
         var labelStart = ImGui.GetCursorScreenPos();
         var (label, color) = BuildNodeLabel(node);
@@ -254,15 +257,15 @@ public class CraftingTreeWindow : Window
             }
             else
             {
-                ImGui.Dummy(new Vector2(6f, 0));
+                ImGui.Dummy(new Vector2(IconOverflowGap, 0));
                 ImGui.SameLine(0, 0);
             }
             CraftingRowIcons.DrawIconsRightAligned(accessoryIcons);
         }
 
         var labelMax = ImGui.GetItemRectMax();
-        var hoverMin = new Vector2(labelStart.X - 2, rowYTop);
-        var hoverMax = new Vector2(Math.Max(labelMax.X + 4, labelStart.X + 8), rowYTop + rowHeight);
+        var hoverMin = new Vector2(labelStart.X - VulcanUiScaling.Scaled(2f), rowYTop);
+        var hoverMax = new Vector2(Math.Max(labelMax.X + VulcanUiScaling.Scaled(4f), labelStart.X + VulcanUiScaling.Scaled(8f)), rowYTop + rowHeight);
         if (ImGui.IsMouseHoveringRect(hoverMin, hoverMax) && ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             DrawNodeTooltip(node);
 
@@ -305,7 +308,7 @@ public class CraftingTreeWindow : Window
     {
         var color = ImGui.ColorConvertFloat4ToU32(ColorConnector);
         var center = new Vector2(origin.X + size * 0.5f, origin.Y + size * 0.5f);
-        drawList.AddCircleFilled(center, Math.Max(2f, size * 0.12f), color, 8);
+        drawList.AddCircleFilled(center, Math.Max(VulcanUiScaling.Scaled(2f), size * 0.12f), color, 8);
     }
 
     private static (string Text, Vector4 Color) BuildNodeLabel(TreeNode node)
