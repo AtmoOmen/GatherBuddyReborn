@@ -19,11 +19,8 @@ public partial class VulcanWindow
     private void DrawFilterPanel()
     {
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextWithHint("##recipeSearch", "Search...", ref _recipeSearchText, 256))
-        {
+        if (DrawSearchInputWithInlineClear("##recipeSearch", "Search...", ref _recipeSearchText, 256))
             _filtersDirty = true;
-        }
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -514,7 +511,9 @@ public partial class VulcanWindow
                     if (_contextMenuAddQuantity < 1) _contextMenuAddQuantity = 1;
                     ImGui.SetNextItemWidth(-1);
                     ImGui.InputTextWithHint("##ContextListSearch", "Search lists...", ref _contextMenuListSearch, 128);
-                    var singleH = filteredLists.Count > 0 ? Math.Min(filteredLists.Count * rowH, VulcanUiScaling.Scaled(150f)) : rowH;
+                    var childPaddingY = ImGui.GetStyle().WindowPadding.Y * 2f;
+                    var singleContentH = filteredLists.Count > 0 ? filteredLists.Count * rowH : rowH;
+                    var singleH = Math.Min(singleContentH + childPaddingY, VulcanUiScaling.Scaled(150f) + childPaddingY);
                     ImGui.BeginChild("##SingleAddScroll", new Vector2(0, singleH), true);
                     if (filteredLists.Count == 0)
                         ImGui.TextDisabled("No matches");

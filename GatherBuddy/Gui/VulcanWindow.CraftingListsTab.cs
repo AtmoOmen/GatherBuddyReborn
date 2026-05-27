@@ -17,6 +17,8 @@ namespace GatherBuddy.Gui;
 
 public partial class VulcanWindow
 {
+    private const string CraftingListDragDropPayload = "GatherBuddyCraftingListDragDrop";
+    private int? _draggedCraftingListId = null;
     private void DrawCraftingListsTab()
     {
         IDisposable tabItem;
@@ -217,6 +219,7 @@ public partial class VulcanWindow
             _previewFolderPath = folderPath;
             _previewList = null;
         }
+        DrawCraftingListFolderDropTarget(folderPath);
 
         var isPopupOpen = GatherBuddy.ControllerSupport != null
             ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"FolderContextMenu_{folderPath}", Dalamud.GamepadState)
@@ -265,6 +268,8 @@ public partial class VulcanWindow
 
         if (ImGui.Selectable($"{list.Name}##list_{list.ID}", isHighlighted))
             OpenCraftingList(list);
+        DrawCraftingListDragDropSource(list);
+        DrawCraftingListEntryDropTarget(list);
 
         if (isHighlighted)
             ImGui.PopStyleColor();
@@ -527,8 +532,7 @@ public partial class VulcanWindow
     private List<(string Label, CraftingListDefinition List)> GetFolderPreviewEntries(string folderPath, string? labelPrefix = null)
     {
         var entries = new List<(string Label, CraftingListDefinition List)>();
-
-        foreach (var list in GatherBuddy.CraftingListManager.GetListsInFolder(folderPath).OrderBy(list => list.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var list in GatherBuddy.CraftingListManager.GetListsInFolder(folderPath))
         {
             var label = string.IsNullOrEmpty(labelPrefix)
                 ? list.Name
@@ -545,6 +549,53 @@ public partial class VulcanWindow
         }
 
         return entries;
+    }
+
+    private void DrawCraftingListDragDropSource(CraftingListDefinition list)
+    {
+        using var source = ImRaii.DragDropSource();
+        if (!source.Success)
+            return;
+
+        _draggedCraftingListId = list.ID;
+        ImGui.SetDragDropPayload(CraftingListDragDropPayload, []);
+        ImGui.TextUnformatted(list.Name);
+    }
+
+    private void DrawCraftingListEntryDropTarget(CraftingListDefinition targetList)
+    {
+        using var target = ImRaii.DragDropTarget();
+        if (!target.Success || !ImGuiUtil.IsDropping(CraftingListDragDropPayload) || _draggedCraftingListId is not int draggedListId)
+            return;
+
+        var draggedList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        if (draggedList == null || draggedList.ID == targetList.ID)
+            return;
+
+        var itemMidpointY = (ImGui.GetItemRectMin().Y + ImGui.GetItemRectMax().Y) * 0.5f;
+        var placeAfter = ImGui.GetMousePos().Y >= itemMidpointY;
+        if (!GatherBuddy.CraftingListManager.MoveListRelative(draggedList, targetList, placeAfter))
+            return;
+
+        _previewList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        _previewFolderPath = null;
+    }
+
+    private void DrawCraftingListFolderDropTarget(string folderPath)
+    {
+        using var target = ImRaii.DragDropTarget();
+        if (!target.Success || !ImGuiUtil.IsDropping(CraftingListDragDropPayload) || _draggedCraftingListId is not int draggedListId)
+            return;
+
+        var draggedList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        if (draggedList == null)
+            return;
+
+        if (!GatherBuddy.CraftingListManager.MoveListToFolderEnd(draggedList, folderPath))
+            return;
+
+        _previewFolderPath = folderPath;
+        _previewList = null;
     }
 
 

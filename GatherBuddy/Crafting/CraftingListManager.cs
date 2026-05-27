@@ -52,6 +52,7 @@ public class CraftingListManager
             ID = proposedId,
             Name = name,
             FolderPath = normalizedFolderPath,
+            Order = GetNextOrderForFolder(normalizedFolderPath),
             Ephemeral = ephemeral
         };
         
@@ -90,6 +91,7 @@ public class CraftingListManager
             existing.Name        = list.Name;
             existing.Description = list.Description;
             existing.FolderPath  = NormalizeFolderPath(list.FolderPath);
+            existing.Order = list.Order;
             existing.Recipes     = list.Recipes;
             existing.SkipIfEnough = list.SkipIfEnough;
             existing.Materia = list.Materia;
@@ -108,6 +110,9 @@ public class CraftingListManager
         var normalizedFolderPath = NormalizeFolderPath(folderPath);
         return _lists
             .Where(list => list.FolderPath.Equals(normalizedFolderPath, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(list => list.Order < 0 ? int.MaxValue : list.Order)
+            .ThenBy(list => list.CreatedAt)
+            .ThenBy(list => list.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
@@ -177,6 +182,7 @@ public class CraftingListManager
 
         EnsureFolderPath(folderPath);
         GatherBuddy.Log.Information($"[CraftingListManager] Created folder '{folderPath}'");
+        Save();
         return true;
     }
 
@@ -200,6 +206,7 @@ public class CraftingListManager
 
         _folders.RemoveWhere(path => IsInFolderTree(path, normalizedFolderPath));
         GatherBuddy.Log.Information($"[CraftingListManager] Deleted folder '{normalizedFolderPath}'");
+        Save();
         return true;
     }
 
@@ -213,6 +220,7 @@ public class CraftingListManager
         }
 
         var normalizedFolderPath = NormalizeFolderPath(folderPath);
+        var previousFolderPath = NormalizeFolderPath(existing.FolderPath);
         if (!string.IsNullOrEmpty(normalizedFolderPath))
             EnsureFolderPath(normalizedFolderPath);
 
@@ -220,7 +228,80 @@ public class CraftingListManager
             return true;
 
         existing.FolderPath = normalizedFolderPath;
+        existing.Order = GetNextOrderForFolder(normalizedFolderPath, existing.ID);
+        NormalizeFolderOrders(previousFolderPath);
         GatherBuddy.Log.Debug($"[CraftingListManager] Moved list '{existing.Name}' to folder '{normalizedFolderPath}'");
+        Save();
+        return true;
+    }
+
+    public bool MoveListToFolderEnd(CraftingListDefinition list, string? folderPath)
+    {
+        var existing = GetListByID(list.ID);
+        if (existing == null)
+        {
+            GatherBuddy.Log.Debug($"[CraftingListManager] Failed to move list {list.ID} to the end of folder '{NormalizeFolderPath(folderPath)}' because it no longer exists");
+            return false;
+        }
+
+        var normalizedFolderPath = NormalizeFolderPath(folderPath);
+        var previousFolderPath = NormalizeFolderPath(existing.FolderPath);
+        if (!string.IsNullOrEmpty(normalizedFolderPath))
+            EnsureFolderPath(normalizedFolderPath);
+
+        var reorderedLists = GetListsInFolder(normalizedFolderPath)
+            .Where(entry => entry.ID != existing.ID)
+            .ToList();
+        reorderedLists.Add(existing);
+        existing.FolderPath = normalizedFolderPath;
+        NormalizeFolderOrders(normalizedFolderPath, reorderedLists);
+        if (!previousFolderPath.Equals(normalizedFolderPath, StringComparison.OrdinalIgnoreCase))
+            NormalizeFolderOrders(previousFolderPath);
+
+        GatherBuddy.Log.Debug($"[CraftingListManager] Moved list '{existing.Name}' to the end of folder '{normalizedFolderPath}'");
+        Save();
+        return true;
+    }
+
+    public bool MoveListRelative(CraftingListDefinition movedList, CraftingListDefinition targetList, bool placeAfter)
+    {
+        var existing = GetListByID(movedList.ID);
+        if (existing == null)
+        {
+            GatherBuddy.Log.Debug($"[CraftingListManager] Failed to reorder list {movedList.ID} because it no longer exists");
+            return false;
+        }
+
+        var target = GetListByID(targetList.ID);
+        if (target == null)
+        {
+            GatherBuddy.Log.Debug($"[CraftingListManager] Failed to reorder list '{existing.Name}' because target list {targetList.ID} no longer exists");
+            return false;
+        }
+
+        if (existing.ID == target.ID)
+            return false;
+
+        var sourceFolderPath = NormalizeFolderPath(existing.FolderPath);
+        var destinationFolderPath = NormalizeFolderPath(target.FolderPath);
+        var reorderedLists = GetListsInFolder(destinationFolderPath)
+            .Where(list => list.ID != existing.ID)
+            .ToList();
+        var targetIndex = reorderedLists.FindIndex(list => list.ID == target.ID);
+        if (targetIndex < 0)
+        {
+            GatherBuddy.Log.Debug($"[CraftingListManager] Failed to reorder list '{existing.Name}' because target '{target.Name}' could not be located in folder '{destinationFolderPath}'");
+            return false;
+        }
+
+        var insertIndex = targetIndex + (placeAfter ? 1 : 0);
+        existing.FolderPath = destinationFolderPath;
+        reorderedLists.Insert(insertIndex, existing);
+        NormalizeFolderOrders(destinationFolderPath, reorderedLists);
+        if (!sourceFolderPath.Equals(destinationFolderPath, StringComparison.OrdinalIgnoreCase))
+            NormalizeFolderOrders(sourceFolderPath);
+
+        GatherBuddy.Log.Debug($"[CraftingListManager] Reordered list '{existing.Name}' {(placeAfter ? "after" : "before")} '{target.Name}' in folder '{destinationFolderPath}'");
         Save();
         return true;
     }
@@ -264,6 +345,7 @@ public class CraftingListManager
 
             if (canonicalizedLists > 0)
                 GatherBuddy.Log.Debug($"[CraftingListManager] Canonicalized original-item ingredient prefs in {canonicalizedLists} list(s) before save");
+            GatherBuddy.Config.CraftingFolders = GetKnownFolderPaths();
             GatherBuddy.Config.CraftingLists = JsonConvert.SerializeObject(_lists);
             GatherBuddy.Config.Save();
             GatherBuddy.Log.Debug($"[CraftingListManager] Saved {_lists.Count} crafting lists");
@@ -279,6 +361,8 @@ public class CraftingListManager
         try
         {
             _folders.Clear();
+            foreach (var folderPath in GatherBuddy.Config.CraftingFolders ?? [])
+                AddFolderAndAncestors(_folders, folderPath);
             if (string.IsNullOrEmpty(GatherBuddy.Config.CraftingLists))
             {
                 _lists = new();
@@ -297,13 +381,25 @@ public class CraftingListManager
                     _lists[i].FolderPath = normalizedFolderPath;
                     needsSave = true;
                 }
+                AddFolderAndAncestors(_folders, _lists[i].FolderPath);
                 if (_lists[i].CreatedAt == default(DateTime))
                 {
                     _lists[i].CreatedAt = baseTime.AddHours(i);
                     needsSave = true;
                 }
+                if (_lists[i].Order < 0)
+                    needsSave = true;
                 if (CanonicalizeOriginalItemQualitySettings(_lists[i]))
                     needsSave = true;
+            }
+            foreach (var folderLists in _lists.GroupBy(list => NormalizeFolderPath(list.FolderPath), StringComparer.OrdinalIgnoreCase))
+            {
+                if (!folderLists.Any(list => list.Order < 0))
+                    continue;
+
+                var nextOrder = 0;
+                foreach (var list in folderLists)
+                    list.Order = nextOrder++;
             }
             if (needsSave)
             {
@@ -363,6 +459,25 @@ public class CraftingListManager
         var normalizedFolderPath = NormalizeFolderPath(folderPath);
         return normalizedCandidatePath.Equals(normalizedFolderPath, StringComparison.OrdinalIgnoreCase)
             || normalizedCandidatePath.StartsWith(normalizedFolderPath + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int GetNextOrderForFolder(string? folderPath, int? excludeId = null)
+    {
+        var normalizedFolderPath = NormalizeFolderPath(folderPath);
+        return _lists
+            .Where(list => list.FolderPath.Equals(normalizedFolderPath, StringComparison.OrdinalIgnoreCase)
+                && (!excludeId.HasValue || list.ID != excludeId.Value))
+            .Select(list => list.Order)
+            .DefaultIfEmpty(-1)
+            .Max() + 1;
+    }
+
+    private void NormalizeFolderOrders(string? folderPath, IReadOnlyList<CraftingListDefinition>? orderedLists = null)
+    {
+        var normalizedFolderPath = NormalizeFolderPath(folderPath);
+        var lists = orderedLists?.ToList() ?? GetListsInFolder(normalizedFolderPath).ToList();
+        for (var i = 0; i < lists.Count; i++)
+            lists[i].Order = i;
     }
 
     public string? ExportList(int id)

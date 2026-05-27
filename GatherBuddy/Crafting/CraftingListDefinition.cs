@@ -11,6 +11,7 @@ public class CraftingListDefinition
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string FolderPath { get; set; } = string.Empty;
+    public int Order { get; set; } = -1;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public List<CraftingListItem> Recipes { get; set; } = new();
     public List<uint> ExpandedList { get; set; } = new();
@@ -79,6 +80,7 @@ public class CraftingListDefinition
             Name = Name,
             Description = Description,
             FolderPath = FolderPath,
+            Order = Order,
             CreatedAt = CreatedAt,
             Consumables = Consumables.Clone(),
             DefaultPrecraftMacroId = DefaultPrecraftMacroId,

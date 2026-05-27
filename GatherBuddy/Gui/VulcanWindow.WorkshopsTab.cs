@@ -136,8 +136,7 @@ public partial class VulcanWindow
     private void DrawWorkshopProjectsPanel(IReadOnlyList<WorkshopProjectNode> projects)
     {
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##workshopProjectSearch", "Search projects...", ref _workshopProjectSearch, 256);
+        DrawSearchInputWithInlineClear("##workshopProjectSearch", "Search projects...", ref _workshopProjectSearch, 256);
 
         ImGui.Spacing();
         ImGui.Separator();

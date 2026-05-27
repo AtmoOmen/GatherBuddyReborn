@@ -8,11 +8,12 @@ namespace GatherBuddy.Gui;
 public class CraftingStatusWindow : Window
 {
     private CraftingQueueProcessor? _queueProcessor;
+    private bool? _pendingCollapseState = null;
+    private bool _requestFocus = false;
     private bool _wasFocusedLastFrame = false;
 
     public CraftingStatusWindow() 
-        : base("Crafting Status###GatherBuddyCraftingStatus", 
-               ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse)
+        : base("Crafting Status###GatherBuddyCraftingStatus", ImGuiWindowFlags.AlwaysAutoResize)
     {
         IsOpen = false;
         ShowCloseButton = true;
@@ -23,12 +24,51 @@ public class CraftingStatusWindow : Window
     public void SetQueueProcessor(CraftingQueueProcessor? processor)
     {
         _queueProcessor = processor;
-        IsOpen = processor != null;
+        if (processor == null)
+        {
+            IsOpen = false;
+            _pendingCollapseState = null;
+            _requestFocus = false;
+            return;
+        }
+
+        OpenOrRestore();
+    }
+
+    public bool HasActiveQueue
+        => _queueProcessor != null;
+
+    public void OpenOrRestore()
+    {
+        if (_queueProcessor == null)
+            return;
+
+        IsOpen = true;
+        _pendingCollapseState = false;
+        _requestFocus = true;
     }
 
     public override bool DrawConditions()
     {
         return _queueProcessor != null && IsOpen;
+    }
+
+    public override void PreDraw()
+    {
+        if (!IsOpen)
+            return;
+
+        if (_pendingCollapseState.HasValue)
+        {
+            ImGui.SetNextWindowCollapsed(_pendingCollapseState.Value, ImGuiCond.Always);
+            _pendingCollapseState = null;
+        }
+
+        if (_requestFocus)
+        {
+            ImGui.SetNextWindowFocus();
+            _requestFocus = false;
+        }
     }
 
     public override void Draw()

@@ -156,7 +156,8 @@ public partial class Interface
                 var lists = GatherBuddy.AutoGather.ArtisanExporter.GetArtisanListNames();
 
                 float rowHeight       = ImGui.GetTextLineHeightWithSpacing();
-                float totalListHeight = lists.Count * rowHeight;
+                float childPaddingY   = ImGui.GetStyle().WindowPadding.Y * 2f;
+                float totalListHeight = lists.Count * rowHeight + childPaddingY;
                 float totalListWidth  = lists.Max(n => ImGui.CalcTextSize(n.Value).X) + 40;
 
                 float maxHeight   = ImGui.GetIO().DisplaySize.Y * 0.4f;

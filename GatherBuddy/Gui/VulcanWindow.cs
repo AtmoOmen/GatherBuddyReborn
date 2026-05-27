@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
+using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Colors;
@@ -196,6 +197,66 @@ public partial class VulcanWindow : Window, IDisposable
         _listEditor.RefreshFromExternalListChange();
     }
 
+    private static bool DrawSearchInputWithInlineClear(string id, string hint, ref string value, int maxLength)
+    {
+        ImGui.SetNextItemWidth(-1f);
+        var changed = ImGui.InputTextWithHint(id, hint, ref value, maxLength);
+        ImGui.SetItemAllowOverlap();
+        if (string.IsNullOrEmpty(value))
+            return changed;
+
+        var frameMin = ImGui.GetItemRectMin();
+        var frameMax = ImGui.GetItemRectMax();
+        var cursorPos = ImGui.GetCursorPos();
+        var style = ImGui.GetStyle();
+        var drawList = ImGui.GetWindowDrawList();
+        var frameHeight = frameMax.Y - frameMin.Y;
+        var buttonSize = new Vector2(
+            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f),
+            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f));
+        var buttonPos = new Vector2(
+            frameMax.X - buttonSize.X - style.FramePadding.X,
+            frameMin.Y + (frameHeight - buttonSize.Y) * 0.5f);
+        var buttonBackgroundMin = new Vector2(buttonPos.X - style.FramePadding.X, frameMin.Y + 1f);
+        var buttonBackgroundMax = new Vector2(frameMax.X - 1f, frameMax.Y - 1f);
+        var frameColor = ImGui.GetColorU32(ImGui.IsItemActive()
+            ? ImGuiCol.FrameBgActive
+            : ImGui.IsItemHovered()
+                ? ImGuiCol.FrameBgHovered
+                : ImGuiCol.FrameBg);
+        drawList.AddRectFilled(buttonBackgroundMin, buttonBackgroundMax, frameColor);
+
+        ImGui.SetCursorScreenPos(buttonPos);
+        bool clearClicked;
+        bool clearHovered;
+        using (ImRaii.PushId(id))
+        {
+            clearClicked = ImGui.InvisibleButton("##clear", buttonSize);
+            clearHovered = ImGui.IsItemHovered();
+        }
+
+        if (clearHovered)
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        var iconColor = clearHovered
+            ? ImGui.GetColorU32(ImGuiCol.Text)
+            : ImGui.ColorConvertFloat4ToU32(new Vector4(0.62f, 0.62f, 0.68f, 1f));
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconText = FontAwesomeIcon.Times.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconText);
+            var iconPos = buttonPos + (buttonSize - iconSize) * 0.5f;
+            drawList.AddText(iconPos, iconColor, iconText);
+        }
+
+        ImGui.SetCursorPos(cursorPos);
+        if (!clearClicked)
+            return changed;
+
+        value = string.Empty;
+        return true;
+    }
+
     private void PrepareCreateListPopup(string? folderPath = null)
     {
         ResetCreateListPopupState();
@@ -320,6 +381,18 @@ public partial class VulcanWindow : Window, IDisposable
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Open the shared collectables turn-in and purchase automation window.");
+
+        ImGui.SameLine();
+        var hasActiveCraftStatus = GatherBuddy.CraftingStatusWindow?.HasActiveQueue == true;
+        using (ImRaii.Disabled(!hasActiveCraftStatus))
+        {
+            if (ImGui.SmallButton("Craft Status##openCraftStatus"))
+                GatherBuddy.CraftingStatusWindow?.OpenOrRestore();
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip(hasActiveCraftStatus
+                ? "Reopen or restore the Craft Status window for the active crafting queue."
+                : "No active crafting queue.");
 
     }
 
