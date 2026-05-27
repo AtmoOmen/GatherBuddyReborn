@@ -287,6 +287,10 @@ public partial class Interface
           + "But if a node doesn't contain any items from regular lists or if you gathered enough of them,\n"
           + "items from fallback lists would be gathered instead if they could be found in that node.",
             list.Fallback, (v) => _plugin.AutoGatherListsManager.SetFallback(list, v));
+        ImGui.SameLine();
+        ImGuiUtil.Checkbox("Remove Completed##list",
+            "Automatically remove enabled items from this list once your inventory reaches the configured quantity for them.",
+            list.RemoveCompletedItems, (v) => _plugin.AutoGatherListsManager.SetRemoveCompletedItems(list, v));
         if (!ReferenceEquals(_autoGatherListsCache.ItemFilterList, list))
         {
             _autoGatherListsCache.ItemFilterList = list;

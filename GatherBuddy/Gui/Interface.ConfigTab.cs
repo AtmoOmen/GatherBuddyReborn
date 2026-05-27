@@ -898,9 +898,22 @@ public partial class Interface
                 "Use your own AutoHook presets instead of GBR-generated ones.\n"
               + "Name your preset using the fish's Item ID (e.g., '46188' for Goldentail).\n"
               + "Find Fish IDs by hovering over fish in the Fish tab.\n"
+              + "Ignored when 'Use AutoHook Global Preset' is enabled.\n"
               + "Your presets will never be deleted - only GBR-generated presets are cleaned up.",
                 GatherBuddy.Config.AutoGatherConfig.UseExistingAutoHookPresets,
                 b => GatherBuddy.Config.AutoGatherConfig.UseExistingAutoHookPresets = b);
+            ImGui.SameLine();
+            ImGuiEx.PluginAvailabilityIndicator([new("AutoHook")]);
+        }
+
+        public static void DrawUseAutoHookGlobalPresetBox()
+        {
+            DrawCheckbox("Use AutoHook Global Preset",
+                "Clear AutoHook's selected custom preset and let AutoHook use its built-in Global Preset for rod fishing.\n"
+              + "This takes precedence over both GBR-generated presets and fish-ID AutoHook presets.\n"
+              + "Spearfishing still uses GBR-generated AutoGig presets.",
+                GatherBuddy.Config.AutoGatherConfig.UseAutoHookGlobalPreset,
+                b => GatherBuddy.Config.AutoGatherConfig.UseAutoHookGlobalPreset = b);
             ImGui.SameLine();
             ImGuiEx.PluginAvailabilityIndicator([new("AutoHook")]);
         }
@@ -1470,6 +1483,7 @@ public partial class Interface
         ]),
         new("Auto-Gather", "Fishing",
         [
+            new("Use AutoHook Global Preset",                    ConfigFunctions.DrawUseAutoHookGlobalPresetBox),
             new("Use existing AutoHook presets",                  ConfigFunctions.DrawUseExistingAutoHookPresetsBox),
             new("Max Fishing Spot Minutes",                       ConfigFunctions.DrawFishingSpotMinutes),
             new("Opt-in to fishing data collection",              ConfigFunctions.DrawFishCollectionBox),

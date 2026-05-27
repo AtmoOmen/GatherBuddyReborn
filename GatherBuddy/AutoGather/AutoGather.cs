@@ -443,6 +443,7 @@ namespace GatherBuddy.AutoGather
                             VisitedNodes.Add(targetNode.BaseId);
                     }
                 }
+                _plugin.AutoGatherListsManager.RemoveCompletedItemFromLists(gatherTarget.Item);
                 // Unset the current gather target when leaving the node
                 _currentGatherTarget = null;
                 ResetPendingFishingTargetChange();

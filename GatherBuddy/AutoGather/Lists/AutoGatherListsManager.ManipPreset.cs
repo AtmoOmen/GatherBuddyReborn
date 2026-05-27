@@ -1,4 +1,5 @@
 using ElliLib.Filesystem;
+using GatherBuddy.AutoGather.Extensions;
 using GatherBuddy.Classes;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
@@ -116,6 +117,8 @@ public partial class AutoGatherListsManager
     
     private unsafe bool ValidateFishingBait(AutoGatherList list)
     {
+        if (GatherBuddy.Config.AutoGatherConfig.UseAutoHookGlobalPreset)
+            return true;
         try
         {
             var fishInList = list.Items.OfType<Fish>().Where(f => !f.IsSpearFish && list.EnabledItems.TryGetValue(f, out var enabled) && enabled).ToList();
@@ -182,6 +185,8 @@ public partial class AutoGatherListsManager
     private unsafe bool ValidateSingleFishBait(IGatherable item)
     {
         if (item is not Fish fish || fish.IsSpearFish)
+            return true;
+        if (GatherBuddy.Config.AutoGatherConfig.UseAutoHookGlobalPreset)
             return true;
         
         try
@@ -385,6 +390,78 @@ public partial class AutoGatherListsManager
         Save();
         if (list.Items.Count > 0)
             SetActiveItems();
+    }
+
+    public void SetRemoveCompletedItems(AutoGatherList list, bool value)
+    {
+        if (list.RemoveCompletedItems == value)
+            return;
+
+        list.RemoveCompletedItems = value;
+        Save();
+        if (value && list.Enabled && list.Items.Count > 0)
+            SetActiveItems();
+    }
+
+    public bool RemoveCompletedItemFromLists(IGatherable item)
+    {
+        var totalCount = item.GetTotalCount();
+        var removedAny = false;
+        foreach (var list in _fileSystem.Select(kvp => kvp.Key))
+        {
+            if (!list.Enabled || !list.RemoveCompletedItems)
+                continue;
+            if (!list.EnabledItems.TryGetValue(item, out var itemEnabled) || !itemEnabled)
+                continue;
+            if (!list.Quantities.TryGetValue(item, out var quantity) || totalCount < quantity)
+                continue;
+
+            var index = list.Items.IndexOf(item);
+            if (index < 0)
+                continue;
+
+            GatherBuddy.Log.Debug(
+                $"[Auto-Gather] Auto-removing completed item '{item.Name[GatherBuddy.Language]}' from list '{list.Name}' ({totalCount}/{quantity}).");
+            list.RemoveAt(index);
+            removedAny = true;
+        }
+
+        if (!removedAny)
+            return false;
+
+        Save();
+        SetActiveItems();
+        return true;
+    }
+
+    private bool RemoveCompletedItemsFromEnabledLists()
+    {
+        var removedAny = false;
+        foreach (var list in _fileSystem.Select(kvp => kvp.Key))
+        {
+            if (!list.Enabled || !list.RemoveCompletedItems)
+                continue;
+
+            for (var i = list.Items.Count - 1; i >= 0; --i)
+            {
+                var item = list.Items[i];
+                if (!list.EnabledItems.TryGetValue(item, out var itemEnabled) || !itemEnabled)
+                    continue;
+                if (!list.Quantities.TryGetValue(item, out var quantity))
+                    continue;
+
+                var totalCount = item.GetTotalCount();
+                if (totalCount < quantity)
+                    continue;
+
+                GatherBuddy.Log.Debug(
+                    $"[Auto-Gather] Auto-removing completed item '{item.Name[GatherBuddy.Language]}' from list '{list.Name}' ({totalCount}/{quantity}).");
+                list.RemoveAt(i);
+                removedAny = true;
+            }
+        }
+
+        return removedAny;
     }
 
     public void AddItem(AutoGatherList list, IGatherable item)
