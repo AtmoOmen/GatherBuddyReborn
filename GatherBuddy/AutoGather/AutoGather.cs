@@ -443,7 +443,8 @@ namespace GatherBuddy.AutoGather
                             VisitedNodes.Add(targetNode.BaseId);
                     }
                 }
-                _plugin.AutoGatherListsManager.RemoveCompletedItemFromLists(gatherTarget.Item);
+                if (gatherTarget.Item != null)
+                    _plugin.AutoGatherListsManager.RemoveCompletedItemFromLists(gatherTarget.Item);
                 // Unset the current gather target when leaving the node
                 _currentGatherTarget = null;
                 ResetPendingFishingTargetChange();
@@ -1348,7 +1349,7 @@ namespace GatherBuddy.AutoGather
             {
                 if (GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes > 0)
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] IsFishing block entered, timer will be checked. MaxFishingSpotMinutes={GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes}, Expiration={fishingSpotData.Expiration}");
+                    GatherBuddy.Log.Verbose($"[AutoGather] IsFishing block entered, timer will be checked. MaxFishingSpotMinutes={GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes}, Expiration={fishingSpotData.Expiration}");
                 }
                 if (_fishWaryDetected)
                 {
