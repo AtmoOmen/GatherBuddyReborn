@@ -775,7 +775,7 @@ public partial class Interface
     private void DrawItemTab()
     {
         using var id  = ImRaii.PushId("Gatherables");
-        using var tab = ImRaii.TabItem("Gatherables");
+        using var tab = ImRaii.TabItem("可采集物品");
         ImGuiUtil.HoverTooltip("用镐子敲碎岩石或砍倒树木都算作采集, 你为什么这么问？\n"
           + "在这里你能找到关于园艺工和采矿工的所有物品信息。");
         if (!tab)
