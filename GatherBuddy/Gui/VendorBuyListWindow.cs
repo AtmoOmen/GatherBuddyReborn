@@ -264,7 +264,7 @@ public sealed partial class VendorBuyListWindow : Window
         {
             ImGui.Spacing();
             ImGui.TextColored(ImGuiColors.DalamudYellow, VendorAutomationRequirements.UnavailableStatusText);
-            ImGuiEx.PluginAvailabilityIndicator(RequiredVendorAutomationPlugins, "Requires one of these plugins:", all: false);
+            ImGuiEx.PluginAvailabilityIndicator(RequiredVendorAutomationPlugins, "需要安装以下插件之一:", all: false);
             ImGui.PushTextWrapPos();
             ImGui.TextColored(ImGuiColors.DalamudGrey3, VendorAutomationRequirements.UnavailableHelpText);
             ImGui.PopTextWrapPos();
@@ -283,7 +283,7 @@ public sealed partial class VendorBuyListWindow : Window
             }
             if (ImGui.IsItemHovered(vendorAutomationAvailable ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(vendorAutomationAvailable
-                    ? "Run the active vendor list."
+                    ? "运行当前商店清单。"
                     : VendorAutomationRequirements.UnavailableHelpText);
         }
         else if (ImGui.Button("停止", VulcanUiScaling.Scaled(120f, 0f)))

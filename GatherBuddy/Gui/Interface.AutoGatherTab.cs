@@ -278,7 +278,7 @@ public partial class Interface
             _plugin.AutoGatherListsManager.ChangeDescription(list, newDesc);
 
         var tmp = list.Enabled;
-        if (ImGui.Checkbox("Enabled##list", ref tmp) && tmp != list.Enabled)
+        if (ImGui.Checkbox("启用##list", ref tmp) && tmp != list.Enabled)
             _plugin.AutoGatherListsManager.ToggleList(list);
 
         ImGui.SameLine();

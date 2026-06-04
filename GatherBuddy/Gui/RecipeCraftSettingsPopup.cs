@@ -453,12 +453,12 @@ public class RecipeCraftSettingsPopup
             ImGui.TextColored(ImGuiColors.ParsedGreen, "验证: 通过");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(
-                    $"Macro will complete the craft.\n" +
-                    $"Progress: {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n" +
-                    $"Quality: {_validationResult.FinalQuality}\n" +
-                    $"Remaining Durability: {_validationResult.FinalDurability}" +
+                    $"宏将完成制作。\n" +
+                    $"进度: {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n" +
+                    $"品质: {_validationResult.FinalQuality}\n" +
+                    $"剩余耐久: {_validationResult.FinalDurability}" +
                     (_validationResult.SkippedConditionGatedCount > 0
-                        ? $"\nSkipped {_validationResult.SkippedConditionGatedCount} condition-gated action(s)"
+                        ? $"\n跳过了 {_validationResult.SkippedConditionGatedCount} 个条件触发动作"
                         : ""));
         }
         else
@@ -471,12 +471,12 @@ public class RecipeCraftSettingsPopup
                 MacroValidationFailure.ActionUnusable       => (ImGuiColors.DalamudYellow, "警告 \u2014 技能不可用"),
                 _                                           => (ImGuiColors.DalamudRed,    "失败"),
             };
-            ImGui.TextColored(color, $"Validation: {label} (step {_validationResult.FailedAtStep})");
+            ImGui.TextColored(color, $"验证: {label}（步骤 {_validationResult.FailedAtStep}）");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(
-                    $"Progress: {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n" +
-                    $"Quality: {_validationResult.FinalQuality}\n" +
-                    $"Remaining Durability: {_validationResult.FinalDurability}");
+                    $"进度: {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n" +
+                    $"品质: {_validationResult.FinalQuality}\n" +
+                    $"剩余耐久: {_validationResult.FinalDurability}");
         }
     }
 

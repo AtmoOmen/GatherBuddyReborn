@@ -225,7 +225,7 @@ public partial class Interface
                 b => GatherBuddy.Config.AutoGatherConfig.AlwaysReduceAllItems = b);
 
         public static void DrawUseFlagBox()
-            => DrawCheckbox("Disable map marker navigation",            "Whether or not to navigate using map markers (timed nodes only)",
+            => DrawCheckbox("禁用地图标记导航",            "是否使用地图标记导航（仅限时采集点）",
                 GatherBuddy.Config.AutoGatherConfig.DisableFlagPathing, b => GatherBuddy.Config.AutoGatherConfig.DisableFlagPathing = b);
 
         public static void DrawFarNodeFilterDistance()
@@ -322,22 +322,22 @@ public partial class Interface
                 GatherBuddy.Config.Save();
             }
 
-            ImGuiUtil.HoverTooltip("The time in seconds before the navigation system will reset if you are stuck.");
+            ImGuiUtil.HoverTooltip("导航系统在卡住后重置的等待时间（秒）");
         }
 
         public static void DrawForceWalkingBox()
-            => DrawCheckbox("Force Walking",                      "Force walking to nodes instead of using mounts.",
+            => DrawCheckbox("强制步行",                      "强制步行前往采集点，不使用坐骑。",
                 GatherBuddy.Config.AutoGatherConfig.ForceWalking, b => GatherBuddy.Config.AutoGatherConfig.ForceWalking = b);
 
         public static void DrawDisableRandomLandingPositionsBox()
-            => DrawCheckbox("Disable Random Landing Positions",
-                "GBR automatically collects player gathering positions as landing positions (offsets).\n" +
-                "When unchecked: Lands at random position where players were observed gathering.\n" +
-                "When checked: Uses the fixed landing distance instead.\n",
+            => DrawCheckbox("禁用随机降落位置",
+                "GBR 自动收集玩家的采集位置作为降落位置（偏移）。\n" +
+                "未勾选时：在观察到玩家采集的随机位置降落。\n" +
+                "勾选时：使用固定的降落距离。\n",
                 GatherBuddy.Config.AutoGatherConfig.DisableRandomLandingPositions, b => GatherBuddy.Config.AutoGatherConfig.DisableRandomLandingPositions = b);
 
         public static void DrawUseNavigationBox()
-            => DrawCheckbox("Use vnavmesh Navigation",             "Use vnavmesh Navigation to move your character automatically",
+            => DrawCheckbox("使用 vnavmesh 导航",             "使用 vnavmesh 导航自动移动角色",
                 GatherBuddy.Config.AutoGatherConfig.UseNavigation, b => GatherBuddy.Config.AutoGatherConfig.UseNavigation = b);
 
         public static void DrawStuckThreshold()
@@ -350,7 +350,7 @@ public partial class Interface
                 GatherBuddy.Config.Save();
             }
 
-            ImGuiUtil.HoverTooltip("The time in seconds before the navigation system will consider you stuck.");
+            ImGuiUtil.HoverTooltip("导航系统认定你卡住的时间（秒）");
         }
 
         public static void DrawSortingMethodCombo()
@@ -358,8 +358,8 @@ public partial class Interface
             var v = GatherBuddy.Config.AutoGatherConfig.SortingMethod;
             ImGui.SetNextItemWidth(150);
 
-            using var combo = ImRaii.Combo("Item Sorting Method", v.ToString());
-            ImGuiUtil.HoverTooltip("What method to use when sorting items internally");
+            using var combo = ImRaii.Combo("物品排序方式", v.ToString());
+            ImGuiUtil.HoverTooltip("内部排序物品时使用的方法");
             if (!combo)
                 return;
 
@@ -378,13 +378,13 @@ public partial class Interface
 
         // General Config
         public static void DrawOpenOnStartBox()
-            => DrawCheckbox("Open Config UI On Start",
-                "Toggle whether the GatherBuddy GUI should be visible after you start the game.",
+            => DrawCheckbox("启动时打开配置界面",
+                "切换 GatherBuddy 界面是否在启动游戏后显示。",
                 GatherBuddy.Config.OpenOnStart, b => GatherBuddy.Config.OpenOnStart = b);
 
         public static void DrawLockPositionBox()
-            => DrawCheckbox("Lock Config UI Movement",
-                "Toggle whether the GatherBuddy GUI movement should be locked.",
+            => DrawCheckbox("锁定配置界面移动",
+                "切换 GatherBuddy 界面移动是否锁定。",
                 GatherBuddy.Config.MainWindowLockPosition, b =>
                 {
                     GatherBuddy.Config.MainWindowLockPosition = b;
@@ -393,7 +393,7 @@ public partial class Interface
 
         public static void DrawLockResizeBox()
             => DrawCheckbox("锁定配置 UI 大小",
-                "Toggle whether the GatherBuddy GUI size should be locked.",
+                "切换 GatherBuddy 界面大小是否锁定。",
                 GatherBuddy.Config.MainWindowLockResize, b =>
                 {
                     GatherBuddy.Config.MainWindowLockResize = b;
@@ -402,7 +402,7 @@ public partial class Interface
 
         public static void DrawRespectEscapeBox()
             => DrawCheckbox("Esc 关闭主窗口",
-                "Toggle whether pressing escape while having the main window focused shall close it.",
+                "切换主窗口获得焦点时按 Escape 是否关闭。",
                 GatherBuddy.Config.CloseOnEscape, b =>
                 {
                     GatherBuddy.Config.CloseOnEscape = b;
@@ -410,53 +410,53 @@ public partial class Interface
                 });
 
         public static void DrawGearChangeBox()
-            => DrawCheckbox("Enable Gear Change",
-                "Toggle whether to automatically switch gear to the correct job gear for a node.\nUses Miner Set, Botanist Set and Fisher Set.",
+            => DrawCheckbox("启用套装切换",
+                "切换是否自动切换到对应采集点的职业套装。\n使用采矿工套装、园艺工套装和捕鱼人套装。",
                 GatherBuddy.Config.UseGearChange, b => GatherBuddy.Config.UseGearChange = b);
 
         public static void DrawTeleportBox()
             => DrawCheckbox("启用以太传送",
-                "Toggle whether to automatically teleport to a chosen node.",
+                "切换是否自动传送到选定的采集点。",
                 GatherBuddy.Config.UseTeleport, b => GatherBuddy.Config.UseTeleport = b);
 
         public static void DrawMapOpenBox()
-            => DrawCheckbox("Open Map With Location",
-                "Toggle whether to automatically open the map of the territory of the chosen node with its gathering location highlighted.",
+            => DrawCheckbox("打开地图并显示位置",
+                "切换是否自动打开所选采集点所在区域的地图，并高亮显示采集位置。",
                 GatherBuddy.Config.UseCoordinates, b => GatherBuddy.Config.UseCoordinates = b);
 
         public static void DrawPlaceMarkerBox()
-            => DrawCheckbox("Place Flag Marker on Map",
-                "Toggle whether to automatically set a red flag marker on the approximate location of the chosen node without opening the map.",
+            => DrawCheckbox("在地图上放置标记",
+                "切换是否在不打开地图的情况下自动在选定采集点的近似位置放置红色标记。",
                 GatherBuddy.Config.UseFlag, b => GatherBuddy.Config.UseFlag = b);
 
         public static void DrawMapMarkerPrintBox()
-            => DrawCheckbox("Print Map Location",
-                "Toggle whether to automatically write a map link to the approximate location of the chosen node to chat.",
+            => DrawCheckbox("输出地图位置",
+                "切换是否自动将选定采集点近似位置的地图链接输出到聊天栏。",
                 GatherBuddy.Config.WriteCoordinates, b => GatherBuddy.Config.WriteCoordinates = b);
 
         public static void DrawPlaceWaymarkBox()
             => DrawCheckbox("放置自定义标记",
-                "Toggle whether to place custom Waymarks you set manually set up for certain locations.",
+                "切换是否在已手动设置的特定位置放置自定义场地标记。",
                 GatherBuddy.Config.PlaceCustomWaymarks, b => GatherBuddy.Config.PlaceCustomWaymarks = b);
 
         public static void DrawPrintUptimesBox()
-            => DrawCheckbox("Print Node Uptimes On Gather",
-                "Print the uptimes of nodes you try to /gather in the chat if they are not always up.",
+            => DrawCheckbox("采集时输出出现时段",
+                "当你使用 /gather 尝试采集非全天出现的物品时，在聊天栏输出其出现时段。",
                 GatherBuddy.Config.PrintUptime, b => GatherBuddy.Config.PrintUptime = b);
 
         public static void DrawSkipTeleportBox()
-            => DrawCheckbox("Skip Nearby Teleports",
-                "Skips teleports if you are in the same map and closer to the target than the selected aetheryte already.",
+            => DrawCheckbox("跳过近距离传送",
+                "如果你在同一地图且比所选以太之光更接近目标，则跳过传送。",
                 GatherBuddy.Config.SkipTeleportIfClose, b => GatherBuddy.Config.SkipTeleportIfClose = b);
 
         public static void DrawShowStatusLineBox()
             => DrawCheckbox("显示状态行",
-                "Show a status line below the gatherables and fish tables.",
+                "在可采集物品和鱼类表格下方显示状态行。",
                 GatherBuddy.Config.ShowStatusLine, v => GatherBuddy.Config.ShowStatusLine = v);
 
         public static void DrawHideClippyBox()
             => DrawCheckbox("隐藏 GatherClippy 按钮",
-                "Permanently hide the GatherClippy Button in the Gatherables and Fish tabs.",
+                "永久隐藏可采集物品和鱼类标签页中的 GatherClippy 按钮。",
                 GatherBuddy.Config.HideClippy, v => GatherBuddy.Config.HideClippy = v);
 
         private const string ChatInformationString =

@@ -429,7 +429,7 @@ public partial class VulcanWindow : Window, IDisposable
 
         if (artisanLoaded == _pendingArtisanEnabledState.Value)
         {
-            GatherBuddy.Log.Debug($"[VulcanWindow] Artisan {(artisanLoaded ? "启用d" : "禁用d")} successfully.");
+            GatherBuddy.Log.Debug($"[VulcanWindow] Artisan {(artisanLoaded ? "已启用" : "已禁用")} successfully.");
             ClearPendingArtisanToggle();
             return false;
         }
@@ -443,19 +443,19 @@ public partial class VulcanWindow : Window, IDisposable
         return false;
     }
 
-    private void TryToggleArtisan(bool 启用)
+    private void TryToggleArtisan(bool enable)
     {
-        if (!DalamudPluginToggleHelper.TrySetPluginEnabled(ArtisanPluginName, 启用, out var toggleTask, out var failureReason))
+        if (!DalamudPluginToggleHelper.TrySetPluginEnabled(ArtisanPluginName, enable, out var toggleTask, out var failureReason))
         {
-            GatherBuddy.Log.Warning($"[VulcanWindow] 失败: invoke reflected Artisan toggle for state {(启用 ? "启用d" : "禁用d")}: {failureReason ?? "unknown reason"}.");
-            Communicator.PrintError(failureReason ?? $"失败: {(启用 ? "启用" : "禁用")} Artisan.");
+            GatherBuddy.Log.Warning($"[VulcanWindow] 失败: invoke reflected Artisan toggle for state {(enable ? "已启用" : "已禁用")}: {failureReason ?? "unknown reason"}.");
+            Communicator.PrintError(failureReason ?? $"失败: {(enable ? "启用" : "禁用")} Artisan.");
             return;
         }
 
-        _pendingArtisanEnabledState = 启用;
+        _pendingArtisanEnabledState = enable;
         _artisanToggleRequestedAt = DateTime.UtcNow;
         _artisanToggleTask = toggleTask;
-        GatherBuddy.Log.Debug($"[VulcanWindow] Requested to {(启用 ? "启用" : "禁用")} Artisan via reflected Dalamud plugin manager access.");
+        GatherBuddy.Log.Debug($"[VulcanWindow] Requested to {(enable ? "启用" : "禁用")} Artisan via reflected Dalamud plugin manager access.");
     }
 
     private void ClearPendingArtisanToggle()

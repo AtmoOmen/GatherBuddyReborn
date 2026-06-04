@@ -331,13 +331,13 @@ public class CraftingTreeWindow : Window
         };
         var prefix = node.MaterialSource switch
         {
-            MaterialSource.Gatherable      => "[Gather]",
-            MaterialSource.Fish            => "[Fish]",
-            MaterialSource.GilVendor       => "[Vendor]",
-            MaterialSource.SpecialCurrency => "[Currency]",
-            MaterialSource.Scrip           => "[Scrip]",
-            MaterialSource.Drop            => "[Drop]",
-            _                               => "[Other]",
+            MaterialSource.Gatherable      => "[采集]",
+            MaterialSource.Fish            => "[钓鱼]",
+            MaterialSource.GilVendor       => "[商店]",
+            MaterialSource.SpecialCurrency => "[特殊货币]",
+            MaterialSource.Scrip           => "[工票]",
+            MaterialSource.Drop            => "[掉落]",
+            _                               => "[其他]",
         };
         return ($"{prefix} {node.ItemName}{qty}", color);
     }
@@ -347,25 +347,25 @@ public class CraftingTreeWindow : Window
         ImGui.BeginTooltip();
         ImGui.TextUnformatted(node.ItemName);
         ImGui.Separator();
-        ImGui.TextColored(ColorMuted, $"Need: {node.Quantity}");
+        ImGui.TextColored(ColorMuted, $"需要: {node.Quantity}");
 
         if (node.IsCraft && node.RecipeYield > 1 && node.CraftCount > 0)
-            ImGui.TextColored(ColorMuted, $"Crafts: {node.CraftCount} (yields {node.RecipeYield} ea.)");
+            ImGui.TextColored(ColorMuted, $"制作次数: {node.CraftCount} (每次产出 {node.RecipeYield} 个)");
 
         if (node.GatherTerritory is { Length: > 0 })
-            ImGui.TextColored(ColorGather, $"Best location: {node.GatherTerritory}");
+            ImGui.TextColored(ColorGather, $"最佳地点: {node.GatherTerritory}");
 
         if (node.VendorOptions is { Count: > 0 })
         {
-            ImGui.TextColored(ColorVendor, "Vendors:");
+            ImGui.TextColored(ColorVendor, "商店:");
             foreach (var opt in node.VendorOptions.Take(6))
                 ImGui.BulletText($"{opt.NpcName} — {opt.Cost} {opt.CurrencyName}");
             if (node.VendorOptions.Count > 6)
-                ImGui.TextColored(ColorMuted, $"  + {node.VendorOptions.Count - 6} more");
+                ImGui.TextColored(ColorMuted, $"  + {node.VendorOptions.Count - 6} 更多");
         }
 
         if (node.IsCraft && node.CrafterClassName is { Length: > 0 })
-            ImGui.TextColored(ColorSubCraft, $"Crafter: {node.CrafterClassName}");
+            ImGui.TextColored(ColorSubCraft, $"制作职业: {node.CrafterClassName}");
 
         ImGui.EndTooltip();
     }
@@ -454,7 +454,7 @@ public class CraftingTreeWindow : Window
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"[CraftingTreeWindow] Failed to rebuild tree for list '{_editor?.ListName}': {ex.Message}");
+            GatherBuddy.Log.Error($"[CraftingTreeWindow] 重建清单 '{_editor?.ListName}' 的树结构失败: {ex.Message}");
             _cachedTree = [];
         }
 
@@ -612,7 +612,7 @@ public class CraftingTreeWindow : Window
     {
         if (entry.Npcs == null || entry.Npcs.Count == 0)
         {
-            options.Add(new VendorOption("(Unknown vendor)", entry.Cost, entry.CurrencyName));
+            options.Add(new VendorOption("(未知商店)", entry.Cost, entry.CurrencyName));
             return;
         }
         foreach (var npc in entry.Npcs)

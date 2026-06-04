@@ -30,24 +30,24 @@ public partial class VulcanWindow
     private enum VendorSortDirection { Ascending, Descending }
     private static readonly (VendorCurrencyGroup Group, string Label, uint CurrencyItemId)[] SpecialCurrencyGroups =
     [
-        (VendorCurrencyGroup.Tomestones,       "Tomestones",       28),
-        (VendorCurrencyGroup.BicolorGemstones, "Bicolor Gemstones", VendorShopResolver.BicolorCurrencyItemId),
-        (VendorCurrencyGroup.HuntSeals,        "The Hunt",         VendorShopResolver.AlliedSealCurrencyItemId),
-        (VendorCurrencyGroup.Scrips,           "Scrips",           33913),
+        (VendorCurrencyGroup.Tomestones,       "神典石",       28),
+        (VendorCurrencyGroup.BicolorGemstones, "双色宝石", VendorShopResolver.BicolorCurrencyItemId),
+        (VendorCurrencyGroup.HuntSeals,        "狩猎",         VendorShopResolver.AlliedSealCurrencyItemId),
+        (VendorCurrencyGroup.Scrips,           "工票",           33913),
         (VendorCurrencyGroup.MGP,              "MGP",              VendorShopResolver.MgpCurrencyItemId),
         (VendorCurrencyGroup.PvP,              "PvP",              VendorShopResolver.WolfMarkCurrencyItemId),
-        (VendorCurrencyGroup.Other,            "Other",            0),
+        (VendorCurrencyGroup.Other,            "其他",            0),
     ];
 
     private static readonly (VendorGilFilter Filter, string Label)[] GilFilters =
     [
-        (VendorGilFilter.All,        "All"),
-        (VendorGilFilter.Gatherable, "Gatherable"),
-        (VendorGilFilter.Fish,       "Fish"),
-        (VendorGilFilter.Craftable,  "Craftable"),
-        (VendorGilFilter.Housing,    "Housing/Furnishing"),
-        (VendorGilFilter.Dyes,       "Dyes"),
-        (VendorGilFilter.Other,      "Other"),
+        (VendorGilFilter.All,        "全部"),
+        (VendorGilFilter.Gatherable, "可采集"),
+        (VendorGilFilter.Fish,       "鱼类"),
+        (VendorGilFilter.Craftable,  "可制作"),
+        (VendorGilFilter.Housing,    "房屋/家具"),
+        (VendorGilFilter.Dyes,       "染料"),
+        (VendorGilFilter.Other,      "其他"),
     ];
     private const uint MinerClassJobId          = 16;
     private const uint FisherClassJobId         = 18;
@@ -194,7 +194,7 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null && !_vendorsTabRequestFocus)
         {
-            var handle = ImRaii.TabItem("Vendors##vendorsTab");
+            var handle = ImRaii.TabItem("商店##vendorsTab");
             tabItem = handle;
             tabOpen = handle.Success;
         }
@@ -204,11 +204,11 @@ public partial class VulcanWindow
             if (_vendorsTabRequestFocus)
             {
                 bool dummy = true;
-                handle = ImRaii.TabItem("Vendors##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
+                handle = ImRaii.TabItem("商店##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
             }
             else
             {
-                handle = ImRaii.TabItem("Vendors##vendorsTab");
+                handle = ImRaii.TabItem("商店##vendorsTab");
             }
 
             tabItem = handle;
@@ -228,7 +228,7 @@ public partial class VulcanWindow
             if (VendorShopResolver.IsInitializing)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "正在加载商店数据...");
                 return;
             }
 

@@ -456,7 +456,7 @@ public partial class Interface
         private sealed class AetheryteColumn : ColumnString<ExtendedGatherable>
         {
             public override string ToName(ExtendedGatherable item)
-                => item.Uptime.Item1.ClosestAetheryte?.Name ?? "None";
+                => item.Uptime.Item1.ClosestAetheryte?.Name ?? "无";
 
             public override float Width
                 => _closestAetheryteColumnWidth * ImGuiHelpers.GlobalScale;
@@ -466,7 +466,7 @@ public partial class Interface
                 var aetheryte = item.Uptime.Item1.ClosestAetheryte;
                 if (aetheryte == null)
                 {
-                    ImGui.Text("None");
+                    ImGui.Text("无");
                     return;
                 }
 
@@ -578,7 +578,7 @@ public partial class Interface
             {
                 SetFlags(ItemFilter.ARealmReborn, ItemFilter.Heavensward, ItemFilter.Stormblood, ItemFilter.Shadowbringers,
                     ItemFilter.Endwalker, ItemFilter.Dawntrail);
-                SetNames("A Realm Reborn", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker", "Dawntrail");
+                SetNames("重生之境", "苍穹之禁城", "红莲之狂潮", "暗影之逆焰", "晓月之终途", "金曦之秘途");
             }
 
             public override void DrawColumn(ExtendedGatherable item, int _)

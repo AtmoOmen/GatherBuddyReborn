@@ -975,7 +975,7 @@ public class CraftingMaterialsWindow : Window
                     ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.55f)));
 
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"{option.Name}: {option.CostPerItem:N0} per item\nClick to use for totals.");
+                ImGui.SetTooltip($"{option.Name}: 每个 {option.CostPerItem:N0}\n点击用于总计计算。");
 
             if (clicked)
                 _userSelectedCurrencyByItem[entry.ItemId] = option.CurrencyItemId;
@@ -1034,7 +1034,7 @@ public class CraftingMaterialsWindow : Window
             if (entry.DropInfo.MobCount > MaxMobsShown)
             {
                 var remainingMobCount = entry.DropInfo.MobCount - MaxMobsShown;
-                lines.Add($"...and {remainingMobCount} more {Pluralize("怪物", remainingMobCount)}");
+                lines.Add($"...及其他 {remainingMobCount} 个怪物");
             }
             lines.Add("点击查看分组标记");
             ImGui.SetTooltip(string.Join('\n', lines));
