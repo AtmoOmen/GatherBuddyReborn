@@ -204,7 +204,7 @@ public partial class Interface
                     return SetAllOptions(true) || changed;
 
                 if (!all && ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Right-click to clear filters.");
+                    ImGui.SetTooltip("右键点击清空过滤");
 
                 if (!comboOpen)
                     return changed;
@@ -328,10 +328,10 @@ public partial class Interface
 
             private static readonly string[] FilterNames =
             [
-                "Already Gathered",
-                "Ungathered",
-                "Not Tracked",
-                "Log State Unavailable",
+                "已采集",
+                "未采集",
+                "未在采集记录中",
+                "采集记录状态不可用",
             ];
 
             public GatheredColumn()
@@ -435,7 +435,7 @@ public partial class Interface
             {
                 Flags |= ImGuiTableColumnFlags.DefaultSort;
                 SetFlags(ItemFilter.Available, ItemFilter.Unavailable);
-                SetNames("Currently Available", "Currently Unavailable");
+                SetNames("当前可用", "当前不可用");
             }
 
             public override void DrawColumn(ExtendedGatherable item, int _)
@@ -776,8 +776,8 @@ public partial class Interface
     {
         using var id  = ImRaii.PushId("Gatherables");
         using var tab = ImRaii.TabItem("Gatherables");
-        ImGuiUtil.HoverTooltip("Breaking rocks with a pickaxe or felling trees counts as gathering, why do you ask?\n"
-          + "Find all information about botanist and miner items you could ever need.");
+        ImGuiUtil.HoverTooltip("用镐子敲碎岩石或砍倒树木都算作采集, 你为什么这么问？\n"
+          + "在这里你能找到关于园艺工和采矿工的所有物品信息。");
         if (!tab)
             return;
 
