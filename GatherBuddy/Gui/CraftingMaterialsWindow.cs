@@ -532,22 +532,22 @@ public class CraftingMaterialsWindow : Window
                 using (ImRaii.PushColor(ImGuiCol.Text, accent))
                     ImGui.TableHeader(label);
                 ImGui.TableSetColumnIndex(1);
-                DrawCenteredHeader("Have");
+                DrawCenteredHeader("持有");
                 switch (retainerColumnMode)
                 {
                     case RetainerColumnMode.Total:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("Ret", "雇员总计 (通过 Allagan Tools)");
+                        DrawCenteredHeader("雇员", "雇员总计 (通过 Allagan Tools)");
                         break;
                     case RetainerColumnMode.Split:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("RNQ", "雇员 NQ (通过 Allagan Tools)");
+                        DrawCenteredHeader("雇员NQ", "雇员 NQ (通过 Allagan Tools)");
                         ImGui.TableSetColumnIndex(3);
-                        DrawCenteredHeader("RHQ", "雇员 HQ (通过 Allagan Tools)");
+                        DrawCenteredHeader("雇员HQ", "雇员 HQ (通过 Allagan Tools)");
                         break;
                 }
                 ImGui.TableSetColumnIndex(needIdx);
-                DrawCenteredHeader("Need");
+                DrawCenteredHeader("需要");
                 ImGui.TableSetColumnIndex(needIdx + 1);
                 DrawCenteredHeader("%");
 
@@ -639,7 +639,7 @@ public class CraftingMaterialsWindow : Window
         {
             if (ImGui.Selectable("创建链接"))
                 Communicator.Print(SeString.CreateItemLink(itemId));
-            if (ImGui.Selectable("Search Marketboard"))
+            if (ImGui.Selectable("搜索市场布告板"))
             {
                 GatherBuddy.MarketboardService?.QueueLookup(itemId, name, iconId);
                 GatherBuddy.VulcanWindow?.OpenToMarketboardItem(itemId);
@@ -763,15 +763,15 @@ public class CraftingMaterialsWindow : Window
 
         if (hasSingleTarget)
         {
-            DrawVendorBuyListExistingListMenu("Add to Existing List", new[] { singleTarget });
-            if (ImGui.Selectable("Create New List"))
+            DrawVendorBuyListExistingListMenu("添加到已有清单", new[] { singleTarget });
+            if (ImGui.Selectable("创建新清单"))
                 OpenCreateVendorBuyListPopup(new[] { singleTarget });
         }
 
         if (hasBatchTargets && vendorTargets!.Count > 1)
         {
-            DrawVendorBuyListExistingListMenu("Add Current Vendor View to Existing List", vendorTargets);
-            if (ImGui.Selectable("Create New List from Current Vendor View"))
+            DrawVendorBuyListExistingListMenu("将当前商店视图添加到已有清单", vendorTargets);
+            if (ImGui.Selectable("从当前商店视图创建新清单"))
                 OpenCreateVendorBuyListPopup(vendorTargets);
         }
     }
@@ -891,7 +891,7 @@ public class CraftingMaterialsWindow : Window
         }
 
         using (ImRaii.PushColor(ImGuiCol.Text, accent))
-            ImGui.TextUnformatted("Totals:");
+            ImGui.TextUnformatted("总计:");
 
         for (var i = 0; i < totals.Count; i++)
         {

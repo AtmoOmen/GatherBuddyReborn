@@ -45,7 +45,7 @@ public class CraftingTreeWindow : Window
     private readonly List<bool> _ancestorHasMoreSiblings = new();
     private float _iconColumnScreenX;
 
-    public CraftingTreeWindow() : base("Crafting Tree###CraftingTree")
+    public CraftingTreeWindow() : base("制作树###CraftingTree")
     {
         Size           = VulcanUiScaling.Scaled(560f, 600f);
         SizeCondition  = ImGuiCond.FirstUseEver;
@@ -66,14 +66,14 @@ public class CraftingTreeWindow : Window
     public override void PreDraw()
     {
         if (_editor != null)
-            WindowName = $"Crafting Tree — {_editor.ListName}###CraftingTree";
+            WindowName = $"制作树 — {_editor.ListName}###CraftingTree";
     }
 
     public override void Draw()
     {
         if (_editor == null)
         {
-            ImGui.TextColored(ColorMuted, "No list open.");
+            ImGui.TextColored(ColorMuted, "未打开任何清单。");
             return;
         }
 
@@ -85,7 +85,7 @@ public class CraftingTreeWindow : Window
 
         if (_cachedTree.Count == 0)
         {
-            ImGui.TextColored(ColorMuted, "List is empty or has no resolvable recipes.");
+            ImGui.TextColored(ColorMuted, "清单为空或没有可解析的配方。");
             return;
         }
 
@@ -137,12 +137,12 @@ public class CraftingTreeWindow : Window
         var totalGather = SumLeaves(_cachedTree, MaterialSource.Gatherable, MaterialSource.Fish);
         var totalVendor = SumLeaves(_cachedTree, MaterialSource.GilVendor, MaterialSource.SpecialCurrency, MaterialSource.Scrip);
 
-        ImGui.TextColored(ColorMuted, $"{roots} root(s)  ·  {totalCrafts} sub-craft(s)  ·  {totalGather} gather  ·  {totalVendor} vendor/scrip");
+        ImGui.TextColored(ColorMuted, $"{roots} 个成品  ·  {totalCrafts} 个半成品  ·  {totalGather} 采集  ·  {totalVendor} 商店/工票");
         ImGui.SameLine();
-        if (ImGui.SmallButton("Expand All##craftingTreeExpand"))
+        if (ImGui.SmallButton("全部展开##craftingTreeExpand"))
             SetExpandedAll(true);
         ImGui.SameLine();
-        if (ImGui.SmallButton("Collapse All##craftingTreeCollapse"))
+        if (ImGui.SmallButton("全部折叠##craftingTreeCollapse"))
             SetExpandedAll(false);
     }
 
@@ -315,9 +315,9 @@ public class CraftingTreeWindow : Window
     {
         var qty = node.Quantity > 0 ? $" × {node.Quantity}" : string.Empty;
         if (node.IsRoot)
-            return ($"[Final] {node.ItemName}{qty}", ColorRoot);
+            return ($"[成品] {node.ItemName}{qty}", ColorRoot);
         if (node.IsCraft)
-            return ($"[Sub-craft] {node.ItemName}{qty}", ColorSubCraft);
+            return ($"[半成品] {node.ItemName}{qty}", ColorSubCraft);
 
         var color = node.MaterialSource switch
         {
