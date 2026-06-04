@@ -883,7 +883,7 @@ public partial class VulcanWindow
         var buyListManager  = GatherBuddy.VendorBuyListManager;
 
         var purchaseManager = GatherBuddy.VendorPurchaseManager;
-        if (ImGui.Button("Open Vendor Buy List"))
+        if (ImGui.Button("打开商店购买清单"))
             buyListManager.OpenWindow();
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.DalamudYellow, $"{buyListManager.ActiveListName}: {buyListManager.Entries.Count} item(s)");

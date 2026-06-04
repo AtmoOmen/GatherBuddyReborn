@@ -155,7 +155,7 @@ public partial class Interface
 
         public static void DrawAutoretainerBox()
         {
-            DrawCheckbox("Wait for AutoRetainer Multi-mode", "Pause GBR automatically when AutoRetainer has retainers to process during Multi-mode",
+            DrawCheckbox("等待 AutoRetainer 多模式", "当 AutoRetainer 在多模式下有雇员需要处理时自动暂停 GBR",
                 GatherBuddy.Config.AutoGatherConfig.AutoRetainerMultiMode, b => GatherBuddy.Config.AutoGatherConfig.AutoRetainerMultiMode = b);
             ImGui.SameLine();
             ImGuiEx.PluginAvailabilityIndicator([new ImGuiEx.RequiredPluginInfo("AutoRetainer")]);
