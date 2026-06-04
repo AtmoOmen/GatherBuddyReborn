@@ -422,7 +422,7 @@ namespace GatherBuddy.Gui
                     selector.Save();
                 }
 
-                ImGui.Text("采集节点类型:");
+                ImGui.Text("采集点类型:");
                 ImGui.SameLine();
                 if (ImGuiUtil.Checkbox("普通", "普通采集点", preset.NodeType.Regular, x => preset.NodeType.Regular = x))
                     selector.Save();
@@ -530,10 +530,10 @@ namespace GatherBuddy.Gui
                     if (!isFishExclusive)
                     {
                         if (ImGuiUtil.Checkbox("自动决定使用的技能",
-                               "此设置根据物品或节点类型表现不同\n"
+                               "此设置根据物品或采集点类型表现不同\n"
                              + "收藏品: 使用标准收藏品循环, 启用所有技能\n"
-                             + "未知和传说节点: 选择技能以最大化产出\n"
-                             + "普通节点: 选择技能以最大化每次 GP 消耗的产出\n",
+                             + "未知和传世采集点: 选择技能以最大化产出\n"
+                             + "普通采集点: 选择技能以最大化每次 GP 消耗的产出\n",
                                 preset.ChooseBestActionsAutomatically,
                                 x => preset.ChooseBestActionsAutomatically = x))
                             selector.Save();
@@ -544,7 +544,7 @@ namespace GatherBuddy.Gui
                         if (ImGuiUtil.Checkbox("仅在 GP 充足时选择最优加成的采集点",
                "这仅适用于普通采集点. 启用后, 只在 GP 足够达到最优加成时选择采集点\n"
              + "请确认存在带有 +2 采集次数, +3 获取量, 或 +100% 额外采集数量加成奖励的采集点, 否则不会触发\n"
-             + $"如果 {ConcatNames(Actions.Bountiful)} 只提供 +3 获取量, 可关闭此选项, 因为没有节点能超过\n"
+             + $"如果 {ConcatNames(Actions.Bountiful)} 只提供 +3 获取量, 可关闭此选项, 因为没有采集点产出能超过\n"
              + "如果已拥有再次采集职业动作 (91 级+), 可考虑使用此选项",
                                 preset.SpendGPOnBestNodesOnly,
                                 x => preset.SpendGPOnBestNodesOnly = x))

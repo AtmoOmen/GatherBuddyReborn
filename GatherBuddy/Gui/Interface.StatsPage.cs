@@ -132,7 +132,7 @@ public partial class Interface
 
                 if (count == 0)
                 {
-                    sb.AppendLine($"{fish.Name}:\n- (0 Caught)");
+                    sb.AppendLine($"{fish.Name}:\n- (已捕获 0)");
                     continue;
                 }
 

@@ -22,7 +22,7 @@ public partial class Interface
 {
     private sealed class AutoGatherListFileSystemSelector : FileSystemSelector<AutoGatherList, int>
     {
-        private const string BaitBuyListResultPopupId = "Bait Buy List Result###AutoGatherBaitBuyListResult";
+        private const string BaitBuyListResultPopupId = "鱼饵购买清单结果###AutoGatherBaitBuyListResult";
         private sealed record BaitBuyListGenerationResult(
             bool VendorDataReady,
             IReadOnlyList<string> AllBaitNames,

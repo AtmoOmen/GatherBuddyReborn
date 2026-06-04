@@ -210,7 +210,7 @@ public partial class Interface
         _gatherWindowCache.Selector.Draw(SelectorWidth);
         ImGui.SameLine();
 
-        ItemDetailsWindow.Draw("Preset Details", DrawGatherWindowPresetHeaderLine, () =>
+        ItemDetailsWindow.Draw("预设详情", DrawGatherWindowPresetHeaderLine, () =>
         {
             if (_gatherWindowCache.Selector.Current != null)
                 DrawGatherWindowPreset(_gatherWindowCache.Selector.Current);

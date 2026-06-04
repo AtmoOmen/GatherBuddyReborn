@@ -37,7 +37,7 @@ namespace GatherBuddy.AutoGather
 
         public static void DrawDebugTables()
         {
-            if (ImGui.Button("从剪贴板导入节点偏移数据"))
+            if (ImGui.Button("从剪贴板导入采集点偏移数据"))
             {
                 var settings = new JsonSerializerSettings();
                 var                          text    = ImGuiUtil.GetClipboardText();
@@ -51,19 +51,19 @@ namespace GatherBuddy.AutoGather
                 GatherBuddy.Log.Information("已保存");
             }
             ImGui.SameLine();
-            if (ImGui.Button("复制节点偏移数据到剪贴板"))
+            if (ImGui.Button("复制采集点偏移数据到剪贴板"))
             {
                 var settings = new JsonSerializerSettings();
                 var offsetString = JsonConvert.SerializeObject(WorldData.NodeOffsets.Select(x => new OffsetPair(x.Key, x.Value)).ToList(), Formatting.Indented, settings);
                 ImGui.SetClipboardText(offsetString);
-                GatherBuddy.Log.Information("节点偏移数据已复制到剪贴板");
+                GatherBuddy.Log.Information("采集点偏移数据已复制到剪贴板");
             }
             // First column: Nearby nodes table
             if (ImGui.BeginTable("##nearbyNodesTable", 7, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
             {
                 ImGui.TableSetupColumn("名称");
                 ImGui.TableSetupColumn("可选择");
-                ImGui.TableSetupColumn("节点 ID");
+                ImGui.TableSetupColumn("采集点 ID");
                 ImGui.TableSetupColumn("位置");
                 ImGui.TableSetupColumn("距离");
                 ImGui.TableSetupColumn("自动偏移");

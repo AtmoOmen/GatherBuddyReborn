@@ -179,7 +179,7 @@ public partial class Interface
 
     private void DrawDebugButtons()
     {
-        if (ImGui.CollapsingHeader("Debug"))
+        if (ImGui.CollapsingHeader("调试"))
         {
             if (ImGui.Button("标记天气脏数据"))
                 _weatherTable.SetDirty();
@@ -190,8 +190,8 @@ public partial class Interface
                 var diademItems = GatherBuddy.GameData.Gatherables.Values.Where(g => g.Name[ClientLanguage.English].Contains("Grade 4 Skybuilder", StringComparison.InvariantCultureIgnoreCase));
                 var list = new AutoGatherList()
                 {
-                    Name        = "Diadem Debug",
-                    Description = "Debug list for diadem gatherables",
+                    Name        = "云冠群岛调试",
+                    Description = "云冠群岛可采集物品调试列表",
                 };
                 foreach (var item in diademItems)
                 {
@@ -562,7 +562,7 @@ public partial class Interface
 
     private void DrawWaymarkTab()
     {
-        if (!ImGui.CollapsingHeader("Waymarks##WaymarkDebug"))
+        if (!ImGui.CollapsingHeader("场地标记##WaymarkDebug"))
             return;
 
         ImGui.TextUnformatted($"标记管理器: 0x{GatherBuddy.WaymarkManager.Address:X}");
@@ -595,7 +595,7 @@ public partial class Interface
 
     private static void DrawOceanTab()
     {
-        if (!ImGui.CollapsingHeader("Ocean Routes##OceanDebug"u8))
+        if (!ImGui.CollapsingHeader("海钓航路##OceanDebug"u8))
             return;
 
         using (var table = ImRaii.Table("##Ocean", 9, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.BordersOuter))
@@ -664,7 +664,7 @@ public partial class Interface
 
     private static void DrawCosmicTab()
     {
-        if (!ImUtf8.CollapsingHeader("Cosmic Exploration Fishing Missions##CosmicDebug"u8))
+        if (!ImUtf8.CollapsingHeader("宇宙探索钓鱼任务##CosmicDebug"u8))
             return;
 
         using (var table = ImUtf8.Table("##Cosmic", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit))
@@ -754,7 +754,7 @@ public partial class Interface
     private void DrawDebugTab()
     {
         using var id = ImRaii.PushId("Debug");
-        using var tab = ImRaii.TabItem("Debug");
+        using var tab = ImRaii.TabItem("调试");
         ImGuiUtil.HoverTooltip("希望有充分理由查看此页面");
 
         if (!tab)
@@ -783,8 +783,8 @@ public partial class Interface
             DrawDebugBait, flags, "Id", "名称");
         ImGuiTable.DrawTabbedTable($"可采集物品 ({GatherBuddy.GameData.Gatherables.Count})",
             GatherBuddy.GameData.Gatherables.Values.OrderBy(g => g.ItemId),
-            DrawGatherableDebug, flags, "物品Id", "采集Id", "名称", "等级", "节点数");
-        ImGuiTable.DrawTabbedTable($"采集节点 ({GatherBuddy.GameData.GatheringNodes.Count})", GatherBuddy.GameData.GatheringNodes.Values,
+            DrawGatherableDebug, flags, "物品Id", "采集Id", "名称", "等级", "采集点数");
+        ImGuiTable.DrawTabbedTable($"采集点 ({GatherBuddy.GameData.GatheringNodes.Count})", GatherBuddy.GameData.GatheringNodes.Values,
             DrawGatheringNodeDebug, flags, "Id", "名称", "职业", "等级", "类型", "区域", "坐标", "以太之光", "传承录", "时间",
             "物品", "世界坐标");
         ImGuiTable.DrawTabbedTable($"鱼类 ({GatherBuddy.GameData.Fishes.Count})", GatherBuddy.GameData.Fishes.Values,
@@ -795,14 +795,14 @@ public partial class Interface
         DrawOceanTab();
         DrawCosmicTab();
         DrawWaymarkTab();
-        if (ImGui.CollapsingHeader("GatheringTree"))
+        if (ImGui.CollapsingHeader("采集前缀树"))
         {
             id.Push("GatheringTree");
             PrintNode(GatherBuddy.GameData.GatherablesTrie.Root);
             id.Pop();
         }
 
-        if (ImGui.CollapsingHeader("FishingTree"))
+        if (ImGui.CollapsingHeader("钓鱼前缀树"))
         {
             id.Push("FishingTree");
             PrintNode(GatherBuddy.GameData.FishTrie.Root);
@@ -866,7 +866,7 @@ public partial class Interface
                 ImGui.TableNextColumn();
                 ImGui.Text($"void {GatherBuddy.InternalName}.SetAutoGatherEnabled(bool)");
                 ImGui.TableNextColumn();
-                if (ImGui.Button("Toggle"))
+                if (ImGui.Button("切换"))
                 {
                     Dalamud.PluginInterface.GetIpcSubscriber<bool, object>($"{GatherBuddy.InternalName}.SetAutoGatherEnabled")
                         .InvokeAction(!autoGatherEnabled);
@@ -874,7 +874,7 @@ public partial class Interface
                 // AutoGatherWaiting event
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                if (ImGui.Checkbox($"Subscribe to {GatherBuddy.InternalName}.AutoGatherWaiting", ref _subscribeToAutoGatherWaiting))
+                if (ImGui.Checkbox($"订阅 {GatherBuddy.InternalName}.AutoGatherWaiting", ref _subscribeToAutoGatherWaiting))
                 {
                     if (_subscribeToAutoGatherWaiting)
                     {
@@ -899,7 +899,7 @@ public partial class Interface
                 // AutoGatherEnabledChanged event
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                if (ImGui.Checkbox($"Subscribe to {GatherBuddy.InternalName}.AutoGatherEnabledChanged(bool)", ref _subscribeToAutoGatherEnabledChanged))
+                if (ImGui.Checkbox($"订阅 {GatherBuddy.InternalName}.AutoGatherEnabledChanged(bool)", ref _subscribeToAutoGatherEnabledChanged))
                 {
                     if (_subscribeToAutoGatherEnabledChanged)
                     {
@@ -928,7 +928,7 @@ public partial class Interface
             }
         }
 
-        if (ImGui.CollapsingHeader("World Objects"))
+        if (ImGui.CollapsingHeader("世界对象"))
         {
             using var group = ImRaii.Group();
             ImGui.Text("200 yalms 内的可采集物品");
@@ -939,7 +939,7 @@ public partial class Interface
                 var node = GatherBuddy.GameData.GatheringNodes.TryGetValue((uint)obj.GameObjectId, out var n) ? n : null;
                 ImGui.Text($"{obj.GameObjectId}: {obj.Name ?? "未知"} - BaseId: {obj.BaseId}");
                 ImGui.SameLine();
-                if (ImGui.SmallButton("NavTo"))
+                if (ImGui.SmallButton("导航至"))
                 {
                     VNavmesh.SimpleMove.PathfindAndMoveTo(obj.Position, true);
                 }
@@ -948,7 +948,7 @@ public partial class Interface
             }
         }
 
-        if (ImGui.CollapsingHeader("Saved World Objects"))
+        if (ImGui.CollapsingHeader("已保存的世界对象"))
         {
             using var group = ImRaii.Group();
             ImGui.Text("已保存的可采集物品");
@@ -969,49 +969,49 @@ public partial class Interface
 
     private void DrawAutoGatherDebug()
     {
-        if (!ImGui.CollapsingHeader("AutoGather"))
+        if (!ImGui.CollapsingHeader("自动采集"))
             return;
 
-        if (ImGui.Button("清除限时节点记忆"))
+        if (ImGui.Button("清除限时采集点记忆"))
         {
-            GatherBuddy.Log.Information("已手动清除限时节点记忆!");
+            GatherBuddy.Log.Information("已手动清除限时采集点记忆!");
             GatherBuddy.AutoGather.DebugClearVisited();
         }
 
-        ImGui.Text($"Enabled: {GatherBuddy.AutoGather.Enabled}");
-        ImGui.Text($"Status: {GatherBuddy.AutoGather.AutoStatus}");
-        ImGui.Text($"Current Destination: {GatherBuddy.AutoGather.CurrentDestination}");
-        ImGui.Text($"IsGathering: {GatherBuddy.AutoGather.IsGathering}");
-        ImGui.Text($"IsPathing: {GatherBuddy.AutoGather.IsPathing}");
-        ImGui.Text($"IsPathGenerating: {GatherBuddy.AutoGather.IsPathGenerating}");
-        ImGui.Text($"NavReady: {GatherBuddy.AutoGather.NavReady}");
-        ImGui.Text($"CanAct: {GatherBuddy.AutoGather.CanAct}");
-        ImGui.Text($"BlacklistedNodes: {GatherBuddy.Config.AutoGatherConfig.BlacklistedNodesByTerritoryId.Count}");
-        ImGui.Text($"ItemsToGatherInZone: {GatherBuddy.AutoGather.ItemsToGatherInZone.Count()}");
-        ImGui.Text($"ItemsToGather: {GatherBuddy.AutoGather.ItemsToGather.Count()}");
-        ImGui.Text($"ShouldUseFlag: {GatherBuddy.AutoGather.ShouldUseFlag}");
-        ImGui.Text($"LastIntegrity: {GatherBuddy.AutoGather.LastIntegrity}");
-        ImGui.Text($"LastCollectScore: {GatherBuddy.AutoGather.LastCollectability}");
-        ImGui.Text($"IsCordialOnCooldown: {GatherBuddy.AutoGather.IsCordialOnCooldown}");
-        //ImGui.Text($"IsFoodBuffUp: {GatherBuddy.AutoGather.GetIsFoodBuffUp()}");
-        //ImGui.Text($"IsPotionBuffUp: {GatherBuddy.AutoGather.GetIsPotionBuffUp()}");
-        ImGui.Text($"IsManualBuffUp: {GatherBuddy.AutoGather.IsManualBuffUp}");
-        //ImGui.Text($"IsSquadronManualBuffUp: {GatherBuddy.AutoGather.GetIsSquadronManualBuffUp()}");
-        //ImGui.Text($"IsSquadronPassBuffUp: {GatherBuddy.AutoGather.GetIsSquadronPassBuffUp()}");
-        ImGui.Text($"SortingMethodType: {GatherBuddy.Config.AutoGatherConfig.SortingMethod.ToString()}");
+        ImGui.Text($"已启用: {GatherBuddy.AutoGather.Enabled}");
+        ImGui.Text($"状态: {GatherBuddy.AutoGather.AutoStatus}");
+        ImGui.Text($"当前目的地: {GatherBuddy.AutoGather.CurrentDestination}");
+        ImGui.Text($"正在采集: {GatherBuddy.AutoGather.IsGathering}");
+        ImGui.Text($"正在寻路: {GatherBuddy.AutoGather.IsPathing}");
+        ImGui.Text($"正在生成路径: {GatherBuddy.AutoGather.IsPathGenerating}");
+        ImGui.Text($"导航就绪: {GatherBuddy.AutoGather.NavReady}");
+        ImGui.Text($"可执行动作: {GatherBuddy.AutoGather.CanAct}");
+        ImGui.Text($"黑名单采集点: {GatherBuddy.Config.AutoGatherConfig.BlacklistedNodesByTerritoryId.Count}");
+        ImGui.Text($"区域待采集物品: {GatherBuddy.AutoGather.ItemsToGatherInZone.Count()}");
+        ImGui.Text($"待采集物品: {GatherBuddy.AutoGather.ItemsToGather.Count()}");
+        ImGui.Text($"应使用标志: {GatherBuddy.AutoGather.ShouldUseFlag}");
+        ImGui.Text($"上次完整性: {GatherBuddy.AutoGather.LastIntegrity}");
+        ImGui.Text($"上次收藏价值: {GatherBuddy.AutoGather.LastCollectability}");
+        ImGui.Text($"强心剂冷却中: {GatherBuddy.AutoGather.IsCordialOnCooldown}");
+        //ImGui.Text($"食物效果生效中: {GatherBuddy.AutoGather.GetIsFoodBuffUp()}");
+        //ImGui.Text($"药品效果生效中: {GatherBuddy.AutoGather.GetIsPotionBuffUp()}");
+        ImGui.Text($"秘籍效果生效中: {GatherBuddy.AutoGather.IsManualBuffUp}");
+        //ImGui.Text($"冒险者小队秘籍效果生效中: {GatherBuddy.AutoGather.GetIsSquadronManualBuffUp()}");
+        //ImGui.Text($"冒险者小队通行证效果生效中: {GatherBuddy.AutoGather.GetIsSquadronPassBuffUp()}");
+        ImGui.Text($"排序方式: {GatherBuddy.Config.AutoGatherConfig.SortingMethod.ToString()}");
 
         unsafe
         {
             var addon = (AddonGatheringMasterpiece*)(nint)Dalamud.GameGui.GetAddonByName("GatheringMasterpiece");
             if (addon != null && addon->IsFullyLoaded() && addon->IsReady)
             {
-                ImGui.Text($"Min collectability: {addon->GetComponentByNodeId(13)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(13)->IsVisible()}");
-                ImGui.Text($"Med collectability: {addon->GetComponentByNodeId(14)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(14)->IsVisible()}");
-                ImGui.Text($"Max collectability: {addon->GetComponentByNodeId(15)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(15)->IsVisible()}");
+                ImGui.Text($"最低收藏价值: {addon->GetComponentByNodeId(13)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(13)->IsVisible()}");
+                ImGui.Text($"中等收藏价值: {addon->GetComponentByNodeId(14)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(14)->IsVisible()}");
+                ImGui.Text($"最高收藏价值: {addon->GetComponentByNodeId(15)->GetTextNodeById(3)->GetAsAtkTextNode()->NodeText} {addon->AtkUnitBase.GetNodeById(15)->IsVisible()}");
             }
         }
 
-        if (ImGui.CollapsingHeader("限时节点记忆"))
+        if (ImGui.CollapsingHeader("限时采集点记忆"))
         {
             foreach (var (location, time) in GatherBuddy.AutoGather.DebugVisitedTimedLocations)
             {
@@ -1019,7 +1019,7 @@ public partial class Interface
             }
         }
 
-        if (ImGui.CollapsingHeader("已访问节点"))
+        if (ImGui.CollapsingHeader("已访问采集点"))
         {
             foreach (var pos in GatherBuddy.AutoGather.VisitedNodes)
             {
@@ -1027,7 +1027,7 @@ public partial class Interface
             }
         }
 
-        if (ImGui.CollapsingHeader("已见到的远距离节点"))
+        if (ImGui.CollapsingHeader("已见到的远距离采集点"))
         {
             foreach (var pos in GatherBuddy.AutoGather.FarNodesSeenSoFar)
             {
@@ -1094,14 +1094,14 @@ public partial class Interface
     private void DrawReflectionDebug()
     {
 
-        if (!ImGui.CollapsingHeader("Reflection"))
+        if (!ImGui.CollapsingHeader("反射"))
             return;
 
         var exporter = GatherBuddy.AutoGather.ArtisanExporter;
-        ImGui.Text($"Artisan Assembly Enabled: {exporter.ArtisanAssemblyEnabled}");
+        ImGui.Text($"Artisan 程序集已启用: {exporter.ArtisanAssemblyEnabled}");
         if (exporter.TouchArtisanAssembly)
         {
-            ImGui.Text($"Artisan Instance: {exporter.ArtisanAssemblyInstance}");
+            ImGui.Text($"Artisan 实例: {exporter.ArtisanAssemblyInstance}");
         }
 
         DrawCosmicFishDataButton();
@@ -1110,8 +1110,8 @@ public partial class Interface
     private static void DrawCosmicFishDataButton()
     {
         ImGui.PushItemWidth(100);
-        ImUtf8.InputScalar($"Start ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_startId)?.Name}###startid", ref _startId);
-        ImUtf8.InputScalar($"End ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_endId)?.Name}###endid",       ref _endId);
+        ImUtf8.InputScalar($"起始 ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_startId)?.Name}###startid", ref _startId);
+        ImUtf8.InputScalar($"终止 ID: {GatherBuddy.GameData.FishingSpots.GetValueOrDefault(_endId)?.Name}###endid",       ref _endId);
         ImGui.PopItemWidth();
 
         if (!ImUtf8.Button("复制最新未知鱼类数据"u8))
@@ -1136,7 +1136,7 @@ public partial class Interface
                 missionId = uint.Parse(match.Groups[2].Value);
                 name = spotName
                   + " "
-                  + (Dalamud.GameData.GetExcelSheet<WKSMissionUnit>().GetRowOrDefault(missionId)?.Name.ExtractText() ?? "Unknown");
+                  + (Dalamud.GameData.GetExcelSheet<WKSMissionUnit>().GetRowOrDefault(missionId)?.Name.ExtractText() ?? "未知");
             }
 
             text += $"\n        // {name}\n";

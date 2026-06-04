@@ -1819,7 +1819,7 @@ namespace GatherBuddy.AutoGather
                 {
                     _diademPathIndex = (_diademPathIndex + 1) % path.Length;
                     if (prevIndex == _diademPathIndex)
-                        AbortAutoGather("云冠群岛所有活跃节点均已被屏蔽");
+                        AbortAutoGather("云冠群岛所有活跃采集点均已被屏蔽");
                 }
             }
 
@@ -1985,7 +1985,7 @@ namespace GatherBuddy.AutoGather
                 if (selectedFarNode.Position == default)
                 {
                     FarNodesSeenSoFar.Clear();
-                    GatherBuddy.Log.Verbose($"选定节点为空, 远距离节点过滤已清除");
+                    GatherBuddy.Log.Verbose($"选定采集点为空, 远距离采集点过滤已清除");
                     return;
                 }
             }

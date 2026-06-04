@@ -66,7 +66,7 @@ public partial class Interface
 
         public static void DrawTeleportToNextNodeBox()
             => DrawCheckbox("传送到下一个限时物品",
-                "当没有其他可采集物时, 传送到即将出现的限时节点或渔场, 并在以太之光处等待\n" +
+                "当没有其他可采集物时, 传送到即将出现的限时采集点或渔场, 并在以太之光处等待\n" +
                 "此选项优先于闲置时回家",
                 GatherBuddy.Config.AutoGatherConfig.TeleportToNextNode, b => GatherBuddy.Config.AutoGatherConfig.TeleportToNextNode = b);
 
@@ -76,7 +76,7 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.GoHomeWhenDone, b => GatherBuddy.Config.AutoGatherConfig.GoHomeWhenDone = b);
             ImGui.SameLine();
             ImGuiEx.PluginAvailabilityIndicator([new("Lifestream")]);
-            DrawCheckbox("闲置时回家",                       "使用 '/li auto' 命令在等待限时节点时传送回家",
+            DrawCheckbox("闲置时回家",                       "使用 '/li auto' 命令在等待限时采集点时传送回家",
                 GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle, b => GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle = b);
             ImGui.SameLine();
             ImGuiEx.PluginAvailabilityIndicator([new("Lifestream")]);
@@ -88,9 +88,9 @@ public partial class Interface
                 b => GatherBuddy.Config.AutoGatherConfig.UseSkillsForFallbackItems = b);
 
         public static void DrawAbandonNodesBox()
-            => DrawCheckbox("舍弃没有所需物品的节点",
-                "当已采集足够物品时, 停止采集并舍弃此节点,\n"
-              + "或节点本身没有任何所需物品",
+            => DrawCheckbox("舍弃没有所需物品的采集点",
+                "当已采集足够物品时, 停止采集并舍弃此采集点,\n"
+              + "或采集点本身没有任何所需物品",
                 GatherBuddy.Config.AutoGatherConfig.AbandonNodes, b => GatherBuddy.Config.AutoGatherConfig.AbandonNodes = b);
 
         public static void DrawCheckRetainersBox()
@@ -175,8 +175,8 @@ public partial class Interface
         }
 
         public static void DrawAutoretainerTimedNodeDelayBox()
-            => DrawCheckbox("为限时节点延迟 AutoRetainer",
-                "待当前/即将出现的限时节点采集完毕后再处理雇员",
+            => DrawCheckbox("为限时采集点延迟 AutoRetainer",
+                "待当前/即将出现的限时采集点采集完毕后再处理雇员",
                 GatherBuddy.Config.AutoGatherConfig.AutoRetainerDelayForTimedNodes,
                 b => GatherBuddy.Config.AutoGatherConfig.AutoRetainerDelayForTimedNodes = b);
 
@@ -232,7 +232,7 @@ public partial class Interface
         {
             ImGui.SetNextItemWidth(150);
             var tmp = GatherBuddy.Config.AutoGatherConfig.FarNodeFilterDistance;
-            if (ImGui.DragFloat("远距离节点过滤距离", ref tmp, 0.1f, 0.1f, 100f))
+            if (ImGui.DragFloat("远距离采集点过滤距离", ref tmp, 0.1f, 0.1f, 100f))
             {
                 GatherBuddy.Config.AutoGatherConfig.FarNodeFilterDistance = tmp;
                 GatherBuddy.Config.Save();
@@ -270,7 +270,7 @@ public partial class Interface
 
         public static void DrawUseGivingLandOnCooldown()
             => DrawCheckbox("The Giving Land 冷却完毕时采集任意水晶",
-                "当 The Giving Land 可用时, 在任意普通节点上采集随机水晶, 不论当前目标物品",
+                "当 The Giving Land 可用时, 在任意普通采集点上采集随机水晶, 不论当前目标物品",
                 GatherBuddy.Config.AutoGatherConfig.UseGivingLandOnCooldown,
                 b => GatherBuddy.Config.AutoGatherConfig.UseGivingLandOnCooldown = b);
 
@@ -284,7 +284,7 @@ public partial class Interface
                 GatherBuddy.Config.Save();
             }
 
-            ImGuiUtil.HoverTooltip("移动至节点时上坐骑的距离");
+            ImGuiUtil.HoverTooltip("移动至采集点时上坐骑的距离");
         }
 
         public static void DrawLandingDistance()
@@ -308,7 +308,7 @@ public partial class Interface
 
         public static void DrawMoveWhileMounting()
             => DrawCheckbox("上坐骑时移动",
-                "召唤坐骑时开始寻路到下一个节点",
+                "召唤坐骑时开始寻路到下一个采集点",
                 GatherBuddy.Config.AutoGatherConfig.MoveWhileMounting,
                 b => GatherBuddy.Config.AutoGatherConfig.MoveWhileMounting = b);
 
@@ -1478,7 +1478,7 @@ public partial class Interface
             new("Go home when done Go home when idle",            ConfigFunctions.DrawGoHomeBox),
             new("The Giving Land 冷却完毕时采集任意水晶", ConfigFunctions.DrawUseGivingLandOnCooldown),
             new("对备用物品使用技能",                  ConfigFunctions.DrawUseSkillsForFallabckBox),
-            new("舍弃没有所需物品的节点",             ConfigFunctions.DrawAbandonNodesBox),
+            new("舍弃没有所需物品的采集点",             ConfigFunctions.DrawAbandonNodesBox),
             new("Always gather maps when available",              ConfigFunctions.DrawAlwaysMapsBox),
         ]),
         new("Auto-Gather", "Fishing",

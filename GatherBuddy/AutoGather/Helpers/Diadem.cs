@@ -254,7 +254,7 @@ namespace GatherBuddy.AutoGather.Helpers
                             && GatherBuddy.GameData.WorldCoords[nodeId].All(v => v.DistanceToPlayer() < AutoGather.NodeVisibilityDistance)
                             && !Dalamud.Objects.Where(obj => obj.ObjectKind == ObjectKind.GatheringPoint && obj.BaseId == nodeId && obj.IsTargetable).Any())
                         {
-                            GatherBuddy.Log.Debug($"[云冠群岛] 路径 {pathIndex} 上的节点 #{nodeIndex} 不可见；回退到索引 {(_indexes[pathIndex] + 1) % NodesPerChain}");
+                            GatherBuddy.Log.Debug($"[云冠群岛] 路径 {pathIndex} 上的采集点 #{nodeIndex} 不可见；回退到索引 {(_indexes[pathIndex] + 1) % NodesPerChain}");
                             _indexes[pathIndex] = (byte)((_indexes[pathIndex] + 1u) % NodesPerChain);
                         }
                     }
