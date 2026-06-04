@@ -460,24 +460,24 @@ public partial class Interface
                 GatherBuddy.Config.HideClippy, v => GatherBuddy.Config.HideClippy = v);
 
         private const string ChatInformationString =
-            "Note that the message only gets printed to your chat log, regardless of the selected channel"
-          + " - other people will not see your 'Say' message.";
+            "请注意，消息只会输出到你的聊天记录中，与所选频道无关"
+          + " - 其他玩家不会看到你的「说话」消息。";
 
         public static void DrawPrintTypeSelector()
-            => DrawChatTypeSelector("Chat Type for Messages",
-                "The chat type used to print regular messages issued by GatherBuddy.\n"
+            => DrawChatTypeSelector("消息的聊天频道",
+                "GatherBuddy 输出常规消息所使用的聊天频道。\n"
               + ChatInformationString,
                 GatherBuddy.Config.ChatTypeMessage, t => GatherBuddy.Config.ChatTypeMessage = t);
 
         public static void DrawErrorTypeSelector()
-            => DrawChatTypeSelector("Chat Type for Errors",
-                "The chat type used to print error messages issued by GatherBuddy.\n"
+            => DrawChatTypeSelector("错误的聊天频道",
+                "GatherBuddy 输出错误消息所使用的聊天频道。\n"
               + ChatInformationString,
                 GatherBuddy.Config.ChatTypeError, t => GatherBuddy.Config.ChatTypeError = t);
 
         public static void DrawContextMenuBox()
-            => DrawCheckbox("Add In-Game Context Menus",
-                "Add a 'Gather' entry to in-game right-click context menus for gatherable items.",
+            => DrawCheckbox("添加游戏内右键菜单",
+                "为可采集物品的游戏内右键菜单添加「采集」选项。",
                 GatherBuddy.Config.AddIngameContextMenus, b =>
                 {
                     GatherBuddy.Config.AddIngameContextMenus = b;
@@ -490,17 +490,17 @@ public partial class Interface
         public static void DrawPreferredJobSelect()
         {
             var v       = GatherBuddy.Config.PreferredGatheringType;
-            var current = v == GatheringType.Multiple ? "No Preference" : v.ToString();
+            var current = v == GatheringType.Multiple ? "无偏好" : v.ToString();
             ImGui.SetNextItemWidth(SetInputWidth);
-            using var combo = ImRaii.Combo("Preferred Job", current);
+            using var combo = ImRaii.Combo("偏好职业", current);
             ImGuiUtil.HoverTooltip(
-                "Choose your job preference when gathering items that can be gathered by miners as well as botanists.\n"
-              + "This effectively turns the regular gather command to /gathermin or /gatherbtn when an item can be gathered by both, "
-              + "ignoring the other options even on successive tries.");
+                "选择采集既可由采矿工也可由园艺工采集的物品时的职业偏好。\n"
+              + "这实际上会将常规采集命令转为 /gathermin 或 /gatherbtn，当物品可被两者采集时，"
+              + "即使多次尝试也忽略其他选项。");
             if (!combo)
                 return;
 
-            if (ImGui.Selectable("No Preference", v == GatheringType.Multiple) && v != GatheringType.Multiple)
+            if (ImGui.Selectable("无偏好", v == GatheringType.Multiple) && v != GatheringType.Multiple)
             {
                 GatherBuddy.Config.PreferredGatheringType = GatheringType.Multiple;
                 GatherBuddy.Config.Save();
@@ -520,19 +520,19 @@ public partial class Interface
         }
 
         public static void DrawPrintClipboardBox()
-            => DrawCheckbox("Print Clipboard Information",
-                "Print to the chat whenever you save an object to the clipboard. Failures will be printed regardless.",
+            => DrawCheckbox("输出剪贴板信息",
+                "当你将对象保存到剪贴板时输出到聊天栏。失败信息无论如何都会输出。",
                 GatherBuddy.Config.PrintClipboardMessages, b => GatherBuddy.Config.PrintClipboardMessages = b);
 
         // Weather Tab
         public static void DrawWeatherTabNamesBox()
             => DrawCheckbox("在天气标签中显示名称",
-                "Toggle whether to write the names in the table for the weather tab, or just the icons with names on hover.",
+                "切换天气标签页的表格中是否显示名称，还是仅显示图标并将名称放在悬停提示中。",
                 GatherBuddy.Config.ShowWeatherNames, b => GatherBuddy.Config.ShowWeatherNames = b);
 
         // Alarms
         public static void DrawAlarmToggle()
-            => DrawCheckbox("启用闹钟", "Toggle all alarms on or off.", GatherBuddy.Config.AlarmsEnabled,
+            => DrawCheckbox("启用闹钟", "切换所有闹钟的开启或关闭。", GatherBuddy.Config.AlarmsEnabled,
                 b =>
                 {
                     if (b)
@@ -542,11 +542,11 @@ public partial class Interface
                 });
 
         public static void DrawAlarmsInDutyToggle()
-            => DrawCheckbox("Enable Alarms in Duty", "Set whether alarms should trigger while you are bound by a duty.",
+            => DrawCheckbox("在副本中启用闹钟", "设置闹钟是否在副本中触发。",
                 GatherBuddy.Config.AlarmsInDuty,     b => GatherBuddy.Config.AlarmsInDuty = b);
 
         public static void DrawAlarmsOnlyWhenLoggedInToggle()
-            => DrawCheckbox("Enable Alarms Only In-Game",  "Set whether alarms should trigger while you are not logged into any character.",
+            => DrawCheckbox("仅游戏中启用闹钟",  "设置闹钟是否在未登录任何角色时触发。",
                 GatherBuddy.Config.AlarmsOnlyWhenLoggedIn, b => GatherBuddy.Config.AlarmsOnlyWhenLoggedIn = b);
 
         private static void DrawAlarmPicker(string label, string description, Sounds current, Action<Sounds> setter)
@@ -559,52 +559,52 @@ public partial class Interface
         }
 
         public static void DrawWeatherAlarmPicker()
-            => DrawAlarmPicker("Weather Change Alarm", "Choose a sound that is played every 8 Eorzea hours on regular weather changes.",
+            => DrawAlarmPicker("天气变化闹钟", "选择每 8 个艾欧泽亚小时天气正常变化时播放的声音。",
                 GatherBuddy.Config.WeatherAlarm,       _plugin.AlarmManager.SetWeatherAlarm);
 
         public static void DrawHourAlarmPicker()
-            => DrawAlarmPicker("Eorzea Hour Change Alarm", "Choose a sound that is played every time the current Eorzea hour changes.",
+            => DrawAlarmPicker("艾欧泽亚小时变化闹钟", "选择每次艾欧泽亚小时变化时播放的声音。",
                 GatherBuddy.Config.HourAlarm,              _plugin.AlarmManager.SetHourAlarm);
 
         // Fish Timer
         public static void DrawFishTimerBox()
             => DrawCheckbox("显示钓鱼计时器",
-                "Toggle whether to show the fish timer window while fishing.",
+                "切换钓鱼时是否显示钓鱼计时器窗口。",
                 GatherBuddy.Config.ShowFishTimer, b => GatherBuddy.Config.ShowFishTimer = b);
 
         public static void DrawFishTimerEditBox()
             => DrawCheckbox("编辑钓鱼计时器",
-                "Enable editing the fish timer window.",
+                "启用钓鱼计时器窗口的编辑功能。",
                 GatherBuddy.Config.FishTimerEdit, b => GatherBuddy.Config.FishTimerEdit = b);
 
         public static void DrawFishTimerClickthroughBox()
             => DrawCheckbox("启用钓鱼计时器点击穿透",
-                "Allow clicking through the fish timer and disabling the context menus instead.",
+                "允许点击穿透钓鱼计时器并改为禁用右键菜单。",
                 GatherBuddy.Config.FishTimerClickthrough, b => GatherBuddy.Config.FishTimerClickthrough = b);
 
         public static void DrawFishTimerHideBox()
             => DrawCheckbox("在钓鱼计时器中隐藏未捕获的鱼",
-                "Hide all fish from the fish timer window that have not been recorded with the given combination of snagging and bait.",
+                "从钓鱼计时器窗口中隐藏在选定撒饵和鱼饵组合下尚未记录的鱼。",
                 GatherBuddy.Config.HideUncaughtFish, b => GatherBuddy.Config.HideUncaughtFish = b);
 
         public static void DrawFishTimerHideBox2()
             => DrawCheckbox("在钓鱼计时器中隐藏不可用的鱼",
-                "Hide all fish from the fish timer window that have have known requirements that are unfulfilled, like Fisher's Intuition or Snagging.",
+                "从钓鱼计时器窗口中隐藏已知条件未满足的鱼，如渔人的直觉或撒饵。",
                 GatherBuddy.Config.HideUnavailableFish, b => GatherBuddy.Config.HideUnavailableFish = b);
 
         public static void DrawFishTimerUptimesBox()
             => DrawCheckbox("在钓鱼计时器中显示出现时间段",
-                "Show the uptimes for restricted fish in the fish timer window.",
+                "在钓鱼计时器窗口中显示受限鱼类的出现时段。",
                 GatherBuddy.Config.ShowFishTimerUptimes, b => GatherBuddy.Config.ShowFishTimerUptimes = b);
 
         public static void DrawKeepRecordsBox()
-            => DrawCheckbox("Keep Fish Records",
-                "Store Fish Records on your computer. This is necessary for bite timings for the fish timer window.",
+            => DrawCheckbox("保存钓鱼记录",
+                "在你的电脑上保存钓鱼记录。这是钓鱼计时器窗口咬钩时间计算所必需的。",
                 GatherBuddy.Config.StoreFishRecords, b => GatherBuddy.Config.StoreFishRecords = b);
 
         public static void DrawShowLocalTimeInRecordsBox()
             => DrawCheckbox("在记录中使用本地时间",
-                "When displaying timestamps in the Fish Records Tab, use local time instead of Unix time.",
+                "在鱼类记录标签页中显示时间戳时使用本地时间，而非 Unix 时间。",
                 GatherBuddy.Config.UseUnixTimeFishRecords, b => GatherBuddy.Config.UseUnixTimeFishRecords = b);
         
         public static void DrawFishTimerScale()
@@ -613,11 +613,11 @@ public partial class Interface
             ImGui.SetNextItemWidth(SetInputWidth);
             var ret = ImGui.DragFloat("钓鱼计时器咬钩时间缩放", ref value, 0.1f, FishRecord.MinBiteTime / 500f,
                 FishRecord.MaxBiteTime / 1000f,
-                "%2.3f Seconds");
+                "%2.3f 秒");
 
-            ImGuiUtil.HoverTooltip("The fishing timer window bite times are scaled to this value.\n"
-              + "If your bite time exceeds the value, the progress bar and bite windows will not be displayed.\n"
-              + "You should probably keep this as high as your highest bite window and as low as possible. About 40 seconds is usually enough.");
+            ImGuiUtil.HoverTooltip("钓鱼计时器窗口的咬钩时间缩放为此值。\n"
+              + "如果你的咬钩时间超过此值，进度条和咬钩窗口将不会显示。\n"
+              + "建议将此值设置得尽可能高以覆盖最高咬钩窗口，同时尽可能低。大约 40 秒通常已足够。");
 
             if (!ret)
                 return;
@@ -635,8 +635,8 @@ public partial class Interface
             int value = GatherBuddy.Config.ShowSecondIntervals;
             ImGui.SetNextItemWidth(SetInputWidth);
             var ret = ImGui.DragInt("钓鱼计时器间隔分隔线", ref value, 0.01f, 0, 16);
-            ImGuiUtil.HoverTooltip("The fishing timer window can show a number of interval lines and corresponding seconds between 0 and 16.\n"
-              + "Set to 0 to turn this feature off.");
+            ImGuiUtil.HoverTooltip("钓鱼计时器窗口可显示 0 到 16 条间隔分隔线及对应秒数。\n"
+              + "设为 0 可关闭此功能。");
             if (!ret)
                 return;
 
@@ -653,8 +653,8 @@ public partial class Interface
             var value = GatherBuddy.Config.SecondIntervalsRounding;
             ImGui.SetNextItemWidth(SetInputWidth);
             var ret = ImGui.DragInt("钓鱼计时器间隔小数位", ref value, 0.01f, 0, 3);
-            ImGuiUtil.HoverTooltip("Round the displayed second value to this number of digits past the decimal. \n"
-                + "Set to 0 to display only whole numbers.");
+            ImGuiUtil.HoverTooltip("将显示的秒数值四舍五入到此小数位数。\n"
+                + "设为 0 仅显示整数。");
             if (!ret)
                 return;
 
@@ -668,31 +668,31 @@ public partial class Interface
 
         public static void DrawHideFishPopupBox()
             => DrawCheckbox("隐藏捕获弹窗",
-                "Prevents the popup window that shows you your caught fish and its size, amount and quality from being shown.",
+                "阻止显示展示捕获鱼及其尺寸、数量和品质的弹窗。",
                 GatherBuddy.Config.HideFishSizePopup, b => GatherBuddy.Config.HideFishSizePopup = b);
 
         public static void DrawCollectableHintPopupBox()
             => DrawCheckbox("显示收藏品提示",
-                "Show if a fish is collectable in the fish timer window.",
+                "在钓鱼计时器窗口中显示鱼类是否为收藏品。",
                 GatherBuddy.Config.ShowCollectableHints, b => GatherBuddy.Config.ShowCollectableHints = b);
 
         public static void DrawDoubleHookHintPopupBox()
             => DrawCheckbox("显示多重提钩提示",
-                "Show if a fish can be double or triple hooked in Cosmic Exploration and Ocean Fishing",
+                "显示鱼类在宇宙探索和海钓中是否可双提或三提",
                 GatherBuddy.Config.ShowMultiHookHints, b => GatherBuddy.Config.ShowMultiHookHints = b);
         public static void DrawOceanTypeHintPopupBox()
-            => DrawCheckbox("Show Ocean Type Hints",
-                "Show what type of fish in Ocean Fishing",
+            => DrawCheckbox("显示海钓类型提示",
+                "在海钓中显示鱼类类型",
                 GatherBuddy.Config.ShowOceanTypeHints, b => GatherBuddy.Config.ShowOceanTypeHints = b);
         
         // Fish Stats Window
         public static void DrawEnableFishStats()
             => DrawCheckbox("启用鱼类统计",
-                "New tab for aggregating and reporting fish stats based on local records. Currently in testing.",
+                "新增标签页，基于本地记录汇总和报告鱼类统计数据。当前处于测试阶段。",
                 GatherBuddy.Config.EnableFishStats, b => GatherBuddy.Config.EnableFishStats = b);
         public static void DrawEnableReportTime()  
-            => DrawCheckbox("Copy Time Stats when reporting.",
-                "When copying the report, add min and max times to the report.",
+            => DrawCheckbox("报告时复制时间统计",
+                "复制报告时，将最短和最长时间添加到报告中。",
                 GatherBuddy.Config.EnableReportTime, b => GatherBuddy.Config.EnableReportTime = b);
         public static void DrawEnableReportSize()  
             => DrawCheckbox("Copy Sizes Stats when reporting.",
