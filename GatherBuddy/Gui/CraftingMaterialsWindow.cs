@@ -537,13 +537,13 @@ public class CraftingMaterialsWindow : Window
                 {
                     case RetainerColumnMode.Total:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("Ret", "Retainer total (via Allagan Tools)");
+                        DrawCenteredHeader("Ret", "雇员总计 (通过 Allagan Tools)");
                         break;
                     case RetainerColumnMode.Split:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("RNQ", "Retainer NQ (via Allagan Tools)");
+                        DrawCenteredHeader("RNQ", "雇员 NQ (通过 Allagan Tools)");
                         ImGui.TableSetColumnIndex(3);
-                        DrawCenteredHeader("RHQ", "Retainer HQ (via Allagan Tools)");
+                        DrawCenteredHeader("RHQ", "雇员 HQ (通过 Allagan Tools)");
                         break;
                 }
                 ImGui.TableSetColumnIndex(needIdx);
@@ -634,10 +634,10 @@ public class CraftingMaterialsWindow : Window
             try { ImGui.SetClipboardText(name); } catch { /* ignored */ }
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Click to copy to clipboard.");
+            ImGui.SetTooltip("点击复制到剪贴板");
         if (ImGui.BeginPopupContextItem($"##mbctx_{itemId}_{(isPrecraft ? 1 : 0)}_{(int)retainerColumnMode}"))
         {
-            if (ImGui.Selectable("Create Link"))
+            if (ImGui.Selectable("创建链接"))
                 Communicator.Print(SeString.CreateItemLink(itemId));
             if (ImGui.Selectable("Search Marketboard"))
             {
