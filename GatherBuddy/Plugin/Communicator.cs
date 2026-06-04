@@ -186,14 +186,14 @@ public static class Communicator
 
         if (GatherBuddy.Config.IdentifiedGatherableFormat.Length > 0)
             Print(FormatIdentifiedItemMessage(GatherBuddy.Config.IdentifiedGatherableFormat, name, item));
-        GatherBuddy.Log.Verbose(Configuration.DefaultIdentifiedGatherableFormat, item.ItemId, item.Name[ClientLanguage.ChineseSimplified], name);
+        GatherBuddy.Log.Verbose(Configuration.DefaultIdentifiedGatherableFormat, item.ItemId, item.Name[(ClientLanguage)4], name);
     }
 
     public static void PrintAlarmMessage(Alarm alarm, ILocation location, TimeInterval uptime)
     {
         if (GatherBuddy.Config.AlarmFormat.Length > 0)
             Print(FormatAlarmMessage(GatherBuddy.Config.AlarmFormat, alarm, location, uptime));
-        GatherBuddy.Log.Verbose(Configuration.DefaultAlarmFormat, alarm.Name, alarm.Item.Name[ClientLanguage.ChineseSimplified], string.Empty,
+        GatherBuddy.Log.Verbose(Configuration.DefaultAlarmFormat, alarm.Name, alarm.Item.Name[(ClientLanguage)4], string.Empty,
             location.Name); // Duration string too ugly.
     }
 

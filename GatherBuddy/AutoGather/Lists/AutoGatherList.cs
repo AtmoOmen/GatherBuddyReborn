@@ -33,6 +33,7 @@ public class AutoGatherList
     public int    Order       { get; set; } = 0;
     public bool   Enabled     { get; set; } = false;
     public bool   Fallback    { get; set; } = false;
+    public bool   RemoveCompletedItems { get; set; } = false;
 
     private List<IGatherable>                  items              = [];
     private Dictionary<IGatherable, uint>      quantities         = [];
@@ -51,7 +52,8 @@ public class AutoGatherList
             FolderPath         = FolderPath,
             Order              = Order,
             Enabled            = false,
-            Fallback           = Fallback
+            Fallback           = Fallback,
+            RemoveCompletedItems = RemoveCompletedItems
         };
 
     public bool Add(IGatherable item, uint quantity = 1)
@@ -159,7 +161,7 @@ public class AutoGatherList
 
     public struct Config(AutoGatherList list)
     {
-        public const byte CurrentVersion = 5;
+        public const byte CurrentVersion = 6;
 
         public uint[]                 ItemIds            = list.Items.Select(i => i.ItemId).ToArray();
         public Dictionary<uint, uint> Quantities         = list.Quantities.ToDictionary(v => v.Key.ItemId, v => v.Value);
@@ -171,6 +173,7 @@ public class AutoGatherList
         public int                    Order              = list.Order;
         public bool                   Enabled            = list.Enabled;
         public bool                   Fallback           = list.Fallback;
+        public bool                   RemoveCompletedItems = list.RemoveCompletedItems;
 
         internal readonly string ToBase64()
         {
@@ -186,7 +189,7 @@ public class AutoGatherList
             try
             {
                 var bytes = Functions.DecompressedBase64(data);
-                if (bytes.Length == 0 || (bytes[0] != CurrentVersion && bytes[0] != 4))
+                if (bytes.Length == 0 || (bytes[0] != CurrentVersion && bytes[0] != 5 && bytes[0] != 4))
                     return false;
 
                 var json = Encoding.UTF8.GetString(bytes.AsSpan()[1..]);
@@ -228,6 +231,7 @@ public class AutoGatherList
             Order              = cfg.Order,
             Enabled            = cfg.Enabled,
             Fallback           = cfg.Fallback,
+            RemoveCompletedItems = cfg.RemoveCompletedItems,
             items              = new(cfg.ItemIds.Length),
             quantities         = new(cfg.ItemIds.Length),
             preferredLocations = new(cfg.PrefferedLocations.Count),

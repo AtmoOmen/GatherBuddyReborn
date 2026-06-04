@@ -43,6 +43,7 @@ public partial class VulcanWindow
         ImGui.Text("  最近清单上限:");
         ImGui.SameLine();
         var maxRecentLists = GatherBuddy.Config.MaxRecentCraftingListsInContextMenu;
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
         if (ImGui.InputInt("###MaxRecentLists", ref maxRecentLists, 1, 1))
         {
             GatherBuddy.Config.MaxRecentCraftingListsInContextMenu = Math.Max(1, Math.Min(50, maxRecentLists));
@@ -94,7 +95,7 @@ public partial class VulcanWindow
         ImGui.Text("装备套装属性测试");
         ImGui.Text("  选择职业:");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.BeginCombo("###JobSelector", GetDebugJobName(_debugSelectedJobId)))
         {
             var jobs = new[] { (8u, "刻木匠"), (9u, "锻铁匠"), (10u, "铸甲匠"), (11u, "雕金匠"), (12u, "制革匠"), (13u, "裁衣匠"), (14u, "炼金术士"), (15u, "烹调师") };
@@ -110,7 +111,7 @@ public partial class VulcanWindow
         }
 
         ImGui.Spacing();
-        if (ImGui.Button("测试属性读取", new Vector2(150, 0)))
+        if (ImGui.Button("测试属性读取", VulcanUiScaling.Scaled(150f, 0f)))
         {
             var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
             if (stats != null)
@@ -124,7 +125,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("刷新装备套装", new Vector2(150, 0)))
+        if (ImGui.Button("刷新装备套装", VulcanUiScaling.Scaled(150f, 0f)))
         {
             GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
             _debugLastTestResult = "已根据当前装备刷新装备套装";
@@ -231,7 +232,7 @@ public partial class VulcanWindow
         var navKeyboardEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableKeyboard) != 0;
         var navGamepadEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) != 0;
         
-        if (ImGui.Button(navGamepadEnabled ? "禁用手柄导航" : "启用手柄导航", new Vector2(200, 0)))
+        if (ImGui.Button(navGamepadEnabled ? "禁用手柄导航" : "启用手柄导航", VulcanUiScaling.Scaled(200f, 0f)))
         {
             io = ImGui.GetIO();
             if (navGamepadEnabled)
@@ -247,7 +248,7 @@ public partial class VulcanWindow
         }
         
         ImGui.SameLine();
-        if (ImGui.Button(navKeyboardEnabled ? "禁用键盘导航" : "启用键盘导航", new Vector2(200, 0)))
+        if (ImGui.Button(navKeyboardEnabled ? "禁用键盘导航" : "启用键盘导航", VulcanUiScaling.Scaled(200f, 0f)))
         {
             io = ImGui.GetIO();
             if (navKeyboardEnabled)

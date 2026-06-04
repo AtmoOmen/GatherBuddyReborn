@@ -102,7 +102,7 @@ public partial class Interface
             ClientLanguage.German   => "de",
             ClientLanguage.French   => "fr",
             ClientLanguage.Japanese => "ja",
-            ClientLanguage.ChineseSimplified => "cn", // Todo：不知道teamcraft的实际用哪个，需要确认
+            (ClientLanguage)4 => "cn", // Todo：不知道teamcraft的实际用哪个，需要确认
             _                       => "cn",
         };
 

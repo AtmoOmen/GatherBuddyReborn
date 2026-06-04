@@ -118,6 +118,8 @@ public partial class AutoGatherListsManager : IDisposable
 
     public void SetActiveItems()
     {
+        if (RemoveCompletedItemsFromEnabledLists())
+            Save();
         _activeItems.Clear();
         _fallbackItems.Clear();
 

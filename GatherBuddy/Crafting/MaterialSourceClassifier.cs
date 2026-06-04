@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using GatherBuddy.AutoGather.Collectables;
 using GatherBuddy.Plugin;
+using GatherBuddy.Vulcan.Vendors;
 using Lumina.Excel.Sheets;
 
 namespace GatherBuddy.Crafting;
@@ -25,7 +26,7 @@ public static class MaterialSourceClassifier
     private static HashSet<uint>? _scripItems;
     private static HashSet<uint>? _specialCurrencyItems;
     private static HashSet<uint>? _craftableItems;
-    private static HashSet<uint>? _dropItems;
+    private static HashSet<uint>? _fallbackDropItems;
     private static bool _initialized;
 
     public static void Reset()
@@ -34,7 +35,7 @@ public static class MaterialSourceClassifier
         _scripItems           = null;
         _specialCurrencyItems = null;
         _craftableItems       = null;
-        _dropItems            = null;
+        _fallbackDropItems    = null;
         _initialized          = false;
     }
 
@@ -53,8 +54,10 @@ public static class MaterialSourceClassifier
 
         if (_scripItems?.Contains(itemId) == true)
             return MaterialSource.Scrip;
+        if (MobDropInfoCache.IsKnownDropItem(itemId))
+            return MaterialSource.Drop;
 
-        if (_dropItems?.Contains(itemId) == true)
+        if (!MobDropInfoCache.IsInitialized && _fallbackDropItems?.Contains(itemId) == true)
             return MaterialSource.Drop;
 
         if (_craftableItems?.Contains(itemId) == true)
@@ -103,11 +106,10 @@ public static class MaterialSourceClassifier
         _scripItems = new HashSet<uint>();
         try
         {
-            foreach (var item in ScripShopItemManager.ShopItems)
-            {
-                if (item.ItemId > 0)
-                    _scripItems.Add(item.ItemId);
-            }
+            VendorShopResolver.InitializeAsync();
+            foreach (var entry in VendorShopResolver.SpecialShopEntries.Where(entry => entry.Group == VendorCurrencyGroup.Scrips))
+                if (entry.ItemId > 0)
+                    _scripItems.Add(entry.ItemId);
             GatherBuddy.Log.Debug($"[MaterialSourceClassifier] Scrip set: {_scripItems.Count} items");
         }
         catch (Exception ex)
@@ -136,15 +138,14 @@ public static class MaterialSourceClassifier
 
     private static void BuildDropSet()
     {
-        _dropItems = new HashSet<uint>();
+        _fallbackDropItems = new HashSet<uint>();
         try
         {
             var sheet = Dalamud.GameData.GetExcelSheet<RetainerTaskNormal>();
             if (sheet == null) return;
             foreach (var row in sheet)
                 if (row.Item.RowId > 0 && row.GatheringLog.RowId == 0 && row.FishingLog.RowId == 0)
-                    _dropItems.Add(row.Item.RowId);
-            GatherBuddy.Log.Debug($"[MaterialSourceClassifier] Drop set: {_dropItems.Count} items");
+                    _fallbackDropItems.Add(row.Item.RowId);
         }
         catch (Exception ex)
         {

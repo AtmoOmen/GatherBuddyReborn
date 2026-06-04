@@ -11,10 +11,13 @@ namespace GatherBuddy.AutoGather;
 
 public partial class AutoGather
 {
+    private const string AutoHookGlobalPresetSelectionSentinel = "__GBR_USE_AUTOHOOK_GLOBAL_PRESET__";
+    private const string AutoHookGlobalPresetDisplayName = "Global Preset";
     private GatherTarget? _currentAutoHookTarget;
     private string? _currentAutoHookPresetName;
     private string? _currentAutoHookTargetPresetName;
     private bool _isCurrentPresetUserOwned;
+    private bool _isUsingAutoHookGlobalPreset;
 
     private void CleanupAutoHookIfNeeded(GatherTarget newTarget)
     {
@@ -46,9 +49,21 @@ public partial class AutoGather
 
         CleanupAutoHookIfNeeded(target);
 
-        if (_currentAutoHookTarget?.Fish?.ItemId == target.Fish.ItemId 
-            && _currentAutoHookPresetName != null)
+        var shouldUseGlobalAutoHookPreset = GatherBuddy.Config.AutoGatherConfig.UseAutoHookGlobalPreset && !target.Fish.IsSpearFish;
+        if (_currentAutoHookTarget?.Fish?.ItemId == target.Fish.ItemId
+            && _currentAutoHookPresetName != null
+            && _isUsingAutoHookGlobalPreset != shouldUseGlobalAutoHookPreset)
         {
+            GatherBuddy.Log.Debug("[AutoGather] AutoHook preset mode changed, resetting current AutoHook state.");
+            CleanupAutoHook();
+        }
+
+        if (_currentAutoHookTarget?.Fish?.ItemId == target.Fish.ItemId 
+            && _currentAutoHookPresetName != null
+            && _isUsingAutoHookGlobalPreset == shouldUseGlobalAutoHookPreset)
+        {
+            if (_isUsingAutoHookGlobalPreset)
+                AutoHook.SetPreset?.Invoke(AutoHookGlobalPresetSelectionSentinel);
             if (target.Fish.IsSpearFish)
             {
                 AutoHook.SetAutoGigState?.Invoke(true);
@@ -58,12 +73,37 @@ public partial class AutoGather
                 AutoHook.SetPluginState?.Invoke(true);
                 AutoHook.SetAutoStartFishing?.Invoke(true); 
             }
-            GatherBuddy.Log.Verbose($"[AutoGather] 重新启用现有 AutoHook 预设 '{_currentAutoHookPresetName}'");
+            GatherBuddy.Log.Verbose(
+                $"[AutoGather] 重新启用现有 AutoHook 预设 '{(_isUsingAutoHookGlobalPreset ? AutoHookGlobalPresetDisplayName : _currentAutoHookPresetName)}'");
             return;
         }
 
         try
         {
+            if (shouldUseGlobalAutoHookPreset)
+            {
+                GatherBuddy.Log.Information(
+                    $"[AutoGather] Using AutoHook global preset for {target.Fish.Name[GatherBuddy.Language]}.");
+                AutoHook.SetPreset?.Invoke(AutoHookGlobalPresetSelectionSentinel);
+
+                _currentAutoHookTarget = target;
+                _currentAutoHookPresetName = AutoHookGlobalPresetDisplayName;
+                _currentAutoHookTargetPresetName = null;
+                _isCurrentPresetUserOwned = false;
+                _isUsingAutoHookGlobalPreset = true;
+
+                if (AutoHook.SetPluginState == null)
+                {
+                    GatherBuddy.Log.Error("[AutoGather] SetPluginState IPC is null!");
+                    return;
+                }
+
+                AutoHook.SetPluginState.Invoke(true);
+                AutoHook.SetAutoStartFishing?.Invoke(true);
+                _autoHookSetupComplete = true;
+                GatherBuddy.Log.Information("[AutoGather] AutoHook enabled with global preset for fishing");
+                return;
+            }
             // Check if the target fish is an intuition fish
             bool isIntuitionFish = target.Fish.Predators.Length > 0 && target.Fish.Predators.All(p => !p.Item1.IsSpearFish);
             
@@ -172,6 +212,7 @@ public partial class AutoGather
             _currentAutoHookTarget = target;
             _currentAutoHookPresetName = presetName;
             _isCurrentPresetUserOwned = isUserPreset;
+            _isUsingAutoHookGlobalPreset = false;
             
             if (isIntuitionFish && !isUserPreset)
             {
@@ -229,7 +270,11 @@ public partial class AutoGather
         {
             if (_currentAutoHookPresetName != null)
             {
-                if (_isCurrentPresetUserOwned)
+                if (_isUsingAutoHookGlobalPreset)
+                {
+                    GatherBuddy.Log.Debug("[AutoGather] Leaving AutoHook on its global preset.");
+                }
+                else if (_isCurrentPresetUserOwned)
                 {
                     GatherBuddy.Log.Debug($"[AutoGather] 保留用户拥有的预设 '{_currentAutoHookPresetName}'");
                 }
@@ -263,6 +308,7 @@ public partial class AutoGather
             _currentAutoHookPresetName = null;
             _currentAutoHookTargetPresetName = null;
             _isCurrentPresetUserOwned = false;
+            _isUsingAutoHookGlobalPreset = false;
             _autoHookSetupComplete = false;
         }
         catch (Exception ex)

@@ -10,6 +10,19 @@ namespace GatherBuddy.Vulcan.Vendors;
 
 public sealed partial class VendorBuyListManager : IDisposable
 {
+    public enum StartResult
+    {
+        Started,
+        AlreadyRunning,
+        AutomationUnavailable,
+        WaitingForPreviousInteraction,
+        NoList,
+        Empty,
+        NoPendingEntries,
+        VendorDataLoading,
+        LocationDataLoading,
+        AnotherPurchaseRunning,
+    }
     private readonly record struct VendorExecutionGroup(uint NpcId, VendorMenuShopType MenuShopType, uint ShopId);
     public readonly record struct VendorTargetRequest(uint ItemId, uint TargetQuantity);
     private readonly record struct PendingEntrySelection(
@@ -51,6 +64,8 @@ public sealed partial class VendorBuyListManager : IDisposable
     private VendorExecutionGroup? _currentExecutionVendor;
     private readonly HashSet<Guid> _skippedEntryIds = new();
     private readonly HashSet<Guid> _partiallyFulfilledEntryIds = new();
+    private VendorPurchaseConstraints? _purchaseConstraints;
+    private bool _runHitScripReserveLimit;
     private string   _statusText = string.Empty;
 
     public VendorBuyListManager()
@@ -86,6 +101,8 @@ public sealed partial class VendorBuyListManager : IDisposable
 
     public string StatusText
         => _statusText;
+
+    public bool LastRunHitScripReserveLimit { get; private set; }
 
     public void Dispose()
     {
@@ -123,11 +140,12 @@ public sealed partial class VendorBuyListManager : IDisposable
         if ((DateTime.UtcNow - _shopCloseStartTime) <= ShopCloseTimeout)
             return;
 
+        LastRunHitScripReserveLimit = _runHitScripReserveLimit;
         ResetShopCloseWaitState();
         ResetExecutionState();
-        _statusText    = "离开上次 NPC 交互超时";
-        GatherBuddy.Log.Error($"[VendorBuyListManager] 离开上次商人交互超时, 最后阻塞: {blocker}");
-        Communicator.PrintError("[GatherBuddyReborn] 离开上次商人交互超时");
+        _statusText    = "离开上次商人交互超时。";
+        GatherBuddy.Log.Error($"[VendorBuyListManager] 离开上次商人交互超时，最后阻塞: {blocker}");
+        Communicator.PrintError("[GatherBuddyReborn] 离开上次商人交互超时。");
     }
 
     public void OpenWindow()
@@ -154,7 +172,7 @@ public sealed partial class VendorBuyListManager : IDisposable
         GatherBuddy.Config.Save();
 
         if (!IsBusy)
-            _statusText = $"已创建商人列表 '{list.Name}'";
+            _statusText = $"已创建商人列表 '{list.Name}'。";
 
         GatherBuddy.Log.Information($"[VendorBuyListManager] 已创建商人列表 '{list.Name}'");
         return list;
@@ -174,7 +192,7 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         GatherBuddy.Config.ActiveVendorBuyListId = listId;
         GatherBuddy.Config.Save();
-        _statusText = $"已选择商人列表 '{ActiveListName}'";
+        _statusText = $"已选择商人列表 '{ActiveListName}'。";
         return true;
     }
 
@@ -194,7 +212,7 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         list.Name = updatedName;
         GatherBuddy.Config.Save();
-        _statusText = $"已将商人列表重命名为 '{updatedName}'";
+        _statusText = $"已将商人列表重命名为 '{updatedName}'。";
         GatherBuddy.Log.Information($"[VendorBuyListManager] 已重命名商人列表 {listId} 为 '{updatedName}'");
         return true;
     }
@@ -214,7 +232,7 @@ public sealed partial class VendorBuyListManager : IDisposable
             GatherBuddy.Config.ActiveVendorBuyListId = GatherBuddy.Config.VendorBuyLists[0].Id;
         GatherBuddy.Config.Save();
 
-        _statusText = $"已删除商人列表 '{list.Name}'";
+        _statusText = $"已删除商人列表 '{list.Name}'。";
         GatherBuddy.Log.Information($"[VendorBuyListManager] 已删除商人列表 '{list.Name}'");
         return true;
     }
@@ -280,13 +298,13 @@ public sealed partial class VendorBuyListManager : IDisposable
     {
         if (IsBusy)
         {
-            GatherBuddy.Log.Debug($"[VendorBuyListManager] 忽略对商人购买列表条目 {entryId} 的启用状态更新，因为管理器正忙");
+            GatherBuddy.Log.Debug($"[VendorBuyListManager] 忽略对商人购买列表条目 {entryId} 的启用状态更新，因为管理器正忙。");
             return false;
         }
 
         if (!TryFindEntry(entryId, out var list, out var entry) || list == null || entry == null)
         {
-            GatherBuddy.Log.Debug($"[VendorBuyListManager] 在更新启用状态时找不到商人购买列表条目 {entryId}");
+            GatherBuddy.Log.Debug($"[VendorBuyListManager] 在更新启用状态时找不到商人购买列表条目 {entryId}。");
             return false;
         }
 
@@ -372,61 +390,70 @@ public sealed partial class VendorBuyListManager : IDisposable
         _statusText = $"已清空商人列表 '{list.Name}'";
     }
 
-    public void Start()
+    public StartResult Start(Guid? listId = null, VendorPurchaseConstraints? purchaseConstraints = null)
     {
         EnsureListState();
         if (_isRunning)
-            return;
+            return StartResult.AlreadyRunning;
+        if (!VendorAutomationRequirements.IsAvailable)
+        {
+            _statusText = VendorAutomationRequirements.UnavailableStatusText;
+            return StartResult.AutomationUnavailable;
+        }
         _skippedEntryIds.Clear();
         _partiallyFulfilledEntryIds.Clear();
-
-        var activeList = ActiveList;
+        _purchaseConstraints = purchaseConstraints;
+        _runHitScripReserveLimit = false;
+        LastRunHitScripReserveLimit = false;
+        var activeList = listId.HasValue
+            ? GetList(listId.Value)
+            : ActiveList;
         if (activeList == null)
         {
             _statusText = "没有可用的商人列表";
-            return;
+            return StartResult.NoList;
         }
 
         if (_waitingForShopClose)
         {
             _isRunning = true;
             _runningListId = activeList.Id;
-            _statusText = $"正在离开上次商人交互以处理 '{activeList.Name}'";
-            return;
+            _statusText = $"正在离开之前的商人交互 ('{activeList.Name}')";
+            return StartResult.WaitingForPreviousInteraction;
         }
 
         if (activeList.Entries.Count == 0)
         {
             _statusText = $"商人列表 '{activeList.Name}' 为空";
-            return;
+            return StartResult.Empty;
         }
 
         if (GetPendingEntryCount(activeList) == 0)
         {
             _statusText = $"商人列表 '{activeList.Name}' 没有已启用的待处理条目";
-            return;
+            return StartResult.NoPendingEntries;
         }
 
         if (!VendorShopResolver.IsInitialized)
         {
             EnsureVendorCachesAvailable();
-            _statusText = "商人数据加载中";
-            return;
+            _statusText = "商人数据仍在加载中";
+            return StartResult.VendorDataLoading;
         }
 
         if (!VendorNpcLocationCache.IsInitialized)
         {
             EnsureVendorCachesAvailable();
             _statusText = VendorNpcLocationCache.IsInitializing
-                ? "商人位置数据加载中"
+                ? "商人位置数据仍在加载中"
                 : "商人位置数据尚未就绪";
-            return;
+            return StartResult.LocationDataLoading;
         }
 
         if (GatherBuddy.VendorPurchaseManager.IsRunning)
         {
-            _statusText = "另一项商人采购正在进行中";
-            return;
+            _statusText = "另一个商人采购已在运行中";
+            return StartResult.AnotherPurchaseRunning;
         }
         _currentExecutionVendor = null;
 
@@ -435,6 +462,7 @@ public sealed partial class VendorBuyListManager : IDisposable
         _waitingForCancelledPurchase = false;
         _statusText = $"正在启动商人列表 '{activeList.Name}'...";
         TryStartNextEntry();
+        return StartResult.Started;
     }
 
     public void Stop()
@@ -487,7 +515,7 @@ public sealed partial class VendorBuyListManager : IDisposable
                 resolvedLiveEntry.Npcs
                     .Where(npc => VendorPurchaseManager.IsPurchaseSupported(resolvedLiveEntry, npc))
                     .ToList(),
-                "解析商人购买列表条目",
+                "正在解析商人购买清单条目",
                 entry.ItemName)
             .ToList();
         if (supportedVendors.Count == 0)
@@ -530,6 +558,8 @@ public sealed partial class VendorBuyListManager : IDisposable
         _currentExecutionVendor = null;
         _skippedEntryIds.Clear();
         _partiallyFulfilledEntryIds.Clear();
+        _purchaseConstraints = null;
+        _runHitScripReserveLimit = false;
     }
 
     private bool IsDeferredForCurrentRun(VendorBuyListEntry entry)
@@ -540,7 +570,7 @@ public sealed partial class VendorBuyListManager : IDisposable
         if (!_skippedEntryIds.Add(entry.Id))
             return;
 
-        GatherBuddy.Log.Debug($"[VendorBuyListManager] 在本次商人列表运行中跳过 {entry.ItemName}: {message}");
+        GatherBuddy.Log.Debug($"[VendorBuyListManager] Skipping {entry.ItemName} for the current vendor-list run: {message}");
         if (announceFailure)
             Communicator.PrintError($"[GatherBuddyReborn] {message}");
     }
@@ -550,11 +580,12 @@ public sealed partial class VendorBuyListManager : IDisposable
         if (!_partiallyFulfilledEntryIds.Add(entry.Id))
             return;
 
-        GatherBuddy.Log.Debug($"[VendorBuyListManager] 延期处理 {entry.ItemName} 的剩余目标，等待下一次商人列表运行(部分购买后): {message}");
+        GatherBuddy.Log.Debug($"[VendorBuyListManager] Deferring the remaining target for {entry.ItemName} until a future vendor-list run after a partial purchase: {message}");
     }
 
     private void FailCurrentRun(string message)
     {
+        LastRunHitScripReserveLimit = _runHitScripReserveLimit;
         ResetExecutionState();
         _statusText = message;
     }
@@ -563,12 +594,13 @@ public sealed partial class VendorBuyListManager : IDisposable
     {
         var skippedCount = _skippedEntryIds.Count;
         var partiallyFulfilledCount = _partiallyFulfilledEntryIds.Count;
+        LastRunHitScripReserveLimit = _runHitScripReserveLimit;
         ResetExecutionState();
         if (skippedCount == 0 && partiallyFulfilledCount == 0)
         {
             _statusText = $"商人列表 '{list.Name}' 已完成";
-            GatherBuddy.Log.Information($"[VendorBuyListManager] 商人列表 '{list.Name}' 已完成");
-            Communicator.Print($"[GatherBuddyReborn] 商人列表 '{list.Name}' 已完成");
+            GatherBuddy.Log.Information($"[VendorBuyListManager] Vendor list '{list.Name}' complete.");
+            Communicator.Print($"[GatherBuddyReborn] Vendor list '{list.Name}' complete.");
             return;
         }
         var resultParts = new List<string>();
@@ -577,10 +609,10 @@ public sealed partial class VendorBuyListManager : IDisposable
         if (skippedCount > 0)
             resultParts.Add($"{skippedCount} 个已跳过条目");
 
-        var detail = string.Join(" 和 ", resultParts);
-        _statusText = $"商人列表 '{list.Name}' 已完成，其中 {detail}";
-        GatherBuddy.Log.Warning($"[VendorBuyListManager] 商人列表 '{list.Name}' 已完成，其中 {detail}");
-        Communicator.PrintError($"[GatherBuddyReborn] 商人列表 '{list.Name}' 已完成，其中 {detail}");
+        var detail = string.Join(" and ", resultParts);
+        _statusText = $"商人列表 '{list.Name}' 已完成，{detail}";
+        GatherBuddy.Log.Warning($"[VendorBuyListManager] Vendor list '{list.Name}' completed with {detail}.");
+        Communicator.PrintError($"[GatherBuddyReborn] Vendor list '{list.Name}' completed with {detail}.");
     }
 
     private void EnsureListState()
@@ -652,10 +684,10 @@ public sealed partial class VendorBuyListManager : IDisposable
             OpenWindow();
 
         if (!IsBusy)
-            _statusText = $"{entry.ItemName} 目标已设为 {targetQuantity:N0}，在 '{list.Name}' 中";
+            _statusText = $"{entry.ItemName} target set to {targetQuantity:N0} in '{list.Name}'.";
 
         if (announce)
-            Communicator.Print($"[GatherBuddyReborn] 已将 {entry.ItemName} 添加到 '{list.Name}'，目标 {targetQuantity:N0}");
+            Communicator.Print($"[GatherBuddyReborn] Added {entry.ItemName} to '{list.Name}' with target {targetQuantity:N0}.");
         return true;
     }
 
@@ -698,10 +730,10 @@ public sealed partial class VendorBuyListManager : IDisposable
                 OpenWindow();
 
             if (!IsBusy)
-                _statusText = $"{existing.ItemName} 目标已设为 {existing.TargetQuantity:N0}，在 '{list.Name}' 中";
-            
+                _statusText = $"{existing.ItemName} target set to {existing.TargetQuantity:N0} in '{list.Name}'.";
+
             if (announce)
-                Communicator.Print($"[GatherBuddyReborn] 已将 {existing.ItemName} 添加到 '{list.Name}'，目标 {existing.TargetQuantity:N0}");
+                Communicator.Print($"[GatherBuddyReborn] Added {existing.ItemName} to '{list.Name}' with target {existing.TargetQuantity:N0}.");
             return true;
         }
 
@@ -728,13 +760,13 @@ public sealed partial class VendorBuyListManager : IDisposable
         {
             if (!TryResolveDefaultEntry(request.ItemId, out var liveEntry, out var vendor))
             {
-                GatherBuddy.Log.Debug($"[VendorBuyListManager] 在设置商人目标时无法为物品 {request.ItemId} 解析默认商人条目");
+                GatherBuddy.Log.Debug($"[VendorBuyListManager] Could not resolve a default vendor entry for item {request.ItemId} while setting vendor targets.");
                 continue;
             }
 
             if (!TrySetResolvedTarget(list, liveEntry, vendor, request.TargetQuantity))
             {
-                GatherBuddy.Log.Debug($"[VendorBuyListManager] 无法在 '{list.Name}' 中为 {liveEntry.ItemName} 设置商人目标");
+                GatherBuddy.Log.Debug($"[VendorBuyListManager] Could not set a vendor target for {liveEntry.ItemName} in '{list.Name}'.");
                 continue;
             }
 
@@ -753,14 +785,14 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         if (!IsBusy)
             _statusText = addedTargets.Count == 1
-                ? $"{addedTargets[0].Entry.ItemName} 目标已设为 {addedTargets[0].TargetQuantity:N0}，在 '{list.Name}' 中"
-                : $"已在 '{list.Name}' 中更新 {addedTargets.Count:N0} 个商人目标";
+                ? $"{addedTargets[0].Entry.ItemName} target set to {addedTargets[0].TargetQuantity:N0} in '{list.Name}'."
+                : $"{addedTargets.Count:N0} vendor targets updated in '{list.Name}'.";
         if (announce)
         {
             if (addedTargets.Count == 1)
-                Communicator.Print($"[GatherBuddyReborn] 已将 {addedTargets[0].Entry.ItemName} 添加到 '{list.Name}'，目标 {addedTargets[0].TargetQuantity:N0}");
+                Communicator.Print($"[GatherBuddyReborn] Added {addedTargets[0].Entry.ItemName} to '{list.Name}' with target {addedTargets[0].TargetQuantity:N0}.");
             else
-                Communicator.Print($"[GatherBuddyReborn] 已将 {addedTargets.Count:N0} 个物品添加到 '{list.Name}'");
+                Communicator.Print($"[GatherBuddyReborn] Added {addedTargets.Count:N0} items to '{list.Name}'.");
         }
 
         return addedTargets.Count;
@@ -886,7 +918,7 @@ public sealed partial class VendorBuyListManager : IDisposable
                 candidate.Npcs
                     .Where(npc => VendorPurchaseManager.IsPurchaseSupported(candidate, npc))
                     .ToList(),
-                "解析默认商人购买列表条目",
+                "正在解析默认商人购买清单条目",
                 candidate.ItemName);
             if (supportedVendors.Count == 0)
                 continue;
@@ -902,7 +934,7 @@ public sealed partial class VendorBuyListManager : IDisposable
         }
         if (candidates.Count > 0)
             GatherBuddy.Log.Debug(
-                $"[VendorBuyListManager] 无法为物品 {itemId} 解析支持的默认商人条目；找到 {candidates.Count:N0} 个候选商人条目，但均没有支持自动化的路线");
+                $"[VendorBuyListManager] Could not resolve a supported default vendor entry for item {itemId}; found {candidates.Count:N0} candidate vendor entries but none had an automation-supported route.");
 
         return false;
     }
@@ -967,9 +999,9 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         var distanceText = selected.DistanceSquared < float.MaxValue
             ? $"{MathF.Sqrt(selected.DistanceSquared):F1}m"
-            : "路线排序";
+            : "按路线排序";
         GatherBuddy.Log.Debug(
-            $"[VendorBuyListManager] 通过排序桶 {selected.PriorityBucket} 选定 {selected.Entry.ItemName}(来自 {selected.Vendor.Name})为下一目标 (territory={selected.Location.TerritoryId}, route={selected.RouteAetheryteId}, distance={distanceText})");
+            $"[VendorBuyListManager] Selected {selected.Entry.ItemName} from {selected.Vendor.Name} next using ordering bucket {selected.PriorityBucket} (territory={selected.Location.TerritoryId}, route={selected.RouteAetheryteId}, distance={distanceText}).");
         return selected;
     }
 
@@ -1049,7 +1081,8 @@ public sealed partial class VendorBuyListManager : IDisposable
         _currentExecutionVendor = new VendorExecutionGroup(vendor.NpcId, vendor.MenuShopType, vendor.ShopId);
         _activeEntryId = entry.Id;
         _statusText = $"正在从 {vendor.Name} 购买 {remainingQuantity:N0}x {entry.ItemName}，在 '{list.Name}' 中";
-        GatherBuddy.VendorPurchaseManager.StartPurchase(liveEntry, vendor, location, remainingQuantity, continueCurrentVendorInteraction);
+        GatherBuddy.VendorPurchaseManager.StartPurchase(liveEntry, vendor, location, remainingQuantity, continueCurrentVendorInteraction,
+            _purchaseConstraints);
         if (GatherBuddy.VendorPurchaseManager.IsRunning)
             return true;
 
@@ -1069,7 +1102,7 @@ public sealed partial class VendorBuyListManager : IDisposable
                 FailCurrentRun(errorMessage);
                 break;
             case PurchaseContextResolutionResult.SkippableFailure:
-                SkipEntryForCurrentRun(entry, $"{errorMessage}，在本次运行中跳过", true);
+                SkipEntryForCurrentRun(entry, $"{errorMessage} Skipping it for the current run.", true);
                 break;
         }
     }
@@ -1153,7 +1186,7 @@ public sealed partial class VendorBuyListManager : IDisposable
             vendor       = null!;
             location     = null!;
             errorMessage = VendorNpcLocationCache.IsInitializing
-                ? "商人位置数据加载中"
+                ? "商人位置数据仍在加载中"
                 : "商人位置数据尚未就绪";
             return PurchaseContextResolutionResult.RetryableFailure;
         }
@@ -1204,6 +1237,9 @@ public sealed partial class VendorBuyListManager : IDisposable
         if (!_isRunning)
             return;
 
+        if (result.WasLimitedByScripReserve)
+            _runHitScripReserveLimit = true;
+
         switch (result.State)
         {
             case VendorPurchaseManager.CompletionState.Completed:
@@ -1239,13 +1275,32 @@ public sealed partial class VendorBuyListManager : IDisposable
 
                 BeginShopCloseTransition($"部分购买 {result.ItemName} 后继续商人列表");
                 break;
+            case VendorPurchaseManager.CompletionState.Skipped:
+                if (_activeEntryId is { } skippedEntryId && TryFindEntry(skippedEntryId, out _, out var skippedEntry) && skippedEntry != null)
+                    SkipEntryForCurrentRun(skippedEntry, result.Message, false);
+                _activeEntryId = null;
+
+                if (!VendorInteractionHelper.IsReadyToLeaveVendor())
+                {
+                    switch (TryContinueWithCurrentVendor(new VendorExecutionGroup(result.Vendor.NpcId, result.Vendor.MenuShopType, result.Vendor.ShopId)))
+                    {
+                        case SameVendorContinuationResult.Started:
+                            return;
+                        case SameVendorContinuationResult.Failed:
+                            BeginShopCloseTransition(_statusText);
+                            return;
+                    }
+                }
+
+                BeginShopCloseTransition($"跳过 {result.ItemName} 并继续商人列表");
+                break;
             case VendorPurchaseManager.CompletionState.Cancelled:
                 ResetExecutionState();
                 BeginShopCloseTransition("正在离开商人交互");
                 break;
             case VendorPurchaseManager.CompletionState.Failed:
                 if (_activeEntryId is { } activeEntryId && TryFindEntry(activeEntryId, out _, out var failedEntry) && failedEntry != null)
-                    SkipEntryForCurrentRun(failedEntry, $"{result.Message}，在本次运行中跳过", false);
+                    SkipEntryForCurrentRun(failedEntry, $"{result.Message} Skipping it for the current run.", false);
                 _activeEntryId = null;
 
                 if (!VendorInteractionHelper.IsReadyToLeaveVendor())

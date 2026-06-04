@@ -4,6 +4,7 @@ using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using GatherBuddy.Classes;
 using GatherBuddy.Config;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
@@ -20,6 +21,7 @@ public partial class Interface
     {
         private static float _nameColumnWidth;
         private static float _gatheredColumnWidth;
+        private static float _levelingColumnWidth;
         private static float _nextUptimeColumnWidth;
         private static float _closestAetheryteColumnWidth;
         private static float _levelColumnWidth;
@@ -33,6 +35,8 @@ public partial class Interface
         private static float _itemIdColumnWidth;
         private static float _gatheringIdColumnWidth;
         private static float _globalScale;
+        private static IReadOnlyList<(int Key, string Label)>? _levelFilterOptions;
+        private static IReadOnlyList<(uint Key, string Label)>? _folkloreFilterOptions;
 
         protected override void PreDraw()
         {
@@ -40,19 +44,20 @@ public partial class Interface
             {
                 _globalScale         = ImGuiHelpers.GlobalScale;
                 _nameColumnWidth     = (Items.Max(i => TextWidth(i.Data.Name[GatherBuddy.Language])) + ItemSpacing.X + LineIconSize.X) / Scale;
-                _gatheredColumnWidth = TextWidth(_gatheredColumn.Label) / Scale + Table.ArrowWidth + 5; // 采集记录: +5 调整宽度，匹配中文
-                _nextUptimeColumnWidth = Math.Max(TextWidth("99:99 分钟") / Scale,
-                    TextWidth(_nextUptimeColumn.Label) / Scale + Table.ArrowWidth + 5); // 下次时间: +5 调整宽度，匹配中文
+                _gatheredColumnWidth = TextWidth(_gatheredColumn.Label) / Scale + Table.ArrowWidth;
+                _levelingColumnWidth = TextWidth(_levelingColumn.Label) / Scale + Table.ArrowWidth;
+                _nextUptimeColumnWidth = Math.Max(TextWidth("99:99 Minutes") / Scale,
+                    TextWidth(_nextUptimeColumn.Label) / Scale + Table.ArrowWidth);
                 _closestAetheryteColumnWidth = GatherBuddy.GameData.Aetherytes.Values.Max(a => TextWidth(a.Name)) / Scale;
                 _levelColumnWidth = Math.Max(TextWidth("99*****") / Scale,
                     TextWidth(_levelColumn.Label) / Scale + Table.ArrowWidth);
                 _jobColumnWidth = Math.Max(TextWidth(_jobColumn.Label) / Scale + Table.ArrowWidth,
                     Enum.GetNames<GatheringType>().Where(s => s != "Spearfishing").Max(TextWidth) / Scale);
-                _typeColumnWidth = Math.Max(TextWidth(_typeColumn.Label) / Scale + Table.ArrowWidth + 5, // 采集点类型: +5 调整宽度，匹配中文
+                _typeColumnWidth = Math.Max(TextWidth(_typeColumn.Label) / Scale + Table.ArrowWidth,
                     Enum.GetNames<NodeType>().Max(TextWidth) / Scale);
-                _expansionColumnWidth   = TextWidth(_expansionColumn.Label) / Scale + Table.ArrowWidth + 5;  // 版本: +5 调整宽度，匹配中文
+                _expansionColumnWidth   = TextWidth(_expansionColumn.Label) / Scale + Table.ArrowWidth;
                 _folkloreColumnWidth    = Items.Max(i => TextWidth(i.Folklore)) / Scale;
-                _uptimeColumnWidth      = Items.Max(i => TextWidth(i.Uptimes)) / Scale + 10;
+                _uptimeColumnWidth      = Items.Max(i => TextWidth(i.Uptimes)) / Scale;
                 _bestNodeColumnWidth    = GatherBuddy.GameData.GatheringNodes.Values.Max(a => TextWidth(a.Name)) / Scale;
                 _bestZoneColumnWidth    = GatherBuddy.GameData.Territories.Values.Max(a => TextWidth(a.Name)) / Scale;
                 _itemIdColumnWidth      = Math.Max(TextWidth("999999") / Scale, TextWidth(_itemIdColumn.Label) / Scale + Table.ArrowWidth);
@@ -60,8 +65,72 @@ public partial class Interface
             }
         }
 
+        private sealed class LevelingColumn : ColumnFlags<LevelingFilter, ExtendedGatherable>
+        {
+            private static readonly LevelingFilter[] FilterValues =
+            [
+                LevelingFilter.Leveling,
+                LevelingFilter.NonLeveling,
+            ];
+
+            private static readonly string[] FilterNames =
+            [
+                "练级",
+                "非练级",
+            ];
+
+            public LevelingColumn()
+                => AllFlags = LevelingFilter.All;
+
+            protected override IReadOnlyList<LevelingFilter> Values
+                => FilterValues;
+
+            protected override string[] Names
+                => FilterNames;
+
+            public override LevelingFilter FilterValue
+                => GatherBuddy.Config.ShowLevelingItems;
+
+            protected override void SetValue(LevelingFilter value, bool enable)
+            {
+                var tmp = enable ? FilterValue | value : FilterValue & ~value;
+                if (tmp == FilterValue)
+                    return;
+
+                GatherBuddy.Config.ShowLevelingItems = tmp;
+                GatherBuddy.Config.Save();
+            }
+
+            public override float Width
+                => _levelingColumnWidth * ImGuiHelpers.GlobalScale;
+
+            public override bool FilterFunc(ExtendedGatherable item)
+                => item.Leveling
+                    ? FilterValue.HasFlag(LevelingFilter.Leveling)
+                    : FilterValue.HasFlag(LevelingFilter.NonLeveling);
+
+            public override int Compare(ExtendedGatherable lhs, ExtendedGatherable rhs)
+                => lhs.Leveling.CompareTo(rhs.Leveling);
+
+            public override void DrawColumn(ExtendedGatherable item, int _)
+            {
+                using var font = ImRaii.PushFont(UiBuilder.IconFont);
+                if (item.Leveling)
+                {
+                    using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF008000);
+                    ImGuiUtil.Center(FontAwesomeIcon.Check.ToIconString());
+                }
+                else
+                {
+                    using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF000080);
+                    ImGuiUtil.Center(FontAwesomeIcon.Times.ToIconString());
+                }
+            }
+        }
+
         private static readonly NameColumn        _nameColumn        = new() { Label = "物品名称..." };
         private static readonly GatheredColumn    _gatheredColumn    = new() { Label = "采集记录" };
+        private static readonly LevelingColumn    _levelingColumn    = new() { Label = "练级" };
         private static readonly NextUptimeColumn  _nextUptimeColumn  = new() { Label = "下次时间" };
         private static readonly AetheryteColumn   _aetheryteColumn   = new() { Label = "以太之光" };
         private static readonly LevelColumn       _levelColumn       = new() { Label = "等级..." };
@@ -115,6 +184,113 @@ public partial class Interface
             }
         }
 
+        private abstract class ItemValueFilterColumn<TValue> : ColumnString<ExtendedGatherable> where TValue : notnull
+        {
+            protected abstract IReadOnlyList<(TValue Key, string Label)> Options { get; }
+            protected abstract List<TValue> DisabledValues { get; }
+            protected abstract TValue ToFilterValue(ExtendedGatherable item);
+
+            public override bool DrawFilter()
+            {
+                var changed = RemoveInvalidDisabledValues();
+
+                using var style = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 0);
+                ImGui.SetNextItemWidth(-Table.ArrowWidth * ImGuiHelpers.GlobalScale);
+                var all = DisabledValues.Count == 0;
+                using var color = ImRaii.PushColor(ImGuiCol.FrameBg, 0x803030A0, !all);
+                var comboOpen = ImGui.BeginCombo(FilterLabel, Label, ImGuiComboFlags.NoArrowButton);
+
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                    return SetAllOptions(true) || changed;
+
+                if (!all && ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Right-click to clear filters.");
+
+                if (!comboOpen)
+                    return changed;
+
+                color.Pop();
+
+                var enableAll = all;
+                if (ImGui.Checkbox("全部启用", ref enableAll))
+                    changed = SetAllOptions(enableAll) || changed;
+
+                foreach (var (key, label) in Options)
+                {
+                    var enabled = !DisabledValues.Contains(key);
+                    if (!ImGui.Checkbox(label, ref enabled))
+                        continue;
+
+                    changed = SetOptionEnabled(key, enabled) || changed;
+                }
+
+                ImGui.EndCombo();
+                return changed;
+            }
+
+            public override bool FilterFunc(ExtendedGatherable item)
+                => !DisabledValues.Contains(ToFilterValue(item));
+
+            private bool RemoveInvalidDisabledValues()
+            {
+                var validOptions = Options.Select(option => option.Key).ToHashSet();
+                var removed = DisabledValues.RemoveAll(value => !validOptions.Contains(value));
+                if (removed == 0)
+                    return false;
+
+                GatherBuddy.Config.Save();
+                return true;
+            }
+
+            private bool SetAllOptions(bool enabled)
+            {
+                if (enabled)
+                {
+                    if (DisabledValues.Count == 0)
+                        return false;
+
+                    DisabledValues.Clear();
+                    GatherBuddy.Config.Save();
+                    return true;
+                }
+
+                var changed = false;
+                foreach (var (key, _) in Options)
+                {
+                    if (DisabledValues.Contains(key))
+                        continue;
+
+                    DisabledValues.Add(key);
+                    changed = true;
+                }
+
+                if (!changed)
+                    return false;
+
+                GatherBuddy.Config.Save();
+                return true;
+            }
+
+            private bool SetOptionEnabled(TValue key, bool enabled)
+            {
+                if (enabled)
+                {
+                    if (!DisabledValues.Remove(key))
+                        return false;
+                }
+                else
+                {
+                    if (DisabledValues.Contains(key))
+                        return false;
+
+                    DisabledValues.Add(key);
+                }
+
+                GatherBuddy.Config.Save();
+                return true;
+            }
+        }
+
         private sealed class NameColumn : ColumnString<ExtendedGatherable>
         {
             public NameColumn()
@@ -140,14 +316,49 @@ public partial class Interface
             }
         }
 
-        private sealed class GatheredColumn : ItemFilterColumn
+        private sealed class GatheredColumn : ColumnFlags<GatheredFilter, ExtendedGatherable>
         {
+            private static readonly GatheredFilter[] FilterValues =
+            [
+                GatheredFilter.AlreadyGathered,
+                GatheredFilter.Ungathered,
+                GatheredFilter.NotTracked,
+                GatheredFilter.UnknownLogState,
+            ];
+
+            private static readonly string[] FilterNames =
+            [
+                "Already Gathered",
+                "Ungathered",
+                "Not Tracked",
+                "Log State Unavailable",
+            ];
+
             public GatheredColumn()
             {
-                Flags |= ImGuiTableColumnFlags.NoReorder;
-                SetFlags(ItemFilter.AlreadyGathered, ItemFilter.Ungathered, ItemFilter.UnknownLogState);
-                SetNames("已采集", "未采集", "未在采集记录中");
+                Flags    |= ImGuiTableColumnFlags.NoReorder;
+                AllFlags =  GatheredFilter.All;
             }
+
+            protected override IReadOnlyList<GatheredFilter> Values
+                => FilterValues;
+
+            protected override string[] Names
+                => FilterNames;
+
+            public override GatheredFilter FilterValue
+                => GatherBuddy.Config.ShowGatheredItems;
+
+            protected override void SetValue(GatheredFilter value, bool enable)
+            {
+                var tmp = enable ? FilterValue | value : FilterValue & ~value;
+                if (tmp == FilterValue)
+                    return;
+
+                GatherBuddy.Config.ShowGatheredItems = tmp;
+                GatherBuddy.Config.Save();
+            }
+
             public override float Width
                 => _gatheredColumnWidth * ImGuiHelpers.GlobalScale;
 
@@ -156,30 +367,44 @@ public partial class Interface
                 item.UpdateGatheredStatus();
 
                 using var font = ImRaii.PushFont(UiBuilder.IconFont);
-                if (item.Gathered == true)
+                switch (item.GatheredState)
                 {
-                    using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF008000);
-                    ImGuiUtil.Center(FontAwesomeIcon.Check.ToIconString());
-                }
-                else if (item.Gathered == false)
-                {
-                    using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF000080);
-                    ImGuiUtil.Center(FontAwesomeIcon.Times.ToIconString());
-                }
-                else
-                {
-                    using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFFA00000);
-                    ImGuiUtil.Center(FontAwesomeIcon.Question.ToIconString());
+                    case ExtendedGatherable.LogState.Gathered:
+                    {
+                        using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF008000);
+                        ImGuiUtil.Center(FontAwesomeIcon.Check.ToIconString());
+                        break;
+                    }
+                    case ExtendedGatherable.LogState.Ungathered:
+                    {
+                        using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF000080);
+                        ImGuiUtil.Center(FontAwesomeIcon.Times.ToIconString());
+                        break;
+                    }
+                    case ExtendedGatherable.LogState.NotTracked:
+                    {
+                        using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFF808080);
+                        ImGuiUtil.Center(FontAwesomeIcon.Minus.ToIconString());
+                        break;
+                    }
+                    default:
+                    {
+                        using var color = ImRaii.PushColor(ImGuiCol.Text, 0xFFA00000);
+                        ImGuiUtil.Center(FontAwesomeIcon.Question.ToIconString());
+                        break;
+                    }
                 }
             }
+
             public override bool FilterFunc(ExtendedGatherable item)
             {
                 item.UpdateGatheredStatus();
-                return item.Gathered switch
+                return item.GatheredState switch
                 {
-                    true  => FilterValue.HasFlag(ItemFilter.AlreadyGathered),
-                    false => FilterValue.HasFlag(ItemFilter.Ungathered),
-                    _     => FilterValue.HasFlag(ItemFilter.UnknownLogState),
+                    ExtendedGatherable.LogState.Gathered   => FilterValue.HasFlag(GatheredFilter.AlreadyGathered),
+                    ExtendedGatherable.LogState.Ungathered => FilterValue.HasFlag(GatheredFilter.Ungathered),
+                    ExtendedGatherable.LogState.NotTracked => FilterValue.HasFlag(GatheredFilter.NotTracked),
+                    _                                      => FilterValue.HasFlag(GatheredFilter.UnknownLogState),
                 };
             }
 
@@ -188,15 +413,16 @@ public partial class Interface
                 lhs.UpdateGatheredStatus();
                 rhs.UpdateGatheredStatus();
 
-                static int Rank(bool? gathered)
-                    => gathered switch
+                static int Rank(ExtendedGatherable.LogState gatheredState)
+                    => gatheredState switch
                     {
-                        true  => 2,
-                        false => 1,
-                        _     => 0,
+                        ExtendedGatherable.LogState.Gathered   => 3,
+                        ExtendedGatherable.LogState.Ungathered => 2,
+                        ExtendedGatherable.LogState.NotTracked => 1,
+                        _                                      => 0,
                     };
 
-                return Rank(lhs.Gathered).CompareTo(Rank(rhs.Gathered));
+                return Rank(lhs.GatheredState).CompareTo(Rank(rhs.GatheredState));
             }
         }
 
@@ -209,7 +435,7 @@ public partial class Interface
             {
                 Flags |= ImGuiTableColumnFlags.DefaultSort;
                 SetFlags(ItemFilter.Available, ItemFilter.Unavailable);
-                SetNames("当前可采集", "当前不可采集");
+                SetNames("Currently Available", "Currently Unavailable");
             }
 
             public override void DrawColumn(ExtendedGatherable item, int _)
@@ -230,7 +456,7 @@ public partial class Interface
         private sealed class AetheryteColumn : ColumnString<ExtendedGatherable>
         {
             public override string ToName(ExtendedGatherable item)
-                => item.Uptime.Item1.ClosestAetheryte?.Name ?? "无";
+                => item.Uptime.Item1.ClosestAetheryte?.Name ?? "None";
 
             public override float Width
                 => _closestAetheryteColumnWidth * ImGuiHelpers.GlobalScale;
@@ -240,7 +466,7 @@ public partial class Interface
                 var aetheryte = item.Uptime.Item1.ClosestAetheryte;
                 if (aetheryte == null)
                 {
-                    ImGui.Text("无");
+                    ImGui.Text("None");
                     return;
                 }
 
@@ -259,8 +485,16 @@ public partial class Interface
             }
         }
 
-        private sealed class LevelColumn : ColumnString<ExtendedGatherable>
+        private sealed class LevelColumn : ItemValueFilterColumn<int>
         {
+            protected override IReadOnlyList<(int Key, string Label)> Options
+                => GetLevelFilterOptions();
+
+            protected override List<int> DisabledValues
+                => GatherBuddy.Config.HiddenGatherableLevelFilters;
+
+            protected override int ToFilterValue(ExtendedGatherable item)
+                => GetLevelFilterKey(item.Data);
             public override string ToName(ExtendedGatherable item)
                 => item.Level;
 
@@ -283,13 +517,10 @@ public partial class Interface
                 => _jobColumnWidth * ImGuiHelpers.GlobalScale;
 
             public JobColumn()
-            {
-                SetFlags(ItemFilter.Mining, ItemFilter.Quarrying, ItemFilter.Logging, ItemFilter.Harvesting);
-                SetNames("采矿", "碎石", "伐木", "割草"); // 使用中文名称显示采集类型
-            }
+                => SetFlagsAndNames(ItemFilter.Mining, ItemFilter.Quarrying, ItemFilter.Logging, ItemFilter.Harvesting);
 
             public override void DrawColumn(ExtendedGatherable item, int _)
-                => ImGui.Text(EnumLocalization.Get(item.Data.GatheringType)); // 使用枚举本地化显示采集类型
+                => ImGui.Text(item.Data.GatheringType.ToString());
 
             public override int Compare(ExtendedGatherable lhs, ExtendedGatherable rhs)
                 => lhs.Data.GatheringType.CompareTo(rhs.Data.GatheringType);
@@ -316,13 +547,10 @@ public partial class Interface
                 => _typeColumnWidth * ImGuiHelpers.GlobalScale;
 
             public TypeColumn()
-            {
-                SetFlags(ItemFilter.Regular, ItemFilter.Unspoiled, ItemFilter.Ephemeral, ItemFilter.Legendary, ItemFilter.Clouded);
-                SetNames("常规", "未知", "限时", "传说", "云冠群岛"); // 使用中文名称显示采集点类型
-            }
+                => SetFlagsAndNames(ItemFilter.Regular, ItemFilter.Unspoiled, ItemFilter.Ephemeral, ItemFilter.Legendary, ItemFilter.Clouded);
 
             public override void DrawColumn(ExtendedGatherable item, int _)
-                => ImGui.Text(EnumLocalization.Get(item.Data.NodeType)); // 使用枚举本地化显示采集类型
+                => ImGui.Text(item.Data.NodeType.ToString());
 
             public override int Compare(ExtendedGatherable lhs, ExtendedGatherable rhs)
                 => lhs.Data.NodeType.CompareTo(rhs.Data.NodeType);
@@ -350,7 +578,7 @@ public partial class Interface
             {
                 SetFlags(ItemFilter.ARealmReborn, ItemFilter.Heavensward, ItemFilter.Stormblood, ItemFilter.Shadowbringers,
                     ItemFilter.Endwalker, ItemFilter.Dawntrail);
-                SetNames("重生之境", "苍穹之禁城", "红莲之狂潮", "暗影之逆焰", "晓月之终途", "金曦之遗辉");
+                SetNames("A Realm Reborn", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker", "Dawntrail");
             }
 
             public override void DrawColumn(ExtendedGatherable item, int _)
@@ -374,8 +602,16 @@ public partial class Interface
             }
         }
 
-        private sealed class FolkloreColumn : ColumnString<ExtendedGatherable>
+        private sealed class FolkloreColumn : ItemValueFilterColumn<uint>
         {
+            protected override IReadOnlyList<(uint Key, string Label)> Options
+                => GetFolkloreFilterOptions();
+
+            protected override List<uint> DisabledValues
+                => GatherBuddy.Config.HiddenGatherableFolkloreFilters;
+
+            protected override uint ToFilterValue(ExtendedGatherable item)
+                => GetFolkloreFilterKey(item.Data);
             public override string ToName(ExtendedGatherable item)
                 => item.Folklore;
 
@@ -466,10 +702,51 @@ public partial class Interface
                 => ImGuiUtil.RightAlign($"{item.Data.GatheringId}");
         }
 
+        private static IReadOnlyList<(int Key, string Label)> GetLevelFilterOptions()
+            => _levelFilterOptions ??= GatherBuddy.GameData.Gatherables.Values
+                .Where(gatherable => gatherable.GatheringType != GatheringType.Unknown)
+                .GroupBy(GetLevelFilterKey)
+                .OrderBy(group => group.Key)
+                .Select(group => (group.Key, GetLevelFilterLabel(group.First())))
+                .ToList();
+
+        private static IReadOnlyList<(uint Key, string Label)> GetFolkloreFilterOptions()
+            => _folkloreFilterOptions ??= GatherBuddy.GameData.Gatherables.Values
+                .Where(gatherable => gatherable.GatheringType != GatheringType.Unknown)
+                .GroupBy(GetFolkloreFilterKey)
+                .OrderBy(group => group.Key == 0 ? 0 : 1)
+                .ThenBy(group => GetFolkloreFilterLabel(group.First()), StringComparer.InvariantCulture)
+                .Select(group => (group.Key, GetFolkloreFilterLabel(group.First())))
+                .ToList();
+
+        private static int GetLevelFilterKey(Gatherable gatherable)
+            => gatherable.Stars > 0
+                ? 10_000 + (gatherable.Level << 3) + gatherable.Stars
+                : ((Math.Max(gatherable.Level, 1) - 1) / 5) * 5 + 1;
+
+        private static string GetLevelFilterLabel(Gatherable gatherable)
+        {
+            if (gatherable.Stars > 0)
+                return gatherable.LevelString();
+
+            var rangeStart = GetLevelFilterKey(gatherable);
+            return $"{rangeStart}-{rangeStart + 4}";
+        }
+
+        private static uint GetFolkloreFilterKey(Gatherable gatherable)
+            => gatherable.NodeList.Count == 0 || gatherable.NodeList.Any(node => node.FolkloreId == 0)
+                ? 0u
+                : gatherable.NodeList[0].FolkloreId;
+
+        private static string GetFolkloreFilterLabel(Gatherable gatherable)
+            => GetFolkloreFilterKey(gatherable) == 0
+                ? "无传承录"
+                : gatherable.NodeList.Select(node => node.Folklore).FirstOrDefault(folklore => folklore.Length > 0) ?? "无传承录";
+
         public ItemTable()
             : base("ItemTable",
                 GatherBuddy.GameData.Gatherables.Values.Where(g => g.GatheringType != GatheringType.Unknown)
-                    .Select(g => new ExtendedGatherable(g)).ToList(), _nameColumn, _gatheredColumn, _nextUptimeColumn, _aetheryteColumn,
+                    .Select(g => new ExtendedGatherable(g)).ToList(), _nameColumn, _gatheredColumn, _levelingColumn, _nextUptimeColumn, _aetheryteColumn,
                 _levelColumn, _jobColumn, _typeColumn, _expansionColumn, _folkloreColumn, _uptimesColumn, _bestNodeColumn, _bestZoneColumn,
                 _itemIdColumn, _gatheringIdColumn)
         {
@@ -498,17 +775,17 @@ public partial class Interface
     private void DrawItemTab()
     {
         using var id  = ImRaii.PushId("Gatherables");
-        using var tab = ImRaii.TabItem("可采集物品");
-        ImGuiUtil.HoverTooltip("用镐子敲碎岩石或砍倒树木都算作采集, 你为什么这么问？\n"
-          + "在这里你能找到关于园艺工和采矿工的所有物品信息。");
+        using var tab = ImRaii.TabItem("Gatherables");
+        ImGuiUtil.HoverTooltip("Breaking rocks with a pickaxe or felling trees counts as gathering, why do you ask?\n"
+          + "Find all information about botanist and miner items you could ever need.");
         if (!tab)
             return;
 
         _itemTable.ExtraHeight = (GatherBuddy.Config.ShowStatusLine ? ImGui.GetTextLineHeight() : 0)
           + ImGui.GetFrameHeightWithSpacing();
         _itemTable.Draw(ImGui.GetTextLineHeightWithSpacing());
-        DrawAddAllFilteredToAutoGather(_itemTable, g => g.Data, "可采集物品");
-        DrawStatusLine(_itemTable, "物品");
+        DrawAddAllFilteredToAutoGather(_itemTable, g => g.Data, "Gatherables");
+        DrawStatusLine(_itemTable, "Items");
         DrawClippy();
     }
 }

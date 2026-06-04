@@ -72,7 +72,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var maxPercentage = config.MaxPercentage;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("目标 HQ %##maxPercentage", ref maxPercentage, 0, 100))
         {
             config.MaxPercentage = maxPercentage;
@@ -91,7 +91,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("开场使用闲静提升品质, 不使用坚信推进进度");
 
         var maxIQPrepTouch = config.MaxIQPrepTouch;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("坯料加工最大内静层数##maxIQPrepTouch", ref maxIQPrepTouch, 0, 10))
         {
             config.MaxIQPrepTouch = maxIQPrepTouch;
@@ -109,7 +109,7 @@ public partial class VulcanWindow
         ImGui.Text("收藏品设置");
         ImGui.Spacing();
 
-        ImGui.SetNextItemWidth(200);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(200f));
         var collectibleModes = new[] { "1 档 (最低)", "2 档 (中等)", "3 档 (最高)" };
         var collectibleMode = Math.Clamp(config.SolverCollectibleMode - 1, 0, collectibleModes.Length - 1);
         if (ImGui.Combo("收藏品目标##collectibleMode", ref collectibleMode, collectibleModes, collectibleModes.Length))
@@ -159,7 +159,7 @@ public partial class VulcanWindow
         if (config.UseMaterialMiracle)
         {
             var minSteps = config.MinimumStepsBeforeMiracle;
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.SliderInt("奇迹之材前最少步骤##minSteps", ref minSteps, 1, 10))
             {
                 config.MinimumStepsBeforeMiracle = minSteps;
@@ -183,7 +183,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("恢复默认", new Vector2(200, 0)))
+        if (ImGui.Button("恢复默认", VulcanUiScaling.Scaled(200f, 0f)))
         {
             GatherBuddy.Config.StandardSolverConfig = new Vulcan.StandardSolverConfig();
             GatherBuddy.Config.Save();

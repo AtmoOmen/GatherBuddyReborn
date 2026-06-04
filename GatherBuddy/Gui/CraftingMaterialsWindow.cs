@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using ElliLib;
@@ -19,6 +21,8 @@ namespace GatherBuddy.Gui;
 
 public class CraftingMaterialsWindow : Window
 {
+    private static float GetRemainingLineWidth()
+        => Math.Max(0f, ImGui.GetWindowPos().X + ImGui.GetContentRegionMax().X - ImGui.GetItemRectMax().X);
     private CraftingListEditor? _editor;
     private bool _matsOvercapPercent;
     private bool _matsShowPrecrafts;
@@ -30,6 +34,14 @@ public class CraftingMaterialsWindow : Window
     private static readonly Vector4 AccentShop   = new(0.80f, 0.55f, 1.00f, 1f);
     private static readonly Vector4 AccentVendor = new(1.00f, 0.85f, 0.20f, 1f);
     private static readonly Vector4 AccentCraft  = new(0.35f, 0.90f, 0.90f, 1f);
+    private static readonly Vector4 MobDropMarkerButtonColor   = new(0.45f, 0.80f, 1.00f, 1f);
+    private static readonly Vector4 MobDropTeleportButtonColor = new(0.60f, 0.95f, 0.60f, 1f);
+    private static float MaterialRowIconSpacing
+        => VulcanUiScaling.Scaled(4f);
+
+    private static float MaterialRowIconGutter
+        => VulcanUiScaling.Scaled(8f);
+    private static readonly Dictionary<string, bool> MobDropZoneOpenStates = new(StringComparer.Ordinal);
     private enum RetainerColumnMode
     {
         None,
@@ -38,21 +50,30 @@ public class CraftingMaterialsWindow : Window
     }
     private readonly record struct MaterialEntry(
         uint ItemId,
-        int 持有,
+        int Have,
         int RetNQ,
         int RetHQ,
-        int 需要ed,
+        int Needed,
         int EffectiveAvailable,
         string Name,
         ushort IconId,
-        bool IsPrecraft);
+        bool IsPrecraft,
+        IReadOnlyList<CurrencyOption> CurrencyOptions,
+        MobDropItemInfo DropInfo);
     private sealed record MaterialPanel(
         string Id,
         string Label,
         Vector4 Accent,
         List<MaterialEntry> Entries,
         RetainerColumnMode RetainerColumns,
-        IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? VendorTargets);
+        IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? VendorTargets,
+        bool ShowCurrencyTotals = false,
+        bool PreferBicolorDefault = false);
+
+    private readonly record struct CurrencyOption(uint CurrencyItemId, uint CostPerItem, string Name, ushort IconId, VendorCurrencyGroup Group);
+    private readonly record struct CurrencyTotal(uint CurrencyItemId, long Amount, string Name, ushort IconId);
+
+    private readonly Dictionary<uint, uint> _userSelectedCurrencyByItem = new();
     private bool _cachedMaterialViewValid;
     private bool _cachedHasMaterials;
     private bool _cachedHasVisibleEntries;
@@ -64,16 +85,17 @@ public class CraftingMaterialsWindow : Window
     private bool _cachedMaterialViewPreferVendors;
     private bool _cachedMaterialViewKeepFulfilled;
     private bool _cachedMaterialViewShowRetainer;
+    private bool _cachedMobDropInfoInitialized;
     private List<MaterialPanel> _cachedPanels = [];
 
-    public CraftingMaterialsWindow() : base("材料###CraftingMaterials")
+    public CraftingMaterialsWindow() : base("Materials###CraftingMaterials")
     {
-        Size           = new Vector2(560, 520);
+        Size           = VulcanUiScaling.Scaled(560f, 520f);
         SizeCondition  = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 300),
-            MaximumSize = new Vector2(1200, 1400),
+            MinimumSize = VulcanUiScaling.Scaled(400f, 300f),
+            MaximumSize = VulcanUiScaling.Scaled(1200f, 1400f),
         };
     }
 
@@ -87,11 +109,29 @@ public class CraftingMaterialsWindow : Window
     public override void PreDraw()
     {
         if (_editor != null)
-            WindowName = $"材料 - {_editor.ListName}###CraftingMaterials";
+            WindowName = $"Materials \u2014 {_editor.ListName}###CraftingMaterials";
     }
 
     public override void Draw()
     {
+        static float GetCheckboxWidth(string label)
+        {
+            var style = ImGui.GetStyle();
+            return ImGui.GetFrameHeight() + style.ItemInnerSpacing.X + ImGui.CalcTextSize(label).X;
+        }
+
+        static float GetSmallButtonWidth(string label)
+        {
+            var style = ImGui.GetStyle();
+            return ImGui.CalcTextSize(label).X + style.FramePadding.X * 2f;
+        }
+
+        static void SameLineIfFits(float nextItemWidth)
+        {
+            var style = ImGui.GetStyle();
+            if (GetRemainingLineWidth() >= style.ItemSpacing.X + nextItemWidth)
+                ImGui.SameLine();
+        }
         if (_editor == null)
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "未打开清单");
@@ -102,6 +142,8 @@ public class CraftingMaterialsWindow : Window
 
         if (!_editor.HasCachedDisplayMaterials && !_editor.IsGeneratingMaterials)
             _editor.TriggerMaterialsRegeneration();
+
+        MobDropInfoCache.EnsureInitializeStarted();
 
         if (_editor.IsGeneratingMaterials)
         {
@@ -118,16 +160,22 @@ public class CraftingMaterialsWindow : Window
             return;
         }
 
+        var overcapCheckboxWidth = GetCheckboxWidth("150%");
+        var precraftsCheckboxWidth = GetCheckboxWidth("半成品");
+        var preferVendorsCheckboxWidth = GetCheckboxWidth("优先商店");
+        var keepFulfilledCheckboxWidth = GetCheckboxWidth("保留已满足");
+        var refreshRetainersButtonWidth = GetSmallButtonWidth("刷新雇员");
+
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{_cachedTotalMissing} 缺少  ·  {_cachedTotalReady} 足够");
-        ImGui.SameLine();
+        SameLineIfFits(overcapCheckboxWidth);
         ImGui.Checkbox("150%##overcap", ref _matsOvercapPercent);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("持有数量超过需求时显示高于 100% 的比例");
-        ImGui.SameLine();
+        SameLineIfFits(precraftsCheckboxWidth);
         ImGui.Checkbox("半成品##precrafts", ref _matsShowPrecrafts);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("在清单中包含可制作的半成品和非装备成品");
-        ImGui.SameLine();
+        SameLineIfFits(preferVendorsCheckboxWidth);
         ImGui.Checkbox("优先商店##preferVendors", ref _matsPreferVendors);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(
@@ -135,13 +183,13 @@ public class CraftingMaterialsWindow : Window
                 "  采集 > 钓鱼 > 工票 > 掉落 > 制作 > 商店 > 神典石 > 其他\n\n" +
                 "启用后, 金币商店会优先于采集、钓鱼、掉落和制作\n" +
                 "适用于同样可在金币商店购买的物品");
-        ImGui.SameLine();
+        SameLineIfFits(keepFulfilledCheckboxWidth);
         ImGui.Checkbox("保留已满足##keepFulfilled", ref _matsKeepFulfilled);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("即使清单启用 \"持有足够时跳过\", 仍显示已满足的材料");
         if (showRetainer)
         {
-            ImGui.SameLine();
+            SameLineIfFits(refreshRetainersButtonWidth);
             if (ImGui.SmallButton("刷新雇员"))
             {
                 _editor.InvalidateRetainerSnapshot();
@@ -159,17 +207,19 @@ public class CraftingMaterialsWindow : Window
 
         var avail   = ImGui.GetContentRegionAvail();
         var spacing = ImGui.GetStyle().ItemSpacing;
-        var panelW  = (avail.X - spacing.X) / 2f;
+        var minTwoColumnPanelWidth = VulcanUiScaling.Scaled(240f);
+        var panelColumns = avail.X >= minTwoColumnPanelWidth * 2f + spacing.X ? 2 : 1;
+        var panelW = panelColumns == 1 ? avail.X : (avail.X - spacing.X) / 2f;
 
-        var rows   = (_cachedPanels.Count + 1) / 2;
+        var rows   = (_cachedPanels.Count + panelColumns - 1) / panelColumns;
         var panelH = (avail.Y - spacing.Y * (rows - 1)) / rows;
         for (var i = 0; i < _cachedPanels.Count; i++)
         {
             var panel = _cachedPanels[i];
             var isLast   = i == _cachedPanels.Count - 1;
-            var spanFull = isLast && _cachedPanels.Count % 2 == 1;
-            DrawMaterialPanel(panel.Id, panel.Label, panel.Accent, panel.Entries, panel.RetainerColumns, spanFull ? avail.X : panelW, panelH, panel.VendorTargets);
-            if (!spanFull && i % 2 == 0)
+            var spanFull = panelColumns == 1 || isLast && _cachedPanels.Count % 2 == 1;
+            DrawMaterialPanel(panel.Id, panel.Label, panel.Accent, panel.Entries, panel.RetainerColumns, spanFull ? avail.X : panelW, panelH, panel.VendorTargets, panel.ShowCurrencyTotals, panel.PreferBicolorDefault);
+            if (panelColumns == 2 && !spanFull && i % 2 == 0)
                 ImGui.SameLine();
         }
     }
@@ -199,6 +249,8 @@ public class CraftingMaterialsWindow : Window
          || _cachedMaterialViewPreferVendors != _matsPreferVendors
          || _cachedMaterialViewKeepFulfilled != _matsKeepFulfilled
          || _cachedMaterialViewShowRetainer != showRetainer)
+            return true;
+        if (_cachedMobDropInfoInitialized != MobDropInfoCache.IsInitialized)
             return true;
 
         return false;
@@ -231,7 +283,7 @@ public class CraftingMaterialsWindow : Window
                 return;
             }
 
-            var countRetainersToward需要 = showRetainer && _editor.RetainerRestockEnabled;
+            var countRetainersTowardNeed = showRetainer && _editor.RetainerRestockEnabled;
             var hideSatisfiedRows = _editor.SkipIfEnoughEnabled && !_matsKeepFulfilled;
             var craftMaterials = _matsShowPrecrafts
                 ? _editor.GetDisplayPrecraftMaterials()
@@ -249,12 +301,12 @@ public class CraftingMaterialsWindow : Window
 
             void AddEntry(MaterialEntry entry)
             {
-                if (entry.EffectiveAvailable < entry.需要ed)
+                if (entry.EffectiveAvailable < entry.Needed)
                     _cachedTotalMissing++;
                 else
                     _cachedTotalReady++;
 
-                if (hideSatisfiedRows && entry.EffectiveAvailable >= entry.需要ed)
+                if (hideSatisfiedRows && entry.EffectiveAvailable >= entry.Needed)
                     return;
 
                 _cachedHasVisibleEntries = true;
@@ -283,7 +335,7 @@ public class CraftingMaterialsWindow : Window
 
             foreach (var (itemId, needed) in materials)
             {
-                if (TryCreateMaterialEntry(itemSheet, itemId, needed, false, retainerSnapshot, countRetainersToward需要, out var entry))
+                if (TryCreateMaterialEntry(itemSheet, itemId, needed, false, retainerSnapshot, countRetainersTowardNeed, out var entry))
                     AddEntry(entry);
             }
 
@@ -291,7 +343,7 @@ public class CraftingMaterialsWindow : Window
             {
                 foreach (var (itemId, needed) in craftMaterials)
                 {
-                    if (TryCreateMaterialEntry(itemSheet, itemId, needed, true, retainerSnapshot, countRetainersToward需要, out var entry))
+                    if (TryCreateMaterialEntry(itemSheet, itemId, needed, true, retainerSnapshot, countRetainersTowardNeed, out var entry))
                         AddEntry(entry);
                 }
             }
@@ -306,8 +358,8 @@ public class CraftingMaterialsWindow : Window
             var nonCraftRetainerMode = showRetainer ? RetainerColumnMode.Total : RetainerColumnMode.None;
             var craftRetainerMode = showRetainer ? RetainerColumnMode.Split : RetainerColumnMode.None;
             if (gatherList.Count > 0) _cachedPanels.Add(new MaterialPanel("##gather", "采集", AccentGather, gatherList, nonCraftRetainerMode, null));
-            if (dropList.Count > 0) _cachedPanels.Add(new MaterialPanel("##drop", "掉落 /双色", AccentDrop, dropList, nonCraftRetainerMode, null));
-            if (shopList.Count > 0) _cachedPanels.Add(new MaterialPanel("##shop", "特殊货币", AccentShop, shopList, nonCraftRetainerMode, BuildVendorBuyListTargets(shopList)));
+            if (dropList.Count > 0) _cachedPanels.Add(new MaterialPanel("##drop", "掉落 / 双色", AccentDrop, dropList, nonCraftRetainerMode, null, ShowCurrencyTotals: true, PreferBicolorDefault: true));
+            if (shopList.Count > 0) _cachedPanels.Add(new MaterialPanel("##shop", "特殊货币", AccentShop, shopList, nonCraftRetainerMode, BuildVendorBuyListTargets(shopList), ShowCurrencyTotals: true));
             if (vendorList.Count > 0) _cachedPanels.Add(new MaterialPanel("##vendor", "商店", AccentVendor, vendorList, nonCraftRetainerMode, BuildVendorBuyListTargets(vendorList)));
             if (craftList is { Count: > 0 }) _cachedPanels.Add(new MaterialPanel("##craft", "制作", AccentCraft, craftList, craftRetainerMode, null));
 
@@ -329,10 +381,11 @@ public class CraftingMaterialsWindow : Window
         _cachedMaterialViewPreferVendors = _matsPreferVendors;
         _cachedMaterialViewKeepFulfilled = _matsKeepFulfilled;
         _cachedMaterialViewShowRetainer = showRetainer;
+        _cachedMobDropInfoInitialized = MobDropInfoCache.IsInitialized;
     }
 
     private bool TryCreateMaterialEntry(ExcelSheet<Item> itemSheet, uint itemId, int needed, bool isPrecraft,
-        RetainerItemSnapshot retainerSnapshot, bool countRetainersToward需要, out MaterialEntry entry)
+        RetainerItemSnapshot retainerSnapshot, bool countRetainersTowardNeed, out MaterialEntry entry)
     {
         entry = default;
         if (!itemSheet.TryGetRow(itemId, out var item))
@@ -342,21 +395,66 @@ public class CraftingMaterialsWindow : Window
         var retNQ = retainerSnapshot.GetCountNQ(itemId);
         var retHQ = retainerSnapshot.GetCountHQ(itemId);
         var effectiveAvailable = isPrecraft
-            ? _editor?.GetDisplayCraftMaterialAvailableCount(itemId, retNQ, retHQ, countRetainersToward需要) ?? 0
-            : _editor?.GetDisplayMaterialAvailableCount(itemId, retNQ, retHQ, countRetainersToward需要) ?? 0;
-        entry = new MaterialEntry(itemId, have, retNQ, retHQ, needed, effectiveAvailable, item.Name.ExtractText(), item.Icon, isPrecraft);
+            ? _editor?.GetDisplayCraftMaterialAvailableCount(itemId, retNQ, retHQ, countRetainersTowardNeed) ?? 0
+            : _editor?.GetDisplayMaterialAvailableCount(itemId, retNQ, retHQ, countRetainersTowardNeed) ?? 0;
+        var skipExtras = CraftingRowIcons.IsElementalCrystal(itemId);
+        var currencyOptions = skipExtras ? Array.Empty<CurrencyOption>() : ResolveCurrencyOptions(itemId);
+        var dropInfo = skipExtras ? MobDropItemInfo.Empty : MobDropInfoCache.GetDropInfoForItem(itemId);
+        entry = new MaterialEntry(itemId, have, retNQ, retHQ, needed, effectiveAvailable, item.Name.ExtractText(), item.Icon, isPrecraft, currencyOptions, dropInfo);
         return true;
+    }
+
+    private static IReadOnlyList<CurrencyOption> ResolveCurrencyOptions(uint itemId)
+    {
+        Dictionary<uint, CurrencyOption>? options = null;
+        foreach (var entry in VendorShopResolver.SpecialShopEntries)
+        {
+            if (entry.ItemId != itemId || entry.Cost == 0 || entry.CurrencyItemId == 0)
+                continue;
+            options ??= new Dictionary<uint, CurrencyOption>();
+            if (!options.TryGetValue(entry.CurrencyItemId, out var existing) || entry.Cost < existing.CostPerItem)
+            {
+                options[entry.CurrencyItemId] = new CurrencyOption(
+                    entry.CurrencyItemId,
+                    entry.Cost,
+                    entry.CurrencyName,
+                    ResolveCurrencyIconId(entry.CurrencyItemId),
+                    entry.Group);
+            }
+        }
+        if (options == null)
+            return Array.Empty<CurrencyOption>();
+        return options.Values
+            .OrderBy(option => option.CostPerItem)
+            .ThenBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private uint GetSelectedCurrencyItemId(MaterialEntry entry, bool preferBicolor)
+    {
+        if (entry.CurrencyOptions.Count == 0)
+            return 0;
+        if (_userSelectedCurrencyByItem.TryGetValue(entry.ItemId, out var selected)
+         && entry.CurrencyOptions.Any(option => option.CurrencyItemId == selected))
+            return selected;
+        if (preferBicolor)
+        {
+            var bicolor = entry.CurrencyOptions.FirstOrDefault(option => option.Group == VendorCurrencyGroup.BicolorGemstones);
+            if (bicolor.CurrencyItemId != 0)
+                return bicolor.CurrencyItemId;
+        }
+        return entry.CurrencyOptions[0].CurrencyItemId;
     }
 
     private static void SortEntries(List<MaterialEntry> entries)
     {
         entries.Sort((left, right) =>
         {
-            var leftReady = left.EffectiveAvailable >= left.需要ed;
-            var rightReady = right.EffectiveAvailable >= right.需要ed;
-            var 足够Comparison = leftReady.CompareTo(rightReady);
-            if (足够Comparison != 0)
-                return 足够Comparison;
+            var leftReady = left.EffectiveAvailable >= left.Needed;
+            var rightReady = right.EffectiveAvailable >= right.Needed;
+            var readyComparison = leftReady.CompareTo(rightReady);
+            if (readyComparison != 0)
+                return readyComparison;
             return string.Compare(left.Name, right.Name, StringComparison.Ordinal);
         });
     }
@@ -364,7 +462,8 @@ public class CraftingMaterialsWindow : Window
     private void DrawMaterialPanel(
         string id, string label, Vector4 accent,
         IReadOnlyList<MaterialEntry> entries,
-        RetainerColumnMode retainerColumnMode, float width, float height, IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? vendorTargets)
+        RetainerColumnMode retainerColumnMode, float width, float height, IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? vendorTargets,
+        bool showCurrencyTotals, bool preferBicolorDefault)
     {
         static void DrawCenteredHeader(string text, string? tooltip = null)
         {
@@ -382,6 +481,15 @@ public class CraftingMaterialsWindow : Window
         using (VulcanUiStyle.PushPanel())
         {
             ImGui.BeginChild(id, new Vector2(width, height), true);
+            if (showCurrencyTotals)
+            {
+                var currencyTotals = ComputeCurrencyTotals(entries, preferBicolorDefault, ignoreOwned: _matsKeepFulfilled);
+                if (currencyTotals.Count > 0)
+                {
+                    DrawCurrencyTotalsRow(currencyTotals, accent);
+                    ImGui.Separator();
+                }
+            }
             var colCount = retainerColumnMode switch
             {
                 RetainerColumnMode.None  => 4,
@@ -389,8 +497,8 @@ public class CraftingMaterialsWindow : Window
                 RetainerColumnMode.Split => 6,
                 _                        => 4,
             };
-            const float numW = 36f;
-            const float barW = 46f;
+            var numW = VulcanUiScaling.Scaled(36f);
+            var barW = VulcanUiScaling.Scaled(46f);
             var tableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
                            | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingFixedFit;
 
@@ -398,18 +506,18 @@ public class CraftingMaterialsWindow : Window
             {
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableSetupColumn("",     ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("持有", ImGuiTableColumnFlags.WidthFixed, numW);
+                ImGui.TableSetupColumn("Have", ImGuiTableColumnFlags.WidthFixed, numW);
                 switch (retainerColumnMode)
                 {
                     case RetainerColumnMode.Total:
-                        ImGui.TableSetupColumn("雇", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("Ret", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                     case RetainerColumnMode.Split:
-                        ImGui.TableSetupColumn("雇NQ", ImGuiTableColumnFlags.WidthFixed, numW);
-                        ImGui.TableSetupColumn("雇HQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("RNQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("RHQ", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                 }
-                ImGui.TableSetupColumn("需要", ImGuiTableColumnFlags.WidthFixed, numW);
+                ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, numW);
                 ImGui.TableSetupColumn("%",    ImGuiTableColumnFlags.WidthFixed, barW);
                 var needIdx = retainerColumnMode switch
                 {
@@ -424,22 +532,22 @@ public class CraftingMaterialsWindow : Window
                 using (ImRaii.PushColor(ImGuiCol.Text, accent))
                     ImGui.TableHeader(label);
                 ImGui.TableSetColumnIndex(1);
-                DrawCenteredHeader("持有");
+                DrawCenteredHeader("Have");
                 switch (retainerColumnMode)
                 {
                     case RetainerColumnMode.Total:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("雇", "雇员总数(通过 Allagan Tools)");
+                        DrawCenteredHeader("Ret", "Retainer total (via Allagan Tools)");
                         break;
                     case RetainerColumnMode.Split:
                         ImGui.TableSetColumnIndex(2);
-                        DrawCenteredHeader("雇NQ", "雇员 NQ 数量(通过 Allagan Tools)");
+                        DrawCenteredHeader("RNQ", "Retainer NQ (via Allagan Tools)");
                         ImGui.TableSetColumnIndex(3);
-                        DrawCenteredHeader("雇HQ", "雇员 HQ 数量(通过 Allagan Tools)");
+                        DrawCenteredHeader("RHQ", "Retainer HQ (via Allagan Tools)");
                         break;
                 }
                 ImGui.TableSetColumnIndex(needIdx);
-                DrawCenteredHeader("需要");
+                DrawCenteredHeader("Need");
                 ImGui.TableSetColumnIndex(needIdx + 1);
                 DrawCenteredHeader("%");
 
@@ -451,12 +559,19 @@ public class CraftingMaterialsWindow : Window
                 }
                 else
                 {
+                    var maxNameWidth = 0f;
+                    for (var i = 0; i < entries.Count; i++)
+                    {
+                        var w = ImGui.CalcTextSize(entries[i].Name).X;
+                        if (w > maxNameWidth)
+                            maxNameWidth = w;
+                    }
                     var clipper = ImGui.ImGuiListClipper();
                     clipper.Begin(entries.Count);
                     while (clipper.Step())
                     {
                         for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
-                            DrawPanelRow(entries[i], retainerColumnMode, vendorTargets);
+                            DrawPanelRow(entries[i], retainerColumnMode, vendorTargets, maxNameWidth, preferBicolorDefault);
                     }
                     clipper.End();
                     clipper.Destroy();
@@ -470,13 +585,13 @@ public class CraftingMaterialsWindow : Window
     }
 
     private void DrawPanelRow(MaterialEntry entry, RetainerColumnMode retainerColumnMode,
-        IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? vendorTargets)
+        IReadOnlyList<VendorBuyListManager.VendorTargetRequest>? vendorTargets, float maxNameWidth, bool preferBicolorDefault)
     {
         var itemId            = entry.ItemId;
-        var have              = entry.持有;
+        var have              = entry.Have;
         var retNQ             = entry.RetNQ;
         var retHQ             = entry.RetHQ;
-        var needed            = entry.需要ed;
+        var needed            = entry.Needed;
         var name              = entry.Name;
         var iconId            = entry.IconId;
         var effectiveAvailable = entry.EffectiveAvailable;
@@ -512,13 +627,19 @@ public class CraftingMaterialsWindow : Window
             ImGui.Image(wrap.Handle, iconSize);
         else
             ImGui.Dummy(iconSize);
-        ImGui.SameLine(0, 4);
-        ImUtf8.CopyOnClickSelectable(name.AsSpan());
+        ImGui.SameLine(0, MaterialRowIconSpacing);
+        var nameTextStartX = ImGui.GetCursorScreenPos().X;
+        if (ImGui.Selectable(name, false, ImGuiSelectableFlags.AllowItemOverlap))
+        {
+            try { ImGui.SetClipboardText(name); } catch { /* ignored */ }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Click to copy to clipboard.");
         if (ImGui.BeginPopupContextItem($"##mbctx_{itemId}_{(isPrecraft ? 1 : 0)}_{(int)retainerColumnMode}"))
         {
-            if (ImGui.Selectable("生成物品链接"))
+            if (ImGui.Selectable("Create Link"))
                 Communicator.Print(SeString.CreateItemLink(itemId));
-            if (ImGui.Selectable("搜索市场布告板"))
+            if (ImGui.Selectable("Search Marketboard"))
             {
                 GatherBuddy.MarketboardService?.QueueLookup(itemId, name, iconId);
                 GatherBuddy.VulcanWindow?.OpenToMarketboardItem(itemId);
@@ -526,6 +647,44 @@ public class CraftingMaterialsWindow : Window
 
             DrawVendorBuyListPopup(entry, vendorTargets);
             ImGui.EndPopup();
+        }
+
+        var sourceIcons = GetVisibleSourceIcons(entry);
+        var hasCurrencyOrDrop = entry.CurrencyOptions.Count > 0 || entry.DropInfo.HasData;
+        var hasTrailingIcons = sourceIcons.Count > 0 || hasCurrencyOrDrop;
+        if (hasTrailingIcons)
+        {
+            var iconColumnTargetX = nameTextStartX + maxNameWidth + MaterialRowIconGutter;
+            ImGui.SameLine(0, 0);
+            var currentX = ImGui.GetCursorScreenPos().X;
+            var gap = iconColumnTargetX - currentX;
+            if (gap > 0f)
+            {
+                ImGui.Dummy(new Vector2(gap, 0));
+                ImGui.SameLine(0, 0);
+            }
+            else
+            {
+                ImGui.Dummy(new Vector2(MaterialRowIconSpacing, 0));
+                ImGui.SameLine(0, 0);
+            }
+
+            var hasDrawnIcon = false;
+            if (sourceIcons.Count > 0)
+            {
+                CraftingRowIcons.DrawIconsRightAligned(sourceIcons, lineH, MaterialRowIconSpacing);
+                hasDrawnIcon = true;
+            }
+            if (entry.CurrencyOptions.Count > 0)
+            {
+                if (hasDrawnIcon)
+                    ImGui.SameLine(0, MaterialRowIconSpacing);
+                hasDrawnIcon = DrawCurrencyPicker(entry, preferBicolorDefault);
+            }
+            if (entry.DropInfo.HasData)
+            {
+                DrawMobDropIcon(entry, hasDrawnIcon);
+            }
         }
 
         var haveColor = satisfied ? new Vector4(0.4f, 1f, 0.4f, 1f) : new Vector4(1f, 0.45f, 0.45f, 1f);
@@ -604,15 +763,15 @@ public class CraftingMaterialsWindow : Window
 
         if (hasSingleTarget)
         {
-            DrawVendorBuyListExistingListMenu("加入已有清单", new[] { singleTarget });
-            if (ImGui.Selectable("创建新清单"))
+            DrawVendorBuyListExistingListMenu("Add to Existing List", new[] { singleTarget });
+            if (ImGui.Selectable("Create New List"))
                 OpenCreateVendorBuyListPopup(new[] { singleTarget });
         }
 
         if (hasBatchTargets && vendorTargets!.Count > 1)
         {
-            DrawVendorBuyListExistingListMenu("将当前商店视图加入已有清单", vendorTargets);
-            if (ImGui.Selectable("按当前商店视图创建新清单"))
+            DrawVendorBuyListExistingListMenu("Add Current Vendor View to Existing List", vendorTargets);
+            if (ImGui.Selectable("Create New List from Current Vendor View"))
                 OpenCreateVendorBuyListPopup(vendorTargets);
         }
     }
@@ -676,13 +835,562 @@ public class CraftingMaterialsWindow : Window
         if (buyListManager == null || !buyListManager.CanAddSupportedItem(entry.ItemId))
             return false;
 
-        var 缺少Quantity = entry.需要ed - entry.EffectiveAvailable;
-        if (缺少Quantity <= 0)
+        var missingQuantity = entry.Needed - entry.EffectiveAvailable;
+        if (missingQuantity <= 0)
             return false;
 
         var currentCount = (uint)Math.Max(0, VendorBuyListManager.GetCurrentInventoryAndArmoryCount(entry.ItemId));
-        target = new VendorBuyListManager.VendorTargetRequest(entry.ItemId, currentCount + (uint)缺少Quantity);
+        target = new VendorBuyListManager.VendorTargetRequest(entry.ItemId, currentCount + (uint)missingQuantity);
         return true;
+    }
+
+    private List<CurrencyTotal> ComputeCurrencyTotals(IReadOnlyList<MaterialEntry> entries, bool preferBicolorDefault, bool ignoreOwned)
+    {
+        var totals = new Dictionary<uint, (long Amount, string Name, ushort IconId)>();
+        foreach (var entry in entries)
+        {
+            var quantity = ignoreOwned
+                ? entry.Needed
+                : entry.Needed - entry.EffectiveAvailable;
+            if (quantity <= 0)
+                continue;
+            var selectedCurrencyId = GetSelectedCurrencyItemId(entry, preferBicolorDefault);
+            if (selectedCurrencyId == 0)
+                continue;
+            var option = entry.CurrencyOptions.First(o => o.CurrencyItemId == selectedCurrencyId);
+            var totalCost = (long)option.CostPerItem * quantity;
+            if (totals.TryGetValue(option.CurrencyItemId, out var existing))
+                totals[option.CurrencyItemId] = (existing.Amount + totalCost, existing.Name, existing.IconId);
+            else
+                totals[option.CurrencyItemId] = (totalCost, option.Name, option.IconId);
+        }
+        return totals
+            .Select(kvp => new CurrencyTotal(kvp.Key, kvp.Value.Amount, kvp.Value.Name, kvp.Value.IconId))
+            .OrderByDescending(t => t.Amount)
+            .ToList();
+    }
+
+    private static ushort ResolveCurrencyIconId(uint currencyItemId)
+    {
+        var sheet = Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+        if (sheet != null && sheet.TryGetRow(currencyItemId, out var item))
+            return (ushort)item.Icon;
+        return 0;
+    }
+
+    private static void DrawCurrencyTotalsRow(IReadOnlyList<CurrencyTotal> totals, Vector4 accent)
+    {
+        var lineH    = ImGui.GetTextLineHeight();
+        var iconSize = new Vector2(lineH, lineH);
+        float GetCurrencyTotalWidth(CurrencyTotal total)
+        {
+            var width = ImGui.CalcTextSize($"{total.Amount:N0}").X;
+            if (total.IconId != 0)
+                width += iconSize.X + MaterialRowIconSpacing;
+            return width;
+        }
+
+        using (ImRaii.PushColor(ImGuiCol.Text, accent))
+            ImGui.TextUnformatted("Totals:");
+
+        for (var i = 0; i < totals.Count; i++)
+        {
+            var t = totals[i];
+            var sameLineSpacing = i == 0 ? VulcanUiScaling.Scaled(8f) : VulcanUiScaling.Scaled(12f);
+            if (GetRemainingLineWidth() >= sameLineSpacing + GetCurrencyTotalWidth(t))
+                ImGui.SameLine(0, sameLineSpacing);
+            if (t.IconId != 0)
+            {
+                var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(t.IconId));
+                if (icon.TryGetWrap(out var wrap, out _))
+                    ImGui.Image(wrap.Handle, iconSize);
+                else
+                    ImGui.Dummy(iconSize);
+                ImGui.SameLine(0, MaterialRowIconSpacing);
+            }
+            ImGui.TextUnformatted($"{t.Amount:N0}");
+            if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(t.Name))
+                ImGui.SetTooltip(t.Name);
+        }
+    }
+
+    private static IReadOnlyList<CraftingRowIcons.RowIcon> GetVisibleSourceIcons(MaterialEntry entry)
+    {
+        var sourceIcons = CraftingRowIcons.GetMaterialIcons(entry.ItemId, entry.IsPrecraft);
+        if (entry.CurrencyOptions.Count == 0 || sourceIcons.Count == 0)
+            return sourceIcons;
+
+        var currencyIconIds = new HashSet<uint>();
+        foreach (var option in entry.CurrencyOptions)
+            currencyIconIds.Add(option.IconId);
+
+        var filtered = new List<CraftingRowIcons.RowIcon>(sourceIcons.Count);
+        foreach (var sourceIcon in sourceIcons)
+            if (!currencyIconIds.Contains(sourceIcon.IconId))
+                filtered.Add(sourceIcon);
+
+        return filtered;
+    }
+
+    private bool DrawCurrencyPicker(MaterialEntry entry, bool preferBicolorDefault)
+    {
+        if (entry.CurrencyOptions.Count == 0)
+            return false;
+
+        var selectedCurrencyId = GetSelectedCurrencyItemId(entry, preferBicolorDefault);
+        var lineH = ImGui.GetTextLineHeight();
+        var iconSize = new Vector2(lineH, lineH);
+        var drawList = ImGui.GetWindowDrawList();
+
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, Vector2.Zero);
+        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1f, 1f, 1f, 0.15f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1f, 1f, 1f, 0.30f));
+
+        for (var i = 0; i < entry.CurrencyOptions.Count; i++)
+        {
+            if (i > 0)
+                ImGui.SameLine(0, MaterialRowIconSpacing);
+            var option = entry.CurrencyOptions[i];
+            var isSelected = option.CurrencyItemId == selectedCurrencyId;
+
+            ImGui.PushID($"##matcur_{entry.ItemId}_{option.CurrencyItemId}");
+            var clicked = false;
+            var cursorPosBefore = ImGui.GetCursorScreenPos();
+            if (option.IconId != 0)
+            {
+                var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(option.IconId));
+                if (icon.TryGetWrap(out var wrap, out _))
+                    clicked = ImGui.ImageButton(wrap.Handle, iconSize);
+                else
+                    ImGui.Dummy(iconSize);
+            }
+            else
+            {
+                ImGui.Dummy(iconSize);
+            }
+
+            if (!isSelected)
+                drawList.AddRectFilled(cursorPosBefore, cursorPosBefore + iconSize,
+                    ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.55f)));
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"{option.Name}: {option.CostPerItem:N0} per item\nClick to use for totals.");
+
+            if (clicked)
+                _userSelectedCurrencyByItem[entry.ItemId] = option.CurrencyItemId;
+
+            ImGui.PopID();
+        }
+
+        ImGui.PopStyleColor(3);
+        ImGui.PopStyleVar();
+        return true;
+    }
+
+    private static bool DrawMobDropIcon(MaterialEntry entry, bool addLeadingSpacing)
+    {
+        if (!entry.DropInfo.HasData)
+            return false;
+
+        const uint MobDropIconId = 60041u;
+        var lineH = ImGui.GetTextLineHeight();
+        var iconSize = new Vector2(lineH, lineH);
+        var popupId = $"##mobdrops_{entry.ItemId}_{(entry.IsPrecraft ? 1 : 0)}";
+        if (addLeadingSpacing)
+            ImGui.SameLine(0, MaterialRowIconSpacing);
+
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, Vector2.Zero);
+        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1f, 1f, 1f, 0.15f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1f, 1f, 1f, 0.30f));
+        var clicked = false;
+        ImGui.PushID(popupId);
+        var icon = Icons.DefaultStorage.TextureProvider.GetFromGameIcon(new GameIconLookup(MobDropIconId));
+        if (icon.TryGetWrap(out var wrap, out _))
+            clicked = ImGui.ImageButton(wrap.Handle, iconSize);
+        else
+            ImGui.Dummy(iconSize);
+        ImGui.PopID();
+        ImGui.PopStyleColor(3);
+        ImGui.PopStyleVar();
+
+        if (ImGui.IsItemHovered() && !ImGui.IsPopupOpen(popupId))
+        {
+            const int MaxMobsShown = 6;
+            var lines = new List<string>(MaxMobsShown + 3)
+            {
+                $"掉落来源: {BuildMobDropSummaryText(entry.DropInfo)}.",
+            };
+            for (var i = 0; i < entry.DropInfo.Mobs.Count && i < MaxMobsShown; i++)
+            {
+                var mob = entry.DropInfo.Mobs[i];
+                var mobDisplayName = NormalizeMobDisplayName(mob.MobName);
+                var zoneSummary = mob.ZoneCount == 1
+                    ? mob.Zones[0].ZoneName
+                    : $"{mob.ZoneCount} {Pluralize("个区域", mob.ZoneCount)}";
+                lines.Add($"{mobDisplayName} — {zoneSummary} · {mob.ClusterCount} {Pluralize("个地点", mob.ClusterCount)}");
+            }
+            if (entry.DropInfo.MobCount > MaxMobsShown)
+            {
+                var remainingMobCount = entry.DropInfo.MobCount - MaxMobsShown;
+                lines.Add($"...and {remainingMobCount} more {Pluralize("怪物", remainingMobCount)}");
+            }
+            lines.Add("点击查看分组标记");
+            ImGui.SetTooltip(string.Join('\n', lines));
+        }
+
+        if (clicked)
+            ImGui.OpenPopup(popupId);
+
+        DrawMobDropPopup(entry, popupId);
+        return true;
+    }
+
+    private static void DrawMobDropPopup(MaterialEntry entry, string popupId)
+    {
+        if (!ImGui.BeginPopup(popupId))
+            return;
+
+        ImGui.TextUnformatted($"{entry.Name} 的掉落来源");
+        ImGui.TextColored(new Vector4(0.65f, 0.65f, 0.70f, 1f), BuildMobDropSummaryText(entry.DropInfo));
+        ImGui.Separator();
+
+        var zoneGroups = entry.DropInfo.Mobs
+            .SelectMany(mob => mob.Zones.Select(zone => (Mob: mob, Zone: zone)))
+            .GroupBy(data => (data.Zone.TerritoryTypeId, data.Zone.ZoneName))
+            .OrderBy(group => group.Key.ZoneName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var maxPopupContentHeight = VulcanUiScaling.Scaled(440f);
+        var isAppearing = ImGui.IsWindowAppearing();
+        var defaultZoneOpen = entry.DropInfo.ZoneCount == 1;
+        var childHeight = CalculateMobDropPopupContentHeight(zoneGroups, popupId, defaultZoneOpen, isAppearing);
+        ImGui.BeginChild($"{popupId}_scroll", new Vector2(VulcanUiScaling.Scaled(460f), Math.Min(childHeight, maxPopupContentHeight)), false);
+        for (var i = 0; i < zoneGroups.Count; i++)
+        {
+            var zoneGroup = zoneGroups[i];
+            var zoneEntries = zoneGroup
+                .OrderBy(grouped => NormalizeMobDisplayName(grouped.Mob.MobName), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var zonePrimaryCluster = GetZonePrimaryCluster(zoneEntries);
+            var zoneStateId = GetMobDropZoneStateId(popupId, zoneGroup.Key.TerritoryTypeId, i);
+            if (isAppearing && defaultZoneOpen)
+                MobDropZoneOpenStates[zoneStateId] = true;
+            var zoneOpenState = GetMobDropZoneOpenState(zoneStateId, defaultZoneOpen);
+
+            ImGui.PushID($"zone_{zoneGroup.Key.TerritoryTypeId}_{i}");
+            if (zonePrimaryCluster.HasValue)
+            {
+                DrawMobDropFlagButton(zonePrimaryCluster.Value.Cluster, zonePrimaryCluster.Value.MobName, "flag_zone",
+                    "在此区域的怪物位置中心放置地图标记",
+                    "此区域无可用坐标");
+
+                ImGui.SameLine();
+                DrawMobDropTeleportButton(zonePrimaryCluster.Value.Cluster, zonePrimaryCluster.Value.MobName, "teleport_zone",
+                    "传送到此区域最近的以太之光并放置地图标记",
+                    "此区域无可用传送目标");
+            }
+            else
+            {
+                DrawMobDropIconButton("flag_zone", FontAwesomeIcon.MapMarkerAlt, MobDropMarkerButtonColor,
+                    "此区域无可用坐标", true);
+
+                ImGui.SameLine();
+                DrawMobDropIconButton("teleport_zone", FontAwesomeIcon.Running, MobDropTeleportButtonColor,
+                    "此区域无可用传送目标", true);
+            }
+
+            ImGui.SameLine();
+            ImGui.SetNextItemOpen(zoneOpenState, ImGuiCond.Always);
+            bool zoneOpen;
+            using (ImRaii.PushColor(ImGuiCol.Text, AccentDrop))
+                zoneOpen = ImGui.TreeNodeEx(zoneGroup.Key.ZoneName);
+            MobDropZoneOpenStates[zoneStateId] = zoneOpen;
+
+            if (zoneOpen)
+            {
+                for (var zoneEntryIndex = 0; zoneEntryIndex < zoneEntries.Count; zoneEntryIndex++)
+                {
+                    var (mob, zone) = zoneEntries[zoneEntryIndex];
+                    var mobDisplayName = NormalizeMobDisplayName(mob.MobName);
+
+                    ImGui.PushID($"{mob.BNpcNameId}_{zone.TerritoryTypeId}");
+                    ImGui.TextUnformatted(mobDisplayName);
+                    ImGui.Indent();
+
+                    for (var clusterIndex = 0; clusterIndex < zone.Clusters.Count; clusterIndex++)
+                    {
+                        var cluster = zone.Clusters[clusterIndex];
+                        ImGui.PushID(clusterIndex);
+
+                        DrawMobDropFlagButton(cluster, mobDisplayName, "flag",
+                            "在此位置放置地图标记",
+                            "此位置无可用坐标");
+                        ImGui.SameLine();
+                        DrawMobDropTeleportButton(cluster, mobDisplayName, "teleport",
+                            "传送到此位置最近的以太之光并放置地图标记",
+                            "此位置无可用传送目标");
+                        ImGui.SameLine();
+                        ImGui.TextUnformatted(BuildMobDropClusterText(cluster));
+                        ImGui.PopID();
+                    }
+
+                    ImGui.Unindent();
+                    ImGui.PopID();
+
+                    if (zoneEntryIndex < zoneEntries.Count - 1)
+                        ImGui.Spacing();
+                }
+
+                ImGui.TreePop();
+            }
+            ImGui.PopID();
+            if (i < zoneGroups.Count - 1)
+            {
+                ImGui.Spacing();
+                ImGui.Separator();
+            }
+        }
+
+        ImGui.EndChild();
+        ImGui.EndPopup();
+    }
+
+    private static float CalculateMobDropPopupContentHeight(
+        IReadOnlyList<IGrouping<(uint TerritoryTypeId, string ZoneName), (MobDropMobInfo Mob, MobDropZoneInfo Zone)>> zoneGroups,
+        string popupId,
+        bool defaultZoneOpen,
+        bool isAppearing)
+    {
+        var style = ImGui.GetStyle();
+        var rowHeight = ImGui.GetTextLineHeight() + style.ItemSpacing.Y;
+        var visibleRowCount = 0;
+        for (var i = 0; i < zoneGroups.Count; i++)
+        {
+            var zoneStateId = GetMobDropZoneStateId(popupId, zoneGroups[i].Key.TerritoryTypeId, i);
+            if (isAppearing && defaultZoneOpen)
+                MobDropZoneOpenStates[zoneStateId] = true;
+            var zoneOpen = GetMobDropZoneOpenState(zoneStateId, defaultZoneOpen);
+            visibleRowCount += 1;
+            if (zoneOpen)
+            {
+                var zoneEntries = zoneGroups[i]
+                    .OrderBy(grouped => NormalizeMobDisplayName(grouped.Mob.MobName), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                visibleRowCount += zoneEntries.Count;
+                visibleRowCount += zoneEntries.Sum(entry => entry.Zone.Clusters.Count);
+                if (zoneEntries.Count > 1)
+                    visibleRowCount += zoneEntries.Count - 1;
+            }
+            if (i < zoneGroups.Count - 1)
+                visibleRowCount += 1;
+        }
+        return Math.Max(1, visibleRowCount) * rowHeight + style.FramePadding.Y * 2f + style.ItemSpacing.Y;
+    }
+
+    private static string GetMobDropZoneStateId(string popupId, uint territoryTypeId, int zoneIndex)
+        => $"{popupId}_zone_{territoryTypeId}_{zoneIndex}";
+
+    private static bool GetMobDropZoneOpenState(string zoneStateId, bool defaultZoneOpen)
+    {
+        if (MobDropZoneOpenStates.TryGetValue(zoneStateId, out var zoneOpen))
+            return zoneOpen;
+        return defaultZoneOpen;
+    }
+
+    private static string BuildMobDropSummaryText(MobDropItemInfo dropInfo)
+        => $"{dropInfo.MobCount} {Pluralize("个怪物", dropInfo.MobCount)} · {dropInfo.ZoneCount} {Pluralize("区域", dropInfo.ZoneCount)} · {dropInfo.ClusterCount} {Pluralize("地点", dropInfo.ClusterCount)}";
+
+    private static string BuildMobDropClusterText(MobDropClusterInfo cluster)
+        => cluster.HasCoordinates
+            ? $"{cluster.MapX:F1}, {cluster.MapY:F1}"
+            : "无坐标";
+
+    private static (MobDropClusterInfo Cluster, string MobName)? GetZonePrimaryCluster(
+        IReadOnlyList<(MobDropMobInfo Mob, MobDropZoneInfo Zone)> zoneEntries)
+    {
+        var candidates = zoneEntries
+            .SelectMany(
+                entry => entry.Zone.Clusters
+                    .Where(cluster => cluster.HasCoordinates)
+                    .Select(cluster => (Cluster: cluster, MobName: NormalizeMobDisplayName(entry.Mob.MobName))))
+            .ToList();
+        if (candidates.Count == 0)
+            return null;
+        if (candidates.Count == 1)
+            return candidates[0];
+
+        var bestCandidate = candidates[0];
+        var bestScore = double.PositiveInfinity;
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var score = 0d;
+            for (var j = 0; j < candidates.Count; j++)
+            {
+                var weight = Math.Max(1, candidates[j].Cluster.SpawnPointCount);
+                var deltaX = candidates[i].Cluster.MapX - candidates[j].Cluster.MapX;
+                var deltaY = candidates[i].Cluster.MapY - candidates[j].Cluster.MapY;
+                score += weight * ((deltaX * deltaX) + (deltaY * deltaY));
+            }
+
+            if (score > bestScore)
+                continue;
+            if (Math.Abs(score - bestScore) < 0.0001d
+             && candidates[i].Cluster.SpawnPointCount < bestCandidate.Cluster.SpawnPointCount)
+                continue;
+            bestScore = score;
+            bestCandidate = candidates[i];
+        }
+
+        return bestCandidate;
+    }
+
+    private static string NormalizeMobDisplayName(string mobName)
+    {
+        if (string.IsNullOrWhiteSpace(mobName))
+            return mobName;
+
+        var chars = mobName.ToLowerInvariant().ToCharArray();
+        var capitalizeNext = true;
+        for (var i = 0; i < chars.Length; i++)
+        {
+            var c = chars[i];
+            if (char.IsLetter(c))
+            {
+                if (capitalizeNext)
+                    chars[i] = char.ToUpperInvariant(c);
+                capitalizeNext = false;
+                continue;
+            }
+
+            if (char.IsDigit(c))
+            {
+                capitalizeNext = false;
+                continue;
+            }
+
+            capitalizeNext = c != '\'';
+        }
+
+        return new string(chars);
+    }
+
+    private static string Pluralize(string singular, int count) => singular;
+
+    private static bool DrawMobDropIconButton(string id, FontAwesomeIcon icon, Vector4 color, string tooltip, bool disabled = false)
+    {
+        var hoveredFlags = disabled ? ImGuiHoveredFlags.AllowWhenDisabled : ImGuiHoveredFlags.None;
+        var size = Vector2.One * ImGui.GetFrameHeight();
+
+        bool DrawCenteredButton()
+        {
+            using var font = ImRaii.PushFont(UiBuilder.IconFont);
+            var iconText = icon.ToIconString();
+            var cursor = ImGui.GetCursorScreenPos();
+            var iconSize = ImGui.CalcTextSize(iconText);
+
+            bool clicked;
+            using (ImRaii.PushId(id))
+                clicked = ImGui.Button(string.Empty, size);
+
+            var iconPos = cursor + ((size - iconSize) / 2f);
+            ImGui.GetWindowDrawList().AddText(iconPos, ImGui.GetColorU32(color), iconText);
+            return clicked;
+        }
+
+        if (disabled)
+        {
+            bool disabledHovered;
+            using (ImRaii.Disabled())
+            {
+                DrawCenteredButton();
+                disabledHovered = ImGui.IsItemHovered(hoveredFlags);
+            }
+
+            if (disabledHovered)
+                ImGui.SetTooltip(tooltip);
+            return false;
+        }
+
+        var clicked = DrawCenteredButton();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(tooltip);
+        return clicked;
+    }
+
+    private static void DrawMobDropFlagButton(MobDropClusterInfo cluster, string mobName, string id, string tooltip, string unavailableTooltip)
+    {
+        if (!cluster.HasCoordinates)
+        {
+            DrawMobDropIconButton(id, FontAwesomeIcon.MapMarkerAlt, MobDropMarkerButtonColor, unavailableTooltip, true);
+            return;
+        }
+
+        if (DrawMobDropIconButton(id, FontAwesomeIcon.MapMarkerAlt, MobDropMarkerButtonColor, tooltip))
+            PlaceMobDropFlag(cluster, mobName);
+    }
+
+    private static void DrawMobDropTeleportButton(MobDropClusterInfo cluster, string mobName, string id, string tooltip, string unavailableTooltip)
+    {
+        var aetheryte = ResolveMobDropAetheryte(cluster);
+        if (aetheryte == null)
+        {
+            DrawMobDropIconButton(id, FontAwesomeIcon.Running, MobDropTeleportButtonColor, unavailableTooltip, true);
+            return;
+        }
+        if (DrawMobDropIconButton(id, FontAwesomeIcon.Running, MobDropTeleportButtonColor, tooltip))
+            TeleportToMobDropAetheryte(cluster, mobName, aetheryte);
+    }
+
+    private static global::GatherBuddy.Classes.Aetheryte? ResolveMobDropAetheryte(MobDropClusterInfo cluster)
+    {
+        if (!cluster.HasCoordinates || cluster.TerritoryTypeId == 0)
+            return null;
+
+        if (!GatherBuddy.GameData.Territories.TryGetValue(cluster.TerritoryTypeId, out var territory))
+        {
+            var territorySheet = Dalamud.GameData.GetExcelSheet<TerritoryType>();
+            if (territorySheet == null || !territorySheet.TryGetRow(cluster.TerritoryTypeId, out var territoryRow))
+                return null;
+
+            territory = GatherBuddy.GameData.FindOrAddTerritory(territoryRow);
+        }
+
+        if (territory == null || territory.Aetherytes.Count == 0)
+            return null;
+
+        var mapX = (int)MathF.Round(cluster.MapX * 100f);
+        var mapY = (int)MathF.Round(cluster.MapY * 100f);
+        return territory.Aetherytes
+            .OrderBy(aetheryte => aetheryte.WorldDistance(territory.Id, mapX, mapY))
+            .ThenBy(aetheryte => aetheryte.Id)
+            .FirstOrDefault();
+    }
+
+    private static void TeleportToMobDropAetheryte(MobDropClusterInfo cluster, string mobName, global::GatherBuddy.Classes.Aetheryte aetheryte)
+    {
+        try
+        {
+            PlaceMobDropFlag(cluster, mobName);
+            Executor.TeleportToAetheryte(aetheryte);
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Warning($"[CraftingMaterialsWindow] Failed to teleport for {mobName} area {cluster.AreaIndex}: {ex.Message}");
+        }
+    }
+
+    private static void PlaceMobDropFlag(MobDropClusterInfo cluster, string mobName)
+    {
+        try
+        {
+            var payload = new MapLinkPayload(cluster.TerritoryTypeId, cluster.MapRowId, cluster.MapX, cluster.MapY);
+            Dalamud.GameGui.OpenMapWithMapLink(payload);
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Warning($"[CraftingMaterialsWindow] Failed to place map flag for {mobName} area {cluster.AreaIndex}: {ex.Message}");
+        }
     }
 
 }

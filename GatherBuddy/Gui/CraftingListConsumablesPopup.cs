@@ -30,6 +30,10 @@ public class CraftingListConsumablesPopup
     private List<(uint ItemId, string Name)> _manualItems = new();
     private List<(uint ItemId, string Name)> _squadronManualItems = new();
     public System.Action? OnSaved { get; set; }
+    private static float SelectorLabelWidth => VulcanUiScaling.Scaled(160f);
+    private static float SelectorComboWidth => VulcanUiScaling.Scaled(240f);
+    private static Vector2 SaveButtonSize => VulcanUiScaling.Scaled(140f, 0f);
+    private static Vector2 CancelButtonSize => VulcanUiScaling.Scaled(100f, 0f);
 
     public void OpenListDefaults(CraftingListDefinition list)
     {
@@ -61,14 +65,14 @@ public class CraftingListConsumablesPopup
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("保存为默认", new Vector2(140, 0)))
+            if (ImGui.Button("保存为默认", SaveButtonSize))
             {
                 Save();
                 _isOpen = false;
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("取消", new Vector2(100, 0)))
+            if (ImGui.Button("取消", CancelButtonSize))
             {
                 _isOpen = false;
             }
@@ -139,10 +143,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text(label);
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var currentName = GetMacroSelectionName(selectedMacroId, solverOverride, allMacros);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (!ImGui.BeginCombo(comboId, currentName))
             return;
 
@@ -211,10 +215,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("食物:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var current = GetDisplayName(itemId, hq);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Food{idSuffix}", current))
         {
             if (ImGui.Selectable("无", !itemId.HasValue))
@@ -250,10 +254,10 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("药水:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var current = GetDisplayName(itemId, hq);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Medicine{idSuffix}", current))
         {
             if (ImGui.Selectable("无", !itemId.HasValue))
@@ -289,11 +293,11 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("指南:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var manualId = itemId ?? 0;
         var current = manualId == 0 ? "无" : GetItemName(manualId);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Manual{idSuffix}", current))
         {
             if (ImGui.Selectable("无", manualId == 0))
@@ -314,11 +318,11 @@ public class CraftingListConsumablesPopup
     {
         ImGui.AlignTextToFramePadding();
         ImGui.Text("冒险者分队指南:");
-        ImGui.SameLine(160);
+        ImGui.SameLine(SelectorLabelWidth);
 
         var squadronId = itemId ?? 0;
         var current = squadronId == 0 ? "无" : GetItemName(squadronId);
-        ImGui.SetNextItemWidth(240);
+        ImGui.SetNextItemWidth(SelectorComboWidth);
         if (ImGui.BeginCombo($"##Squadron{idSuffix}", current))
         {
             if (ImGui.Selectable("无", squadronId == 0))

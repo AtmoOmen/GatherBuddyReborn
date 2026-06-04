@@ -19,7 +19,7 @@ namespace GatherBuddy.Config;
 
 public partial class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 15;
+    public int Version { get; set; } = 17;
 
     // Set Names
     public string BotanistSetName { get; set; } = "园艺工";
@@ -34,6 +34,10 @@ public partial class Configuration : IPluginConfiguration
     // Interface
     public AetherytePreference AetherytePreference { get; set; } = AetherytePreference.Distance;
     public ItemFilter          ShowItems           { get; set; } = ItemFilter.All;
+    public GatheredFilter      ShowGatheredItems   { get; set; } = GatheredFilter.All;
+    public LevelingFilter      ShowLevelingItems   { get; set; } = LevelingFilter.All;
+    public List<int>           HiddenGatherableLevelFilters    { get; set; } = [];
+    public List<uint>          HiddenGatherableFolkloreFilters { get; set; } = [];
     public FishFilter          ShowFish            { get; set; } = FishFilter.All;
     public PatchFlag           HideFishPatch       { get; set; } = 0;
     public JobFlags            LocationFilter      { get; set; } = (JobFlags)0x3F;
@@ -78,7 +82,10 @@ public partial class Configuration : IPluginConfiguration
     public VulcanRetainerBellConfig VulcanRetainerBellConfig { get; set; } = new();
     public int VulcanExecutionDelayMs { get; set; } = 300;
     public bool VulcanContextMenuEntries { get; set; } = true;
+    public bool ShowRecipeBrowserTooltips { get; set; } = true;
+    public ModifiableHotkey VulcanRecipesTabHotkey { get; set; } = new();
     public string CraftingLists { get; set; } = string.Empty;
+    public List<string> CraftingFolders { get; set; } = [];
     public int MaxRecentCraftingListsInContextMenu { get; set; } = 10;
     public Vector2 TeamCraftImportWindowSize { get; set; } = new(520, 310);
     public Vector2 VendorTeamCraftImportWindowSize { get; set; } = new(520, 310);
@@ -202,6 +209,7 @@ public partial class Configuration : IPluginConfiguration
         {
             if (Dalamud.PluginInterface.GetPluginConfig() is Configuration config)
             {
+                var changed = false;
                 config.AddColors();
                 config.Migrate4To5();
                 config.Migrate5To6();
@@ -214,10 +222,23 @@ public partial class Configuration : IPluginConfiguration
                 config.Migrate12To13();
                 config.Migrate13To14();
                 config.Migrate14To15();
+                config.Migrate15To16();
+                config.Migrate16To17();
+                changed |= config.HiddenGatherableLevelFilters == null;
+                config.HiddenGatherableLevelFilters ??= [];
+                changed |= config.HiddenGatherableFolkloreFilters == null;
+                config.HiddenGatherableFolkloreFilters ??= [];
+                changed |= config.VendorNpcPreferences == null;
                 config.VendorNpcPreferences ??= new();
+                changed |= config.VendorRoutePreferences == null;
                 config.VendorRoutePreferences ??= new();
+                changed |= config.VendorBuyLists == null;
                 config.VendorBuyLists ??= new();
+                changed |= config.CraftingFolders == null;
+                config.CraftingFolders ??= [];
                 if (config.EnsureVendorBuyListState())
+                    changed = true;
+                if (changed)
                     config.Save();
                 return config;
             }
@@ -299,12 +320,6 @@ public partial class Configuration : IPluginConfiguration
     {
         if (Version >= 9)
             return;
-        
-        if (CollectableConfig.PreferredCollectableShop == null || 
-            string.IsNullOrEmpty(CollectableConfig.PreferredCollectableShop.Name))
-        {
-            CollectableConfig.PreferredCollectableShop = AutoGather.Collectables.CollectableNpcLocations.GetDefaultShop();
-        }
 
         Version = 9;
         Save();
@@ -378,6 +393,26 @@ public partial class Configuration : IPluginConfiguration
         Version   =  15;
         Save();
     }
+
+    public void Migrate15To16()
+    {
+        if (Version >= 16)
+            return;
+
+        ShowRecipeBrowserTooltips = true;
+        Version                   = 16;
+        Save();
+    }
+
+    public void Migrate16To17()
+    {
+        if (Version >= 17)
+            return;
+
+        Version = 17;
+        Save();
+    }
+
 
     public bool EnsureVendorBuyListState()
     {

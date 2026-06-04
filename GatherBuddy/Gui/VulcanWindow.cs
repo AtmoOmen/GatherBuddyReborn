@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
+using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Colors;
@@ -16,6 +17,7 @@ using GatherBuddy.Utility;
 using GatherBuddy.Vulcan;
 using Lumina.Excel.Sheets;
 using ElliLib.Raii;
+using Functions = GatherBuddy.Plugin.Functions;
 using ImRaii = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
@@ -30,6 +32,7 @@ public partial class VulcanWindow : Window, IDisposable
     private bool                    _deferEditorDraw = false;
     private bool                    _craftingListsRequestFocus = false;
     private bool                    _recipesTabRequestFocus    = false;
+    private bool                    _vendorsTabRequestFocus    = false;
     private uint?                   _pendingRecipeId           = null;
     private uint?                   _pendingRecipeScrollId     = null;
     private bool                    _openCreateListPopup = false;
@@ -37,9 +40,11 @@ public partial class VulcanWindow : Window, IDisposable
 
     private bool? _pendingCollapseState = null;
     private bool _wasFocusedLastFrame = false;
+    private DateTime _recipesTabHotkeyAvailableAt = DateTime.MinValue;
     
     // TeamCraft import state
-    private static readonly Vector2 DefaultTeamCraftImportWindowSize = new(520, 310);
+    private static readonly Vector2 LegacyTeamCraftImportWindowSize = new(520f, 310f);
+    private static readonly Vector2 DefaultTeamCraftImportWindowSize = VulcanUiScaling.Scaled(520f, 310f);
     private bool _showTeamCraftImport    = false;
     private string _teamCraftListName    = string.Empty;
     private string _teamCraftFinalItems  = string.Empty;
@@ -65,7 +70,7 @@ public partial class VulcanWindow : Window, IDisposable
         Flags |= ImGuiWindowFlags.NoScrollbar;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(500, 300),
+            MinimumSize = VulcanUiScaling.Scaled(500f, 300f),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
         _teamCraftImportWindowSize = NormalizeTeamCraftImportWindowSize(GatherBuddy.Config.TeamCraftImportWindowSize);
@@ -91,23 +96,39 @@ public partial class VulcanWindow : Window, IDisposable
         _pendingCollapseState = false;
         IsOpen = true;
     }
+    public void OpenToMarketboard()
+    {
+        _pendingCollapseState = false;
+        IsOpen                = true;
+        _mbRequestFocus       = true;
+    }
 
     public void OpenToMarketboardItem(uint itemId)
     {
-        _pendingCollapseState = false;
-        IsOpen             = true;
-        _mbRequestFocus    = true;
-        _mbSelectedItemId  = itemId;
+        OpenToMarketboard();
+        _mbSelectedItemId   = itemId;
         _mbDetailLastItemId = 0;
     }
-
-    public void OpenToRecipe(uint recipeId)
+    public void OpenToRecipes()
     {
         _pendingCollapseState   = false;
         IsOpen                  = true;
         _recipesTabRequestFocus = true;
+        _pendingRecipeId        = null;
+    }
+
+    public void OpenToRecipe(uint recipeId)
+    {
+        OpenToRecipes();
         _pendingRecipeId        = recipeId;
         GatherBuddy.Log.Debug($"[VulcanWindow] OpenToRecipe requested for recipe {recipeId}");
+    }
+
+    public void OpenToVendors()
+    {
+        _pendingCollapseState  = false;
+        IsOpen                 = true;
+        _vendorsTabRequestFocus = true;
     }
 
     public void OpenToList(string argument)
@@ -154,6 +175,7 @@ public partial class VulcanWindow : Window, IDisposable
         _listEditor?.Dispose();
         _listEditor = null;
         GatherBuddy.CraftingMaterialsWindow?.SetEditor(null);
+        GatherBuddy.CraftingTreeWindow?.SetEditor(null);
     }
 
     private void OpenCraftingList(CraftingListDefinition list)
@@ -163,6 +185,7 @@ public partial class VulcanWindow : Window, IDisposable
         _listEditor = new CraftingListEditor(list);
         _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
         GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
+        GatherBuddy.CraftingTreeWindow?.SetEditor(_listEditor);
         _deferEditorDraw = true;
     }
 
@@ -172,6 +195,66 @@ public partial class VulcanWindow : Window, IDisposable
             return;
 
         _listEditor.RefreshFromExternalListChange();
+    }
+
+    private static bool DrawSearchInputWithInlineClear(string id, string hint, ref string value, int maxLength)
+    {
+        ImGui.SetNextItemWidth(-1f);
+        var changed = ImGui.InputTextWithHint(id, hint, ref value, maxLength);
+        ImGui.SetItemAllowOverlap();
+        if (string.IsNullOrEmpty(value))
+            return changed;
+
+        var frameMin = ImGui.GetItemRectMin();
+        var frameMax = ImGui.GetItemRectMax();
+        var cursorPos = ImGui.GetCursorPos();
+        var style = ImGui.GetStyle();
+        var drawList = ImGui.GetWindowDrawList();
+        var frameHeight = frameMax.Y - frameMin.Y;
+        var buttonSize = new Vector2(
+            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f),
+            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f));
+        var buttonPos = new Vector2(
+            frameMax.X - buttonSize.X - style.FramePadding.X,
+            frameMin.Y + (frameHeight - buttonSize.Y) * 0.5f);
+        var buttonBackgroundMin = new Vector2(buttonPos.X - style.FramePadding.X, frameMin.Y + 1f);
+        var buttonBackgroundMax = new Vector2(frameMax.X - 1f, frameMax.Y - 1f);
+        var frameColor = ImGui.GetColorU32(ImGui.IsItemActive()
+            ? ImGuiCol.FrameBgActive
+            : ImGui.IsItemHovered()
+                ? ImGuiCol.FrameBgHovered
+                : ImGuiCol.FrameBg);
+        drawList.AddRectFilled(buttonBackgroundMin, buttonBackgroundMax, frameColor);
+
+        ImGui.SetCursorScreenPos(buttonPos);
+        bool clearClicked;
+        bool clearHovered;
+        using (ImRaii.PushId(id))
+        {
+            clearClicked = ImGui.InvisibleButton("##clear", buttonSize);
+            clearHovered = ImGui.IsItemHovered();
+        }
+
+        if (clearHovered)
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        var iconColor = clearHovered
+            ? ImGui.GetColorU32(ImGuiCol.Text)
+            : ImGui.ColorConvertFloat4ToU32(new Vector4(0.62f, 0.62f, 0.68f, 1f));
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconText = FontAwesomeIcon.Times.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconText);
+            var iconPos = buttonPos + (buttonSize - iconSize) * 0.5f;
+            drawList.AddText(iconPos, iconColor, iconText);
+        }
+
+        ImGui.SetCursorPos(cursorPos);
+        if (!clearClicked)
+            return changed;
+
+        value = string.Empty;
+        return true;
     }
 
     private void PrepareCreateListPopup(string? folderPath = null)
@@ -201,6 +284,15 @@ public partial class VulcanWindow : Window, IDisposable
 
         if (_recipesTabRequestFocus)
             ImGui.SetNextWindowFocus();
+    }
+
+    public override void PreOpenCheck()
+    {
+        if (_recipesTabHotkeyAvailableAt > DateTime.UtcNow || !Functions.CheckKeyState(GatherBuddy.Config.VulcanRecipesTabHotkey, false))
+            return;
+
+        _recipesTabHotkeyAvailableAt = DateTime.UtcNow.AddMilliseconds(500);
+        OpenToRecipes();
     }
 
     public override void Draw()
@@ -273,6 +365,34 @@ public partial class VulcanWindow : Window, IDisposable
             if (ImGui.SmallButton($"{buttonLabel}##toggleArtisan"))
                 TryToggleArtisan(!artisanLoaded);
         }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("收藏品##openCollectables"))
+        {
+            if (GatherBuddy.CollectablesWindow == null)
+            {
+                GatherBuddy.Log.Debug("[VulcanWindow] Collectables header button clicked, but the collectables window was unavailable.");
+            }
+            else
+            {
+                GatherBuddy.Log.Debug("[VulcanWindow] Opening collectables from the Vulcan header.");
+                GatherBuddy.CollectablesWindow.Open();
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("打开共享收藏品缴纳与购买自动化窗口");
+
+        ImGui.SameLine();
+        var hasActiveCraftStatus = GatherBuddy.CraftingStatusWindow?.HasActiveQueue == true;
+        using (ImRaii.Disabled(!hasActiveCraftStatus))
+        {
+            if (ImGui.SmallButton("制作状态##openCraftStatus"))
+                GatherBuddy.CraftingStatusWindow?.OpenOrRestore();
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip(hasActiveCraftStatus
+                ? "重新打开或恢复当前制作队列的状态窗口"
+                : "没有活动的制作队列");
 
     }
 

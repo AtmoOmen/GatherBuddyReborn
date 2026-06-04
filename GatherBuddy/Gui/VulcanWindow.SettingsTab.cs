@@ -4,7 +4,9 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
 using ElliLib.Raii;
+using ElliLib.Widgets;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using GatherBuddy.Config;
 using GatherBuddy.Crafting;
 using GatherBuddy.Plugin;
 using ImRaii = ElliLib.Raii.ImRaii;
@@ -42,7 +44,7 @@ public partial class VulcanWindow
             var currentMode = raphaelConfig.SolverMode;
             var modeNames = new[] { "纯 Raphael", "标准求解器", "仅推进度" };
             var safeModeIndex = Math.Clamp((int)currentMode, 0, modeNames.Length - 1);
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.BeginCombo("求解器模式###SolverMode", modeNames[safeModeIndex]))
             {
                 if (ImGui.Selectable("纯 Raphael", currentMode == RaphaelSolverMode.PureRaphael))
@@ -90,7 +92,7 @@ public partial class VulcanWindow
             }
 
             var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.SliderInt("操作延迟 (ms)", ref delay, 0, 1000))
             {
                 GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);
@@ -107,6 +109,25 @@ public partial class VulcanWindow
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("在游戏内右键菜单中显示 Vulcan 相关入口\n包括“在 Vulcan 中打开”“加入制作清单”“加入商店购买清单”");
+
+            var showRecipeBrowserTooltips = GatherBuddy.Config.ShowRecipeBrowserTooltips;
+            if (ImGui.Checkbox("显示配方浏览器物品提示", ref showRecipeBrowserTooltips))
+            {
+                GatherBuddy.Config.ShowRecipeBrowserTooltips = showRecipeBrowserTooltips;
+                GatherBuddy.Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("在配方选项卡中悬停配方结果时显示物品原生提示");
+
+            if (Widget.ModifiableKeySelector("打开配方选项卡快捷键",
+                    "设置快捷键直接打开 Vulcan 的配方选项卡",
+                    VulcanUiScaling.Scaled(220f),
+                    GatherBuddy.Config.VulcanRecipesTabHotkey,
+                    k => GatherBuddy.Config.VulcanRecipesTabHotkey = k,
+                    Configuration.ValidKeys))
+            {
+                GatherBuddy.Config.Save();
+            }
 
             DrawVulcanRepairConfig();
 
@@ -126,6 +147,7 @@ public partial class VulcanWindow
             ImGui.Text("  最大并发: ");
             ImGui.SameLine();
             var maxConcurrent = raphaelConfig.MaxConcurrentRaphaelProcesses;
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###MaxConcurrent", ref maxConcurrent, 1, 1))
             {
                 raphaelConfig.MaxConcurrentRaphaelProcesses = Math.Max(1, maxConcurrent);
@@ -135,6 +157,7 @@ public partial class VulcanWindow
             ImGui.Text("  求解超时 (分钟): ");
             ImGui.SameLine();
             var timeoutMinutes = raphaelConfig.RaphaelTimeoutMinutes;
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###RaphaelTimeout", ref timeoutMinutes, 1, 1))
             {
                 raphaelConfig.RaphaelTimeoutMinutes = Math.Max(1, Math.Min(60, timeoutMinutes));
@@ -146,6 +169,7 @@ public partial class VulcanWindow
             ImGui.Text("  缓存最长保留 (天): ");
             ImGui.SameLine();
             var maxAgeDays = raphaelConfig.SolutionCacheMaxAgeDays;
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
             if (ImGui.InputInt("###CacheMaxAge", ref maxAgeDays, 1, 10))
             {
                 raphaelConfig.SolutionCacheMaxAgeDays = Math.Max(1, Math.Min(365, maxAgeDays));
@@ -184,7 +208,7 @@ public partial class VulcanWindow
             var cachedColor = coordinator.CachedSolutionCount > 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey;
             ImGui.TextColored(cachedColor, $"  已缓存方案: {coordinator.CachedSolutionCount}");
 
-            if (ImGui.Button("清空缓存", new Vector2(150, 0)))
+            if (ImGui.Button("清空缓存", VulcanUiScaling.Scaled(150f, 0f)))
             {
                 coordinator.Clear();
             }
@@ -206,7 +230,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("需要时在制作间自动修理装备");
 
         var threshold = config.RepairThreshold;
-        ImGui.SetNextItemWidth(150);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
         if (ImGui.SliderInt("修理阈值 (%)", ref threshold, 0, 99))
         {
             config.RepairThreshold = threshold;
@@ -231,7 +255,7 @@ public partial class VulcanWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("选择需要修理时前往的修理 NPC");
             
-            ImGui.SetNextItemWidth(300);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(300f));
             var currentNPC = config.PreferredRepairNPC;
             var displayText = currentNPC != null 
                 ? $"{currentNPC.Name} ({GetTerritoryName(currentNPC.TerritoryType)})"
@@ -239,7 +263,7 @@ public partial class VulcanWindow
             
             if (ImGui.BeginCombo("##PreferredRepairNPC", displayText))
             {
-                ImGui.SetNextItemWidth(280);
+                ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(280f));
                 ImGui.InputTextWithHint("##RepairNPCSearch", "搜索 NPC...", ref _repairNPCSearchInput, 256);
                 ImGui.Separator();
                 

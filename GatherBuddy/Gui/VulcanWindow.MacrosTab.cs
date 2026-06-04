@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -58,7 +58,7 @@ public partial class VulcanWindow
                 GatherBuddy.Config.SkipMacroStepIfUnable = skipUnusable;
                 GatherBuddy.Config.Save();
             }
-            ImGui.SameLine(0, 20);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(20f));
             var fallbackEnabled = GatherBuddy.Config.MacroFallbackEnabled;
             if (ImGui.Checkbox("宏执行完毕时使用备用求解器继续制作##fallbackEnabled", ref fallbackEnabled))
             {
@@ -70,8 +70,8 @@ public partial class VulcanWindow
             ImGui.Separator();
             ImGui.Spacing();
 
-            var avail = ImGui.GetContentRegionAvail();
-            var leftWidth = 270f;
+            var avail     = ImGui.GetContentRegionAvail();
+            var leftWidth = VulcanUiScaling.Scaled(270f);
 
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
             {
@@ -108,7 +108,7 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("浏览 TeamCraft##browseTC", new Vector2(200, 0)))
+        if (ImGui.Button("浏览 TeamCraft##browseTC", VulcanUiScaling.Scaled(200f, 0f)))
         {
             try
             {
@@ -135,7 +135,7 @@ public partial class VulcanWindow
                 "或者直接在浏览器中访问 https://ffxivteamcraft.com/community-rotations");
 
         ImGui.SameLine();
-        if (ImGui.Button("隐藏覆盖层##hideTC", new Vector2(120, 0)))
+        if (ImGui.Button("隐藏覆盖层##hideTC", VulcanUiScaling.Scaled(120f, 0f)))
         {
             try
             {
@@ -166,12 +166,12 @@ public partial class VulcanWindow
         ImGui.Spacing();
         ImGui.Text("宏文本:");
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 500000, new Vector2(-1, 200));
+        ImGui.InputTextMultiline("##macroText", ref _inGameMacroText, 500000, VulcanUiScaling.Scaled(-1f, 200f));
 
         ImGui.Spacing();
         using (ImRaii.Disabled(string.IsNullOrWhiteSpace(_inGameMacroText)))
         {
-            if (ImGui.Button("解析 & 预览##parseBtn", new Vector2(150, 0)))
+            if (ImGui.Button("解析 & 预览##parseBtn", VulcanUiScaling.Scaled(150f, 0f)))
                 ParseInGameMacro();
         }
 
@@ -197,20 +197,20 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         ImGui.Text("最低属性 (可选):");
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("作业精度##previewMinCraft", ref _previewMinCraft);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("加工精度##previewMinCtrl", ref _previewMinCtrl);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(90);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(90f));
         ImGui.InputInt("制作力##previewMinCP", ref _previewMinCP);
         _previewMinCraft = Math.Max(0, _previewMinCraft);
         _previewMinCtrl = Math.Max(0, _previewMinCtrl);
         _previewMinCP = Math.Max(0, _previewMinCP);
 
         ImGui.Spacing();
-        if (ImGui.Button("导入##importInGameBtn", new Vector2(120, 0)))
+        if (ImGui.Button("导入##importInGameBtn", VulcanUiScaling.Scaled(120f, 0f)))
         {
             macro.MinCraftsmanship = _previewMinCraft;
             macro.MinControl = _previewMinCtrl;
@@ -218,7 +218,7 @@ public partial class VulcanWindow
             ImportInGameMacro(macro);
         }
         ImGui.SameLine();
-        if (ImGui.Button("取消##cancelInGameBtn", new Vector2(90, 0)))
+        if (ImGui.Button("取消##cancelInGameBtn", VulcanUiScaling.Scaled(90f, 0f)))
         {
             _previewInGameMacro = null;
             _inGameMacroError = null;
@@ -310,8 +310,8 @@ public partial class VulcanWindow
             return;
         }
 
-        var iconSize = new Vector2(28f, 28f);
-        var itemHeight = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
+        var iconSize    = VulcanUiScaling.Scaled(28f, 28f);
+        var itemHeight  = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
         var contentMaxX = ImGui.GetContentRegionMax().X;
 
         foreach (var macro in filtered)
@@ -334,7 +334,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(iconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f);
 
             var displayName = string.IsNullOrEmpty(macro.Author)
@@ -355,9 +355,9 @@ public partial class VulcanWindow
 
     private void DrawMacroDetail(UserMacro macro, UserMacroLibrary macroLibrary)
     {
-        var largeIconSize = new Vector2(48f, 48f);
+        var largeIconSize = VulcanUiScaling.Scaled(48f, 48f);
 
-        var closeW = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
+        var closeW = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2 + VulcanUiScaling.Scaled(4f);
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - closeW);
         if (ImGui.SmallButton("X##closeDetail"))
             _selectedMacroId = null;
@@ -373,7 +373,7 @@ public partial class VulcanWindow
             if (wrap != null)
             {
                 ImGui.Image(wrap.Handle, largeIconSize);
-                ImGui.SameLine(0, 10);
+                ImGui.SameLine(0, VulcanUiScaling.Scaled(10f));
             }
         }
 
@@ -397,13 +397,13 @@ public partial class VulcanWindow
 
         ImGui.TextColored(ImGuiColors.DalamudYellow, "最低属性");
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("作业精度##editMinCraft", ref _editingMacroMinCraft);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(110);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(110f));
         ImGui.InputInt("加工精度##editMinCtrl", ref _editingMacroMinCtrl);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(90);
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(90f));
         ImGui.InputInt("制作力##editMinCP", ref _editingMacroMinCP);
         _editingMacroMinCraft = Math.Max(0, _editingMacroMinCraft);
         _editingMacroMinCtrl = Math.Max(0, _editingMacroMinCtrl);
@@ -431,8 +431,8 @@ public partial class VulcanWindow
         ImGui.TextColored(ImGuiColors.ParsedGold, $"技能数量 ({macro.Actions.Count})");
         ImGui.Spacing();
 
-        var actionIconSize = new Vector2(24f, 24f);
-        var remainH = ImGui.GetContentRegionAvail().Y - 32f;
+        var actionIconSize = VulcanUiScaling.Scaled(24f, 24f);
+        var remainH        = ImGui.GetContentRegionAvail().Y - VulcanUiScaling.Scaled(32f);
         ImGui.BeginChild("##macroActions", new Vector2(-1, remainH), false);
 
         for (var i = 0; i < macro.Actions.Count; i++)
@@ -463,7 +463,7 @@ public partial class VulcanWindow
                 ImGui.Dummy(actionIconSize);
             }
 
-            ImGui.SameLine(0, 6);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (actionIconSize.Y - ImGui.GetTextLineHeight()) / 2f);
             ImGui.Text($"{i + 1}. {skillNameZh}");
         }
@@ -472,7 +472,7 @@ public partial class VulcanWindow
 
         ImGui.Separator();
         ImGui.Spacing();
-        if (ImGui.Button($"删除##deleteMacro_{macro.Id}", new Vector2(100, 0)))
+        if (ImGui.Button($"删除##deleteMacro_{macro.Id}", VulcanUiScaling.Scaled(100f, 0f)))
         {
             macroLibrary.RemoveMacro(macro.Id);
             _selectedMacroId = null;

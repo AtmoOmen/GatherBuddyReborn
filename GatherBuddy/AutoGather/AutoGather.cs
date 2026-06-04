@@ -443,6 +443,8 @@ namespace GatherBuddy.AutoGather
                             VisitedNodes.Add(targetNode.BaseId);
                     }
                 }
+                if (gatherTarget.Item != null)
+                    _plugin.AutoGatherListsManager.RemoveCompletedItemFromLists(gatherTarget.Item);
                 // Unset the current gather target when leaving the node
                 _currentGatherTarget = null;
                 ResetPendingFishingTargetChange();
@@ -526,7 +528,7 @@ namespace GatherBuddy.AutoGather
                     if (IsGathering)
                         CloseGatheringAddons();
                     else
-                        GatherBuddy.CollectableManager?.Start();
+                        GatherBuddy.CollectableManager?.Start(Collectables.CollectableRunSource.AutoGather);
                 }
                 else
                 {
@@ -795,7 +797,7 @@ namespace GatherBuddy.AutoGather
                 if (HasCollectables())
                 {
                     AutoStatus = "正在交易收藏品...";
-                    GatherBuddy.CollectableManager?.Start();
+                    GatherBuddy.CollectableManager?.Start(Collectables.CollectableRunSource.AutoGather);
                     return;
                 }
 
@@ -892,7 +894,7 @@ namespace GatherBuddy.AutoGather
             if (HasCollectables())
             {
                 AutoStatus = "正在交易收藏品...";
-                GatherBuddy.CollectableManager?.Start();
+                GatherBuddy.CollectableManager?.Start(Collectables.CollectableRunSource.AutoGather);
                 return;
             }
 
@@ -1354,7 +1356,7 @@ namespace GatherBuddy.AutoGather
             {
                 if (GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes > 0)
                 {
-                        GatherBuddy.Log.Information($"[AutoGather] IsFishing 区块已进入, 将检查计时器. MaxFishingSpotMinutes={GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes}, 过期时间={fishingSpotData.Expiration}");
+                    GatherBuddy.Log.Verbose($"[AutoGather] IsFishing 区块已进入, 将检查计时器. MaxFishingSpotMinutes={GatherBuddy.Config.AutoGatherConfig.MaxFishingSpotMinutes}, 过期时间={fishingSpotData.Expiration}");
                 }
                 if (_fishWaryDetected) // 钓点警惕 (真警惕), 无法抛竿, 同钓场更换位置
                 {

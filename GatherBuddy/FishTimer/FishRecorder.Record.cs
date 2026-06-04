@@ -120,12 +120,12 @@ public partial class FishRecorder
     }
 
     private static readonly uint GatheringIdx =
-        Dalamud.GameData.GetExcelSheet<BaseParam>(ClientLanguage.ChineseSimplified).Cast<BaseParam?>()
+        Dalamud.GameData.GetExcelSheet<BaseParam>((ClientLanguage)4).Cast<BaseParam?>()
             .FirstOrDefault(r => r!.Value.Name == "获得力")?.RowId // 修改为中文
      ?? 72;
 
     private static readonly uint PerceptionIdx =
-        Dalamud.GameData.GetExcelSheet<BaseParam>(ClientLanguage.ChineseSimplified).Cast<BaseParam?>()
+        Dalamud.GameData.GetExcelSheet<BaseParam>((ClientLanguage)4).Cast<BaseParam?>()
             .FirstOrDefault(r => r!.Value.Name == "鉴别力")?.RowId // 修改为中文
      ?? 73;
 
@@ -234,7 +234,7 @@ public partial class FishRecorder
         if (collectible)
             Record.Flags |= Effects.Collectible;
         GatherBuddy.Log.Verbose(
-            $"钓到了 {amount} 条 {(large ? "大型 " : string.Empty)}{(collectible ? "收藏品 " : string.Empty)}{Record.Catch.Name[ClientLanguage.ChineseSimplified]}，大小 {size / 10f:F1}");
+            $"钓到了 {amount} 条 {(large ? "大型 " : string.Empty)}{(collectible ? "收藏品 " : string.Empty)}{Record.Catch.Name[(ClientLanguage)4]}，大小 {size / 10f:F1}");
     }
 
     private void OnMooch()

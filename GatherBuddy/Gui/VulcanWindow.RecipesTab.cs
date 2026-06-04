@@ -69,6 +69,9 @@ public partial class VulcanWindow
     private static int _filteredUncraftedRecipeCount = 0;
     private static readonly uint[] CraftTypeToClassJobId = { 8, 9, 10, 11, 12, 13, 14, 15 };
     private static readonly string[] JobNames = { "刻木匠", "锻铁匠", "铸甲匠", "雕金匠", "制革匠", "裁衣匠", "炼金术士", "烹调师" };
+    private static Vector2 _recipesTooltipWindowMin;
+    private static Vector2 _recipesTooltipWindowMax;
+    private static DateTime _lastTooltipAnchorFailureLog = DateTime.MinValue;
 
     private static void InitializeRecipeList()
     {
@@ -235,6 +238,64 @@ public partial class VulcanWindow
         return changed;
     }
 
+    private static void CaptureRecipesTooltipWindowBounds()
+    {
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        _recipesTooltipWindowMin = windowPos;
+        _recipesTooltipWindowMax = windowPos + windowSize;
+    }
+
+    private static bool TryGetRecipesTooltipAnchor(out Vector2 anchorMin, out Vector2 anchorMax, out bool expandRight)
+    {
+        anchorMin = default;
+        anchorMax = default;
+        expandRight = false;
+        if (_recipesTooltipWindowMax.X <= _recipesTooltipWindowMin.X || _recipesTooltipWindowMax.Y <= _recipesTooltipWindowMin.Y)
+        {
+            MaybeLogTooltipAnchorFailure("Recipes tooltip window bounds are invalid.");
+            return false;
+        }
+
+        var displaySize = ImGui.GetIO().DisplaySize;
+        if (displaySize.X <= 0f || displaySize.Y <= 0f)
+        {
+            MaybeLogTooltipAnchorFailure("Display size is unavailable for native recipe tooltip anchoring.");
+            return false;
+        }
+
+        var screenPadding = MathF.Round(VulcanUiScaling.Scaled(4f));
+        var anchorWidth = Math.Max(1f, MathF.Round(VulcanUiScaling.Scaled(2f)));
+        var spaceLeft = _recipesTooltipWindowMin.X - screenPadding;
+        var spaceRight = displaySize.X - _recipesTooltipWindowMax.X - screenPadding;
+        var anchorOnRight = spaceRight >= spaceLeft;
+        var anchorTop = MathF.Round(Math.Max(screenPadding, _recipesTooltipWindowMin.Y));
+        var anchorBottom = MathF.Round(Math.Min(displaySize.Y - screenPadding, _recipesTooltipWindowMax.Y));
+        if (anchorBottom <= anchorTop)
+        {
+            MaybeLogTooltipAnchorFailure("Recipes tooltip window side lane collapsed outside the screen bounds.");
+            return false;
+        }
+
+        var anchorX = anchorOnRight
+            ? MathF.Round(Math.Min(displaySize.X - screenPadding - anchorWidth, _recipesTooltipWindowMax.X))
+            : MathF.Round(Math.Max(screenPadding, _recipesTooltipWindowMin.X - anchorWidth));
+        anchorMin = new Vector2(anchorX, anchorTop);
+        anchorMax = new Vector2(anchorX + anchorWidth, anchorBottom);
+        expandRight = anchorOnRight;
+        return true;
+    }
+
+    private static void MaybeLogTooltipAnchorFailure(string message)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastTooltipAnchorFailureLog).TotalSeconds < 5)
+            return;
+
+        _lastTooltipAnchorFailureLog = now;
+        GatherBuddy.Log.Debug($"[VulcanWindow] {message}");
+    }
+
 
     private static bool IsLevelingRecipe(Recipe recipe)
         => recipe.SecretRecipeBook.RowId == 0 && recipe.RecipeNotebookList.RowId < 1000;
@@ -347,69 +408,72 @@ public partial class VulcanWindow
             if (!tabOpen)
                 return;
 
-        if (!_isInitialized)
-        {
-            InitializeRecipeList();
-        }
+            if (GatherBuddy.Config.ShowRecipeBrowserTooltips)
+                CaptureRecipesTooltipWindowBounds();
 
-        if (_pendingRecipeId.HasValue && _extendedRecipeList != null)
-        {
-            var targetRecipeId = _pendingRecipeId.Value;
-            _pendingRecipeId = null;
-            var target = _extendedRecipeList.FirstOrDefault(r => r.Recipe.RowId == targetRecipeId);
-            if (target != null)
+            if (!_isInitialized)
             {
-                var revealed = EnsureRecipeVisibleInBrowser(target);
-                _selectedRecipe = target;
-                _pendingRecipeScrollId = targetRecipeId;
-                GatherBuddy.Log.Debug(revealed
-                    ? $"[VulcanWindow] Navigated to recipe {targetRecipeId}: {target.Name} and adjusted browser filters."
-                    : $"[VulcanWindow] Navigated to recipe {targetRecipeId}: {target.Name}");
+                InitializeRecipeList();
             }
-            else
+
+            if (_pendingRecipeId.HasValue && _extendedRecipeList != null)
             {
-                GatherBuddy.Log.Debug($"[VulcanWindow] No recipe found in browser for recipe {targetRecipeId}");
+                var targetRecipeId = _pendingRecipeId.Value;
+                _pendingRecipeId = null;
+                var target = _extendedRecipeList.FirstOrDefault(r => r.Recipe.RowId == targetRecipeId);
+                if (target != null)
+                {
+                    var revealed = EnsureRecipeVisibleInBrowser(target);
+                    _selectedRecipe = target;
+                    _pendingRecipeScrollId = targetRecipeId;
+                    GatherBuddy.Log.Debug(revealed
+                        ? $"[VulcanWindow] Navigated to recipe {targetRecipeId}: {target.Name} and adjusted browser filters."
+                        : $"[VulcanWindow] Navigated to recipe {targetRecipeId}: {target.Name}");
+                }
+                else
+                {
+                    GatherBuddy.Log.Debug($"[VulcanWindow] No recipe found in browser for recipe {targetRecipeId}");
+                }
             }
-        }
 
-        if (_craftedStatusDirty && _extendedRecipeList != null)
-        {
-            foreach (var recipe in _extendedRecipeList)
+            if (_craftedStatusDirty && _extendedRecipeList != null)
             {
-                recipe.UpdateCraftedStatus();
+                foreach (var recipe in _extendedRecipeList)
+                {
+                    recipe.UpdateCraftedStatus();
+                }
+                _craftedStatusDirty = false;
             }
-            _craftedStatusDirty = false;
-        }
 
-        UpdateFilteredList();
+            UpdateFilteredList();
 
-        ImGui.Spacing();
-        var avail = ImGui.GetContentRegionAvail();
+            ImGui.Spacing();
+            var avail = ImGui.GetContentRegionAvail();
 
-        using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
-        {
-            ImGui.BeginChild("##FilterPanel", new Vector2(180 * ImGuiHelpers.GlobalScale, avail.Y), true);
-            DrawFilterPanel();
-            ImGui.EndChild();
-        }
+            using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
+            {
+                ImGui.BeginChild("##FilterPanel", new Vector2(VulcanUiScaling.Scaled(180f), avail.Y), true);
+                DrawFilterPanel();
+                ImGui.EndChild();
+            }
 
-        ImGui.SameLine();
+            ImGui.SameLine();
 
-        using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
-        {
-            ImGui.BeginChild("##ResultsList", new Vector2(avail.X * 0.40f, avail.Y), true);
-            DrawResultsList();
-            ImGui.EndChild();
-        }
+            using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
+            {
+                ImGui.BeginChild("##ResultsList", new Vector2(avail.X * 0.40f, avail.Y), true);
+                DrawResultsList();
+                ImGui.EndChild();
+            }
 
-        ImGui.SameLine();
+            ImGui.SameLine();
 
-        using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
-        {
-            ImGui.BeginChild("##DetailsPanel", new Vector2(0, avail.Y), true);
-            DrawDetailsPanel();
-            ImGui.EndChild();
-        }
+            using (var color = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
+            {
+                ImGui.BeginChild("##DetailsPanel", new Vector2(0, avail.Y), true);
+                DrawDetailsPanel();
+                ImGui.EndChild();
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
@@ -8,6 +9,12 @@ using GatherBuddy.Automation;
 using GatherBuddy.Plugin;
 
 namespace GatherBuddy.Vulcan.Vendors;
+
+public sealed record VendorPurchaseConstraints(uint ReservedScripAmount = 0)
+{
+    public bool HasReservedScripAmount
+        => ReservedScripAmount > 0;
+}
 
 public sealed class VendorPurchaseManager : IDisposable
 {
@@ -25,6 +32,7 @@ public sealed class VendorPurchaseManager : IDisposable
     {
         Completed,
         PartiallyCompleted,
+        Skipped,
         Failed,
         Cancelled,
     }
@@ -49,7 +57,8 @@ public sealed class VendorPurchaseManager : IDisposable
         uint            RequestedQuantity,
         uint            CompletedQuantity,
         VendorNpc       Vendor,
-        string          Message
+        string          Message,
+        bool            WasLimitedByScripReserve
     );
 
     private static readonly TimeSpan ActionThrottle       = TimeSpan.FromMilliseconds(400);
@@ -74,6 +83,10 @@ public sealed class VendorPurchaseManager : IDisposable
     private bool                   _gcRankSelected;
     private bool                   _gcCategorySelected;
     private bool                   _grandCompanyQuantityPrepared;
+    private VendorPurchaseConstraints? _purchaseConstraints;
+    private List<int>?             _inclusionRecoverySubPageCandidates;
+    private int                    _inclusionRecoverySubPageCandidateIndex;
+    private int                    _activeInclusionSubPageIndex;
 
     public event Action<PurchaseResult>? PurchaseFinished;
 
@@ -114,16 +127,23 @@ public sealed class VendorPurchaseManager : IDisposable
             _ => false,
         };
 
-    public void StartPurchase(VendorShopEntry entry, VendorNpc vendor, VendorNpcLocation location, uint quantity, bool continueCurrentVendorInteraction = false)
+    public void StartPurchase(VendorShopEntry entry, VendorNpc vendor, VendorNpcLocation location, uint quantity, bool continueCurrentVendorInteraction = false,
+        VendorPurchaseConstraints? purchaseConstraints = null)
     {
         if (VendorDevExclusions.IsExcluded(vendor))
         {
-            GatherBuddy.Log.Warning($"[VendorPurchaseManager] 忽略对开发排除列表中的商人的采购请求 {vendor.Name} ({vendor.NpcId}/{vendor.MenuShopType}/{vendor.ShopId}/{vendor.SourceShopId}:{vendor.ShopItemIndex}, gc={vendor.GcRankIndex}/{vendor.GcCategoryIndex})");
+            GatherBuddy.Log.Warning($"[VendorPurchaseManager] Ignoring purchase request for dev-excluded vendor {vendor.Name} ({vendor.NpcId}/{vendor.MenuShopType}/{vendor.ShopId}/{vendor.SourceShopId}:{vendor.ShopItemIndex}, gc={vendor.GcRankIndex}/{vendor.GcCategoryIndex})");
             return;
         }
         if (!IsPurchaseSupported(entry, vendor))
         {
-            GatherBuddy.Log.Warning($"[VendorPurchaseManager] 不支持的采购请求 {entry.ItemName}: shopType={entry.ShopType}, menuShopType={vendor.MenuShopType}, shopId={vendor.ShopId}, sourceShopId={vendor.SourceShopId}, shopItemIndex={vendor.ShopItemIndex}, gcRankIndex={vendor.GcRankIndex}, gcCategoryIndex={vendor.GcCategoryIndex}");
+            GatherBuddy.Log.Warning($"[VendorPurchaseManager] Unsupported purchase request for {entry.ItemName}: shopType={entry.ShopType}, menuShopType={vendor.MenuShopType}, shopId={vendor.ShopId}, sourceShopId={vendor.SourceShopId}, shopItemIndex={vendor.ShopItemIndex}, gcRankIndex={vendor.GcRankIndex}, gcCategoryIndex={vendor.GcCategoryIndex}");
+            return;
+        }
+        if (!VendorAutomationRequirements.IsAvailable)
+        {
+            _statusText = VendorAutomationRequirements.UnavailableStatusText;
+            GatherBuddy.Log.Debug("[VendorPurchaseManager] Blocked vendor purchase start because neither AllaganTools nor AllaganItemSearch is loaded");
             return;
         }
 
@@ -142,6 +162,10 @@ public sealed class VendorPurchaseManager : IDisposable
         _gcRankSelected = false;
         _gcCategorySelected = false;
         _grandCompanyQuantityPrepared = false;
+        _purchaseConstraints = purchaseConstraints;
+        _inclusionRecoverySubPageCandidates = null;
+        _inclusionRecoverySubPageCandidateIndex = 0;
+        _activeInclusionSubPageIndex = vendor.InclusionSubPageIndex;
         _lastActionTime = DateTime.MinValue;
         _stateStartTime = DateTime.UtcNow;
         _statusText = continueCurrentVendorInteraction
@@ -152,10 +176,12 @@ public sealed class VendorPurchaseManager : IDisposable
             : State.WaitingForNavigation;
 
         YesAlready.Lock();
+        if (requestedQuantity > 1 && GetSinglePurchaseBatchReason(entry.ItemId) is { } singleBatchReason)
+            GatherBuddy.Log.Debug($@"[VendorPurchaseManager] Forcing single-item purchase batches for {entry.ItemName} because it is an {singleBatchReason} item.");
         if (continueCurrentVendorInteraction)
             return;
         else
-            GatherBuddy.Log.Information($"[VendorPurchaseManager] 开始 {entry.ShopType} 采购 {requestedQuantity:N0}x {entry.ItemName}(来自 {vendor.Name}, menu={vendor.MenuShopType}, shop={vendor.ShopId}, source={vendor.SourceShopId}, itemIndex={vendor.ShopItemIndex}, gc={vendor.GcRankIndex}/{vendor.GcCategoryIndex})");
+            GatherBuddy.Log.Information($"[VendorPurchaseManager] Starting {entry.ShopType} purchase of {requestedQuantity:N0}x {entry.ItemName} from {vendor.Name} (menu={vendor.MenuShopType}, shop={vendor.ShopId}, source={vendor.SourceShopId}, itemIndex={vendor.ShopItemIndex}, gc={vendor.GcRankIndex}/{vendor.GcCategoryIndex})");
         GatherBuddy.VendorNavigator.StartNavigation(location, continueCurrentVendorInteraction);
     }
 
@@ -196,11 +222,11 @@ public sealed class VendorPurchaseManager : IDisposable
             _request.Quantity,
             _completedQuantity,
             _request.Vendor,
-            $"已取消从 {_request.Vendor.Name} 购买 {_request.ItemName}");
+            $"已取消从 {_request.Vendor.Name} 购买 {_request.ItemName}",
+            false);
         ResetState();
         PurchaseFinished?.Invoke(result);
     }
-
     public void Dispose()
         => Stop();
 
@@ -208,9 +234,15 @@ public sealed class VendorPurchaseManager : IDisposable
         => _request == null || _request.Quantity <= _completedQuantity
             ? 0
             : _request.Quantity - _completedQuantity;
+    private static string? GetSinglePurchaseBatchReason(uint itemId)
+        => VendorShopResolver.HousingItemIds.Contains(itemId)
+            ? "housing"
+            : VendorShopResolver.EquippableItemIds.Contains(itemId)
+                ? "equippable"
+                : null;
 
     private static bool RequiresSinglePurchaseBatch(uint itemId)
-        => VendorShopResolver.HousingItemIds.Contains(itemId);
+        => GetSinglePurchaseBatchReason(itemId) != null;
 
     private uint GetDesiredBatchQuantity(uint remainingQuantity)
     {
@@ -238,39 +270,64 @@ public sealed class VendorPurchaseManager : IDisposable
         }
 
         var availability = VendorCurrencyAvailabilityResolver.Resolve(_request.CurrencyGroup, _request.CurrencyItemId, _request.CurrencyName);
-        var affordableBatchQuantity = Math.Min(desiredBatchQuantity, availability.AvailableAmount / _request.Cost);
+        var reserveAmount = GetReservedScripAmount();
+        var spendableAmount = GetSpendableCurrencyAmount(availability.AvailableAmount, reserveAmount);
+        var maxByAvailableCurrency = availability.AvailableAmount / _request.Cost;
+        var maxBySpendableCurrency = spendableAmount / _request.Cost;
+        var wasLimitedByScripReserve = maxBySpendableCurrency < maxByAvailableCurrency;
+        var affordableBatchQuantity = Math.Min(desiredBatchQuantity, maxBySpendableCurrency);
         if (affordableBatchQuantity == 0)
         {
-            HandleCurrencyExhaustion(availability);
+            HandleCurrencyExhaustion(availability, spendableAmount, reserveAmount, wasLimitedByScripReserve);
             return false;
         }
 
-        if (affordableBatchQuantity < desiredBatchQuantity)
-            GatherBuddy.Log.Warning(
-                $"[VendorPurchaseManager] 只有 {availability.AvailableAmount:N0} {availability.CurrencyName} 可用于 {_request.ItemName}; 将当前批次从 {desiredBatchQuantity:N0} 限制到 {affordableBatchQuantity:N0}(单价 {_request.Cost:N0}, 来源={availability.Source})");
 
         _currentBatchQuantity = affordableBatchQuantity;
         return true;
     }
 
-    private void HandleCurrencyExhaustion(VendorCurrencyAvailability availability)
+    private void HandleCurrencyExhaustion(VendorCurrencyAvailability availability, uint spendableAmount, uint reserveAmount,
+        bool wasLimitedByScripReserve)
     {
         if (_request == null)
             return;
 
         var remainingQuantity = GetRemainingQuantity();
-        var message = _completedQuantity > 0
-            ? $"已从 {_request.Vendor.Name} 购买 {_completedQuantity:N0}/{_request.Quantity:N0}x {_request.ItemName}, 剩余 {remainingQuantity:N0}x 无法负担, 仅有 {availability.AvailableAmount:N0} {availability.CurrencyName}(单价 {_request.Cost:N0})"
-            : $"没有足够的 {availability.CurrencyName} 从 {_request.Vendor.Name} 购买 {_request.ItemName}, 1x 需要 {_request.Cost:N0}, 但只有 {availability.AvailableAmount:N0} 可用";
+        var message = wasLimitedByScripReserve
+            ? _completedQuantity > 0
+                ? $"已从 {_request.Vendor.Name} 购买 {_completedQuantity:N0}/{_request.Quantity:N0}x {_request.ItemName}。停止购买以保留 {reserveAmount:N0} {availability.CurrencyName}，当前剩余 {availability.AvailableAmount:N0}，可花费 {spendableAmount:N0}（单价 {_request.Cost:N0}）"
+                : $"跳过 {_request.ItemName}（商人 {_request.Vendor.Name}）。保留 {reserveAmount:N0} {availability.CurrencyName} 后仅剩 {spendableAmount:N0} 可花费，但 1x 需要 {_request.Cost:N0}"
+            : _completedQuantity > 0
+                ? $"已从 {_request.Vendor.Name} 购买 {_completedQuantity:N0}/{_request.Quantity:N0}x {_request.ItemName}。剩余 {remainingQuantity:N0}x 无法负担，仅有 {availability.AvailableAmount:N0} {availability.CurrencyName}（单价 {_request.Cost:N0}）"
+                : $"没有足够的 {availability.CurrencyName} 从 {_request.Vendor.Name} 购买 {_request.ItemName}。1x 需要 {_request.Cost:N0}，但只有 {availability.AvailableAmount:N0} 可用";
 
         if (_completedQuantity > 0)
         {
-            CompletePartially(message);
+            CompletePartially(message, wasLimitedByScripReserve);
+            return;
+        }
+
+        if (wasLimitedByScripReserve)
+        {
+            Skip(message, true);
             return;
         }
 
         Fail(message);
     }
+
+    private uint GetReservedScripAmount()
+        => _request?.CurrencyGroup == VendorCurrencyGroup.Scrips && _purchaseConstraints is { HasReservedScripAmount: true }
+            ? _purchaseConstraints.ReservedScripAmount
+            : 0u;
+
+    private static uint GetSpendableCurrencyAmount(uint availableAmount, uint reserveAmount)
+        => reserveAmount == 0
+            ? availableAmount
+            : availableAmount > reserveAmount
+                ? availableAmount - reserveAmount
+                : 0u;
 
     private void BeginNextBatch()
     {
@@ -287,7 +344,7 @@ public sealed class VendorPurchaseManager : IDisposable
         _state = State.OpeningShop;
         _stateStartTime = DateTime.UtcNow;
         _lastActionTime = DateTime.MinValue;
-        _statusText = $"准备下一批 {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+        _statusText = $"正在准备下一批 {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
     }
 
     private bool TryAdvancePurchaseProgress()
@@ -325,7 +382,7 @@ public sealed class VendorPurchaseManager : IDisposable
         var navigator = GatherBuddy.VendorNavigator;
         if (navigator.IsFailed)
         {
-            Fail($"无法导航到 {_request.Vendor.Name} 以购买 {_request.ItemName}");
+            Fail($"未能导航到 {_request.Vendor.Name} 以购买 {_request.ItemName}");
             return;
         }
 
@@ -404,7 +461,7 @@ public sealed class VendorPurchaseManager : IDisposable
             if (VendorInteractionHelper.TryClickTalk())
             {
                 _lastActionTime = DateTime.UtcNow;
-                _statusText = $"推进与 {_request.Vendor.Name} 的对话";
+                _statusText = $"正在推进与 {_request.Vendor.Name} 的对话";
                 return;
             }
 
@@ -425,7 +482,7 @@ public sealed class VendorPurchaseManager : IDisposable
 
         if (_interactionAttempts == 0 || (DateTime.UtcNow - _lastActionTime) >= InteractionCooldown)
         {
-            if (AttemptVendorInteraction("打开商店"))
+            if (AttemptVendorInteraction("正在打开商店"))
                 return;
         }
 
@@ -433,11 +490,11 @@ public sealed class VendorPurchaseManager : IDisposable
         {
             if (_interactionAttempts >= MaxInteractionTries)
             {
-                Fail($"打开 {_request.Vendor.Name} 的 {DescribeShopLabel(_request)} 超时(购买 {_request.ItemName})");
+                Fail($"为 {_request.ItemName} 打开 {_request.Vendor.Name} 的 {DescribeShopLabel(_request)} 超时");
                 return;
             }
 
-            AttemptVendorInteraction("重试商店交互");
+            AttemptVendorInteraction("正在重试商店交互");
             _stateStartTime = DateTime.UtcNow;
         }
     }
@@ -469,7 +526,7 @@ public sealed class VendorPurchaseManager : IDisposable
         if (!GenericHelpers.TryGetAddonByName("Shop", out AtkUnitBase* shop))
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"金币商店在选择 {_request.ItemName} 之前已关闭");
+                Fail($"在选择 {_request.ItemName} 之前金币商店已关闭");
             return;
         }
 
@@ -491,12 +548,132 @@ public sealed class VendorPurchaseManager : IDisposable
         _state = State.ConfirmingPurchase;
         _stateStartTime = DateTime.UtcNow;
         _lastActionTime = DateTime.UtcNow;
-        _statusText = $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+        _statusText = $"正在确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+    }
 
-        _state = State.ConfirmingPurchase;
-        _stateStartTime = DateTime.UtcNow;
-        _lastActionTime = DateTime.UtcNow;
-        _statusText = $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+    private bool TryRecoverMissingInclusionShopItem(out string? failureMessage)
+    {
+        failureMessage = null;
+        if (_request == null)
+            return false;
+
+        if (_inclusionRecoverySubPageCandidates == null)
+        {
+            var knownSubPageCount = VendorShopResolver.GetInclusionShopSubPageCount(_request.Vendor.ShopId, _request.Vendor.InclusionPageIndex);
+            _inclusionRecoverySubPageCandidates = BuildInclusionRecoverySubPageCandidates(_request.Vendor.InclusionSubPageIndex, _activeInclusionSubPageIndex, knownSubPageCount);
+            _inclusionRecoverySubPageCandidateIndex = 0;
+            GatherBuddy.Log.Debug($"[VendorPurchaseManager] Requested item {_request.ItemId} was not found on expected InclusionShop page={GetDisplayInclusionPageIndex()} subpage={DescribeInclusionSubPageIndex(_activeInclusionSubPageIndex)}. Starting recovery scan across {_inclusionRecoverySubPageCandidates.Count} fallback subpages.");
+        }
+
+        if (TrySelectNextInclusionRecoverySubPage(out failureMessage))
+            return true;
+
+        if (failureMessage != null)
+            return false;
+
+        if (_inclusionRecoverySubPageCandidates != null && _inclusionRecoverySubPageCandidateIndex < _inclusionRecoverySubPageCandidates.Count)
+            return true;
+
+        failureMessage = BuildInclusionRecoveryFailureMessage();
+        return false;
+    }
+
+    private bool TrySelectNextInclusionRecoverySubPage(out string? failureMessage)
+    {
+        failureMessage = null;
+        if (_request == null || _inclusionRecoverySubPageCandidates == null)
+            return false;
+
+        while (_inclusionRecoverySubPageCandidateIndex < _inclusionRecoverySubPageCandidates.Count)
+        {
+            var candidateSubPageIndex = _inclusionRecoverySubPageCandidates[_inclusionRecoverySubPageCandidateIndex];
+            if (candidateSubPageIndex == _activeInclusionSubPageIndex)
+            {
+                _inclusionRecoverySubPageCandidateIndex++;
+                continue;
+            }
+
+            if (!VendorInteractionHelper.TrySelectInclusionSubPage(candidateSubPageIndex, out var subPageError))
+            {
+                failureMessage = subPageError;
+                return false;
+            }
+
+            _inclusionRecoverySubPageCandidateIndex++;
+            _activeInclusionSubPageIndex = candidateSubPageIndex;
+            _inclusionSubPageSelected = true;
+            _lastActionTime = DateTime.UtcNow;
+            _statusText = $"Scanning inclusion subpage {candidateSubPageIndex} for {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+            GatherBuddy.Log.Debug($"[VendorPurchaseManager] Scanning fallback InclusionShop page={GetDisplayInclusionPageIndex()} subpage={candidateSubPageIndex} for requested item {_request.ItemId}.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ClearInclusionSubPageRecovery(int liveItemIndex)
+    {
+        if (_request == null || _inclusionRecoverySubPageCandidates == null)
+            return;
+
+        GatherBuddy.Log.Debug($"[VendorPurchaseManager] Found requested item {_request.ItemId} on fallback InclusionShop page={GetDisplayInclusionPageIndex()} subpage={DescribeInclusionSubPageIndex(_activeInclusionSubPageIndex)} liveIndex={liveItemIndex}.");
+        _inclusionRecoverySubPageCandidates = null;
+        _inclusionRecoverySubPageCandidateIndex = 0;
+    }
+
+    private string BuildInclusionRecoveryFailureMessage()
+    {
+        if (_request == null)
+            return "Could not recover the InclusionShop item selection.";
+
+        var scannedSubPages = 1 + _inclusionRecoverySubPageCandidateIndex;
+        var visibleRows     = VendorInteractionHelper.DescribeVisibleInclusionShopItems();
+        GatherBuddy.Log.Error($"[VendorPurchaseManager] Failed to find requested item {_request.ItemId} after scanning {scannedSubPages} InclusionShop subpages on page={GetDisplayInclusionPageIndex()}. Last checked subpage={DescribeInclusionSubPageIndex(_activeInclusionSubPageIndex)}. Visible rows: {visibleRows}");
+        return $"Could not find {_request.ItemName} in {_request.Vendor.Name}'s inclusion shop after scanning {scannedSubPages} subpages on page {GetDisplayInclusionPageIndex()}.";
+    }
+
+    private int GetDisplayInclusionPageIndex()
+        => _request == null
+            ? 0
+            : _request.Vendor.InclusionPageIndex + 1;
+
+    private static string DescribeInclusionSubPageIndex(int subPageIndex)
+        => subPageIndex > 0
+            ? subPageIndex.ToString()
+            : "unknown";
+
+    private static List<int> BuildInclusionRecoverySubPageCandidates(int expectedSubPageIndex, int currentSubPageIndex, int knownSubPageCount)
+    {
+        var upperBound = Math.Max(knownSubPageCount, Math.Max(expectedSubPageIndex, currentSubPageIndex));
+        if (upperBound <= 0)
+            upperBound = 3;
+        else if (knownSubPageCount <= 0)
+            upperBound += 3;
+
+        var candidates = new List<int>();
+        var seen       = new HashSet<int>();
+
+        void AddCandidate(int subPageIndex)
+        {
+            if (subPageIndex <= 0 || subPageIndex > upperBound || subPageIndex == currentSubPageIndex || !seen.Add(subPageIndex))
+                return;
+
+            candidates.Add(subPageIndex);
+        }
+
+        if (expectedSubPageIndex > 0)
+        {
+            for (var delta = 1; delta < upperBound; delta++)
+            {
+                AddCandidate(expectedSubPageIndex - delta);
+                AddCandidate(expectedSubPageIndex + delta);
+            }
+        }
+
+        for (var subPageIndex = 1; subPageIndex <= upperBound; subPageIndex++)
+            AddCandidate(subPageIndex);
+
+        return candidates;
     }
 
     private unsafe void UpdatePurchasingDirectSpecialShopItem()
@@ -506,7 +683,7 @@ public sealed class VendorPurchaseManager : IDisposable
 
         if (_request.Vendor.ShopItemIndex < 0)
         {
-            Fail($"没有可用于 {_request.ItemName} 的特殊商店物品索引");
+            Fail($"No special-shop item index is available for {_request.ItemName}.");
             return;
         }
 
@@ -519,7 +696,7 @@ public sealed class VendorPurchaseManager : IDisposable
         if (activeAddonName.Length == 0)
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"直接特殊商店在选择 {_request.ItemName} 之前已关闭");
+                Fail($"The direct special shop closed before {_request.ItemName} could be selected.");
             return;
         }
 
@@ -540,7 +717,7 @@ public sealed class VendorPurchaseManager : IDisposable
         _state = State.ConfirmingPurchase;
         _stateStartTime = DateTime.UtcNow;
         _lastActionTime = DateTime.UtcNow;
-        _statusText = $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+        _statusText = $"正在确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
     }
 
     private unsafe void UpdatePurchasingSpecialCurrencyItem()
@@ -555,14 +732,14 @@ public sealed class VendorPurchaseManager : IDisposable
 
         if (_request.Vendor.ShopItemIndex < 0)
         {
-            Fail($"没有可用于 {_request.ItemName} 的综合商店物品索引");
+            Fail($"No inclusion-shop item index is available for {_request.ItemName}.");
             return;
         }
 
         if (!GenericHelpers.TryGetAddonByName("InclusionShop", out AtkUnitBase* shop) || !shop->IsVisible)
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"综合商店在选择 {_request.ItemName} 之前已关闭");
+                Fail($"The inclusion shop closed before {_request.ItemName} could be selected.");
             return;
         }
 
@@ -586,9 +763,9 @@ public sealed class VendorPurchaseManager : IDisposable
             }
         }
 
-        if (!_inclusionSubPageSelected && _request.Vendor.InclusionSubPageIndex > 0)
+        if (!_inclusionSubPageSelected && _activeInclusionSubPageIndex > 0)
         {
-            if (VendorInteractionHelper.TrySelectInclusionSubPage(_request.Vendor.InclusionSubPageIndex, out var subPageError))
+            if (VendorInteractionHelper.TrySelectInclusionSubPage(_activeInclusionSubPageIndex, out var subPageError))
             {
                 _inclusionSubPageSelected = true;
                 _lastActionTime = DateTime.UtcNow;
@@ -603,6 +780,18 @@ public sealed class VendorPurchaseManager : IDisposable
             }
         }
 
+        if (!VendorInteractionHelper.TryGetVisibleInclusionShopItemIndex(_request.ItemId, out var liveItemIndex, out var visibleItemError))
+        {
+            if (visibleItemError != null)
+            {
+                if (TryRecoverMissingInclusionShopItem(out var recoveryError))
+                    return;
+
+                Fail(recoveryError ?? visibleItemError);
+            }
+            return;
+        }
+
         var remainingQuantity = GetRemainingQuantity();
         if (!TryPrepareBatchQuantity(remainingQuantity))
             return;
@@ -614,10 +803,11 @@ public sealed class VendorPurchaseManager : IDisposable
             return;
         }
 
+        ClearInclusionSubPageRecovery(liveItemIndex);
         _state = State.ConfirmingPurchase;
         _stateStartTime = DateTime.UtcNow;
         _lastActionTime = DateTime.UtcNow;
-        _statusText = $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+        _statusText = $"正在确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
     }
 
     private unsafe void UpdatePurchasingGrandCompanyItem()
@@ -628,7 +818,7 @@ public sealed class VendorPurchaseManager : IDisposable
         if (!GenericHelpers.TryGetAddonByName("GrandCompanyExchange", out AtkUnitBase* shop) || !shop->IsVisible)
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"国防联军商店在选择 {_request.ItemName} 之前已关闭");
+                Fail($"在选择 {_request.ItemName} 之前国防联军商店已关闭");
             return;
         }
 
@@ -703,7 +893,7 @@ public sealed class VendorPurchaseManager : IDisposable
         var currentSealCurrencyItemId = GetGrandCompanySealCurrencyItemId(currentGrandCompanyId);
         if (_request.CurrencyItemId != 0 && currentSealCurrencyItemId != 0 && _request.CurrencyItemId != currentSealCurrencyItemId)
         {
-            Fail($"{_request.ItemName} 不由当前国防联军出售");
+            Fail($"{_request.ItemName} is not sold by the current Grand Company.");
             return;
         }
         var remainingQuantity = GetRemainingQuantity();
@@ -726,7 +916,7 @@ public sealed class VendorPurchaseManager : IDisposable
         _lastActionTime = DateTime.UtcNow;
         _statusText = opensCurrencyExchange
             ? $"设置 {_currentBatchQuantity:N0}x {_request.ItemName} 的数量 ({_completedQuantity:N0}/{_request.Quantity:N0})"
-            : $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+            : $"Confirming purchase of {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
     }
 
     private void UpdateConfirmingPurchase()
@@ -743,7 +933,7 @@ public sealed class VendorPurchaseManager : IDisposable
             {
                 _grandCompanyQuantityPrepared = true;
                 _lastActionTime = DateTime.UtcNow;
-                _statusText = $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+                _statusText = $"正在确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
                 return;
             }
 
@@ -759,7 +949,7 @@ public sealed class VendorPurchaseManager : IDisposable
             _state = State.WaitingForPurchaseComplete;
             _stateStartTime = DateTime.UtcNow;
             _lastActionTime = DateTime.UtcNow;
-            _statusText = $"等待 {_currentBatchQuantity:N0}x {_request.ItemName} 到达背包或兵装库 ({_completedQuantity:N0}/{_request.Quantity:N0})";
+            _statusText = $"正在等待 {_currentBatchQuantity:N0}x {_request.ItemName} 到达背包或兵装库 ({_completedQuantity:N0}/{_request.Quantity:N0})";
             return;
         }
 
@@ -804,7 +994,7 @@ public sealed class VendorPurchaseManager : IDisposable
         if (!VendorInteractionHelper.TryInteractWithTarget(_request.Location))
             return false;
 
-        _statusText = $"{reason}, 与 {_request.Vendor.Name} 交互中";
+        _statusText = $"{reason} with {_request.Vendor.Name}";
         return true;
     }
 
@@ -822,18 +1012,26 @@ public sealed class VendorPurchaseManager : IDisposable
             _request.Quantity,
             _completedQuantity,
             _request.Vendor,
-            message);
+            message,
+            false);
         ResetState();
         PurchaseFinished?.Invoke(result);
     }
 
-    private void CompletePartially(string message)
+    private void CompletePartially(string message, bool wasLimitedByScripReserve = false)
     {
         if (_request == null)
             return;
 
-        GatherBuddy.Log.Error($"[VendorPurchaseManager] {message}");
-        Communicator.PrintError($"[GatherBuddyReborn] {message}");
+        if (wasLimitedByScripReserve)
+        {
+            GatherBuddy.Log.Warning($"[VendorPurchaseManager] {message}");
+        }
+        else
+        {
+            GatherBuddy.Log.Error($"[VendorPurchaseManager] {message}");
+            Communicator.PrintError($"[GatherBuddyReborn] {message}");
+        }
         var result = new PurchaseResult(
             CompletionState.PartiallyCompleted,
             _request.ItemId,
@@ -841,7 +1039,27 @@ public sealed class VendorPurchaseManager : IDisposable
             _request.Quantity,
             _completedQuantity,
             _request.Vendor,
-            message);
+            message,
+            wasLimitedByScripReserve);
+        ResetState();
+        PurchaseFinished?.Invoke(result);
+    }
+
+    private void Skip(string message, bool wasLimitedByScripReserve = false)
+    {
+        if (_request == null)
+            return;
+
+        GatherBuddy.Log.Warning($"[VendorPurchaseManager] {message}");
+        var result = new PurchaseResult(
+            CompletionState.Skipped,
+            _request.ItemId,
+            _request.ItemName,
+            _request.Quantity,
+            _completedQuantity,
+            _request.Vendor,
+            message,
+            wasLimitedByScripReserve);
         ResetState();
         PurchaseFinished?.Invoke(result);
     }
@@ -860,7 +1078,8 @@ public sealed class VendorPurchaseManager : IDisposable
             _request.Quantity,
             _completedQuantity,
             _request.Vendor,
-            message);
+            message,
+            false);
         ResetState();
         PurchaseFinished?.Invoke(result);
     }
@@ -885,6 +1104,10 @@ public sealed class VendorPurchaseManager : IDisposable
         _gcRankSelected = false;
         _gcCategorySelected = false;
         _grandCompanyQuantityPrepared = false;
+        _purchaseConstraints = null;
+        _inclusionRecoverySubPageCandidates = null;
+        _inclusionRecoverySubPageCandidateIndex = 0;
+        _activeInclusionSubPageIndex = 0;
         _statusText = string.Empty;
     }
 

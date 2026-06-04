@@ -17,6 +17,8 @@ namespace GatherBuddy.Gui;
 
 public partial class VulcanWindow
 {
+    private const string CraftingListDragDropPayload = "GatherBuddyCraftingListDragDrop";
+    private int? _draggedCraftingListId = null;
     private void DrawCraftingListsTab()
     {
         IDisposable tabItem;
@@ -139,19 +141,19 @@ public partial class VulcanWindow
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("新建清单"))
+        if (ImGui.Button("新建清单", VulcanUiScaling.Scaled(115f, 0f)))
         {
             PrepareCreateListPopup();
             ImGui.OpenPopup("CreateListPopup");
         }
         ImGui.SameLine();
-        if (ImGui.Button("新建文件夹"))
+        if (ImGui.Button("新建文件夹", VulcanUiScaling.Scaled(95f, 0f)))
             QueueCreateFolderPopup();
         ImGui.SameLine();
-        if (ImGui.Button("导入 TeamCraft"))
+        if (ImGui.Button("导入 TeamCraft", VulcanUiScaling.Scaled(115f, 0f)))
             _showTeamCraftImport = true;
         ImGui.SameLine();
-        if (ImGui.Button("导入清单"))
+        if (ImGui.Button("导入清单", VulcanUiScaling.Scaled(95f, 0f)))
         {
             _importListText  = string.Empty;
             _importListError = null;
@@ -161,7 +163,7 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var avail  = ImGui.GetContentRegionAvail();
-        var leftW  = 220f;
+        var leftW  = VulcanUiScaling.Scaled(220f);
         var rightW = avail.X - leftW - ImGui.GetStyle().ItemSpacing.X;
 
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
@@ -190,7 +192,7 @@ public partial class VulcanWindow
         {
             ImGui.Spacing();
             ImGui.TextColored(ImGuiColors.DalamudGrey, "还没有任何清单");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "点击“新建清单”开始");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "点击「新建清单」开始");
             return;
         }
         foreach (var folderPath in rootFolders)
@@ -217,6 +219,7 @@ public partial class VulcanWindow
             _previewFolderPath = folderPath;
             _previewList = null;
         }
+        DrawCraftingListFolderDropTarget(folderPath);
 
         var isPopupOpen = GatherBuddy.ControllerSupport != null
             ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"FolderContextMenu_{folderPath}", Dalamud.GamepadState)
@@ -265,6 +268,8 @@ public partial class VulcanWindow
 
         if (ImGui.Selectable($"{list.Name}##list_{list.ID}", isHighlighted))
             OpenCraftingList(list);
+        DrawCraftingListDragDropSource(list);
+        DrawCraftingListEntryDropTarget(list);
 
         if (isHighlighted)
             ImGui.PopStyleColor();
@@ -285,8 +290,14 @@ public partial class VulcanWindow
         if (ImGui.Selectable("编辑"))
             OpenCraftingList(list);
 
-        if (ImGui.Selectable("开始制作"))
-            StartCraftingList(list);
+        var artisanLoaded = IPCSubscriber.IsReady("Artisan");
+        using (ImRaii.Disabled(artisanLoaded))
+        {
+            if (ImGui.Selectable("开始制作"))
+                StartCraftingList(list);
+        }
+        if (artisanLoaded && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip("Artisan 插件已加载, 请卸载 Artisan 后使用 Vulcan 制作系统");
 
         if (ImGui.BeginMenu("移动到文件夹"))
         {
@@ -349,7 +360,7 @@ public partial class VulcanWindow
         {
             var h = ImGui.GetContentRegionAvail().Y;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             ImGui.TextColored(ImGuiColors.DalamudGrey, "将鼠标悬停在清单或文件夹上即可预览");
             return;
         }
@@ -363,23 +374,23 @@ public partial class VulcanWindow
         _previewList = list;
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.ParsedGold, list.Name);
 
         if (!string.IsNullOrEmpty(list.FolderPath))
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             ImGui.TextColored(ImGuiColors.DalamudGrey3, $"文件夹: {CraftingListManager.FormatFolderPath(list.FolderPath)}");
         }
 
         if (!string.IsNullOrWhiteSpace(list.Description))
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
             using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey3))
                 ImGui.TextWrapped(list.Description);
         }
 
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3,
             $"{list.Recipes.Count} 个配方  \u00b7  创建于 {list.CreatedAt.ToLocalTime():yyyy-MM-dd}");
 
@@ -388,8 +399,8 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var style   = ImGui.GetStyle();
-        var buttonH = 22f * 2 + style.ItemSpacing.Y * 3 + 4f;
-        var listH   = Math.Max(ImGui.GetContentRegionAvail().Y - buttonH, 40f);
+        var buttonH = VulcanUiScaling.Scaled(22f) * 2 + style.ItemSpacing.Y * 3 + VulcanUiScaling.Scaled(4f);
+        var listH   = Math.Max(ImGui.GetContentRegionAvail().Y - buttonH, VulcanUiScaling.Scaled(40f));
 
         ImGui.BeginChild("##previewRecipeList", new Vector2(-1, listH), false);
 
@@ -399,7 +410,7 @@ public partial class VulcanWindow
         }
         else
         {
-            var iconSz = new Vector2(22f, 22f);
+            var iconSz = VulcanUiScaling.Scaled(22f, 22f);
             var rowHeight = iconSz.Y + ImGui.GetStyle().ItemSpacing.Y;
             var clipper = ImGui.ImGuiListClipper();
             clipper.Begin(list.Recipes.Count, rowHeight);
@@ -424,7 +435,7 @@ public partial class VulcanWindow
                     else
                         ImGui.Dummy(iconSz);
 
-                    ImGui.SameLine(0, 6);
+                    ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
                     ImGui.SetCursorPosY(textY);
                     ImGui.Text(resultItem.Name.ExtractText());
                     ImGui.SameLine();
@@ -443,21 +454,21 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var halfW = (ImGui.GetContentRegionAvail().X - style.ItemSpacing.X) / 2f;
-        if (ImGui.Button("编辑清单##previewEdit", new Vector2(halfW, 22)))
+        if (ImGui.Button("编辑清单##previewEdit", new Vector2(halfW, VulcanUiScaling.Scaled(22f))))
             OpenCraftingList(list);
         ImGui.SameLine();
         if (IPCSubscriber.IsReady("Artisan"))
         {
-            ImGuiUtil.DrawDisabledButton("检测到 Artisan##previewStart", new Vector2(-1, ImGui.GetFrameHeight()),
+            ImGuiUtil.DrawDisabledButton("检测到 Artisan##previewStart", VulcanUiScaling.Scaled(-1f, 22f),
                 "Artisan 插件已加载, 请卸载 Artisan 后使用 Vulcan 制作系统", true);
         }
-        else if (ImGui.Button("开始制作##previewStart"))
+        else if (ImGui.Button("开始制作##previewStart", VulcanUiScaling.Scaled(-1f, 22f)))
         {
             StartCraftingList(list);
             MinimizeWindow();
         }
 
-        if (ImGui.Button("导出##previewExport"))
+        if (ImGui.Button("导出##previewExport", new Vector2(halfW, VulcanUiScaling.Scaled(22f))))
         {
             var exported = GatherBuddy.CraftingListManager.ExportList(list.ID);
             if (exported != null)
@@ -469,7 +480,7 @@ public partial class VulcanWindow
         ImGui.SameLine();
         using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.45f, 0.12f, 0.12f, 1f)))
         {
-            if (ImGui.Button("删除##previewDelete", new Vector2(-1, 22)))
+            if (ImGui.Button("删除##previewDelete", VulcanUiScaling.Scaled(-1f, 22f)))
             {
                 GatherBuddy.CraftingListManager.DeleteList(list.ID);
                 _previewList = null;
@@ -488,11 +499,11 @@ public partial class VulcanWindow
         var entries = GetFolderPreviewEntries(folderPath);
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.ParsedGold, CraftingListManager.GetFolderDisplayName(folderPath));
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, $"文件夹: {CraftingListManager.FormatFolderPath(folderPath)}");
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 8);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
         ImGui.TextColored(ImGuiColors.DalamudGrey3, $"此文件夹树中共有 {entries.Count} 个清单");
 
         ImGui.Spacing();
@@ -519,8 +530,7 @@ public partial class VulcanWindow
     private List<(string Label, CraftingListDefinition List)> GetFolderPreviewEntries(string folderPath, string? labelPrefix = null)
     {
         var entries = new List<(string Label, CraftingListDefinition List)>();
-
-        foreach (var list in GatherBuddy.CraftingListManager.GetListsInFolder(folderPath).OrderBy(list => list.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var list in GatherBuddy.CraftingListManager.GetListsInFolder(folderPath))
         {
             var label = string.IsNullOrEmpty(labelPrefix)
                 ? list.Name
@@ -537,6 +547,53 @@ public partial class VulcanWindow
         }
 
         return entries;
+    }
+
+    private void DrawCraftingListDragDropSource(CraftingListDefinition list)
+    {
+        using var source = ImRaii.DragDropSource();
+        if (!source.Success)
+            return;
+
+        _draggedCraftingListId = list.ID;
+        ImGui.SetDragDropPayload(CraftingListDragDropPayload, []);
+        ImGui.TextUnformatted(list.Name);
+    }
+
+    private void DrawCraftingListEntryDropTarget(CraftingListDefinition targetList)
+    {
+        using var target = ImRaii.DragDropTarget();
+        if (!target.Success || !ImGuiUtil.IsDropping(CraftingListDragDropPayload) || _draggedCraftingListId is not int draggedListId)
+            return;
+
+        var draggedList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        if (draggedList == null || draggedList.ID == targetList.ID)
+            return;
+
+        var itemMidpointY = (ImGui.GetItemRectMin().Y + ImGui.GetItemRectMax().Y) * 0.5f;
+        var placeAfter = ImGui.GetMousePos().Y >= itemMidpointY;
+        if (!GatherBuddy.CraftingListManager.MoveListRelative(draggedList, targetList, placeAfter))
+            return;
+
+        _previewList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        _previewFolderPath = null;
+    }
+
+    private void DrawCraftingListFolderDropTarget(string folderPath)
+    {
+        using var target = ImRaii.DragDropTarget();
+        if (!target.Success || !ImGuiUtil.IsDropping(CraftingListDragDropPayload) || _draggedCraftingListId is not int draggedListId)
+            return;
+
+        var draggedList = GatherBuddy.CraftingListManager.GetListByID(draggedListId);
+        if (draggedList == null)
+            return;
+
+        if (!GatherBuddy.CraftingListManager.MoveListToFolderEnd(draggedList, folderPath))
+            return;
+
+        _previewFolderPath = folderPath;
+        _previewList = null;
     }
 
 

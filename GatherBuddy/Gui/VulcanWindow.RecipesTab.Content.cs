@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -19,11 +19,8 @@ public partial class VulcanWindow
     private void DrawFilterPanel()
     {
         ImGui.Spacing();
-        ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextWithHint("##recipeSearch", "搜索...", ref _recipeSearchText, 256))
-        {
+        if (DrawSearchInputWithInlineClear("##recipeSearch", "搜索...", ref _recipeSearchText, 256))
             _filtersDirty = true;
-        }
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -33,13 +30,13 @@ public partial class VulcanWindow
         ImGui.Spacing();
 
         var columns = 4;
-        var buttonPad = 4f;
+        var buttonPad = VulcanUiScaling.Scaled(4f);
         var framePad = ImGui.GetStyle().FramePadding;
         var regionWidth = ImGui.GetContentRegionAvail().X;
         var btnSide = (regionWidth - (columns - 1) * buttonPad) / columns;
         var iconSide = btnSide - framePad.X * 2;
-        if (iconSide < 16) iconSide = 16;
-        if (iconSide > 26) { iconSide = 26; btnSide = iconSide + framePad.X * 2; }
+        if (iconSide < VulcanUiScaling.Scaled(16f)) iconSide = VulcanUiScaling.Scaled(16f);
+        if (iconSide > VulcanUiScaling.Scaled(26f)) { iconSide = VulcanUiScaling.Scaled(26f); btnSide = iconSide + framePad.X * 2; }
         var iconSize = new Vector2(iconSide, iconSide);
         var selectedColor = new Vector4(0.25f, 0.50f, 0.85f, 1.00f);
 
@@ -48,7 +45,7 @@ public partial class VulcanWindow
             ImGui.PushStyleColor(ImGuiCol.Button, selectedColor);
         
         ImGui.PushID("jobAll");
-        if (ImGui.Button("全部"))
+        if (ImGui.Button("全部", new Vector2(btnSide, btnSide)))
         {
             _selectedJobFilters.Clear();
             _filtersDirty = true;
@@ -79,7 +76,7 @@ public partial class VulcanWindow
             if (wrap != null)
                 clicked = ImGui.ImageButton(wrap.Handle, iconSize);
             else
-                clicked = ImGui.Button(JobNames[i], new Vector2(iconSize.X + 8, iconSize.Y + 8));
+                clicked = ImGui.Button(JobNames[i], new Vector2(iconSize.X + VulcanUiScaling.Scaled(8f), iconSize.Y + VulcanUiScaling.Scaled(8f)));
             ImGui.PopID();
 
             if (ImGui.IsItemHovered())
@@ -118,7 +115,8 @@ public partial class VulcanWindow
             ImGui.SetTooltip("按物品装备等级筛选和排序, 而不是按制作等级");
         ImGui.Spacing();
 
-        ImGui.SetNextItemWidth(-1f);
+        var sliderWidth = VulcanUiScaling.Scaled(150f);
+        ImGui.SetNextItemWidth(sliderWidth);
         if (ImGui.SliderInt("##minLevel", ref _minLevel, 1, 100, "最低: %d", ImGuiSliderFlags.AlwaysClamp))
         {
             _minLevel = Math.Clamp(_minLevel, 1, _maxLevel);
@@ -129,7 +127,7 @@ public partial class VulcanWindow
             ImGui.SetTooltip("按住 Ctrl 并点击可直接输入数值");
         }
 
-        ImGui.SetNextItemWidth(-1f);
+        ImGui.SetNextItemWidth(sliderWidth);
         if (ImGui.SliderInt("##maxLevel", ref _maxLevel, 1, 100, "最高: %d", ImGuiSliderFlags.AlwaysClamp))
         {
             _maxLevel = Math.Clamp(_maxLevel, _minLevel, 100);
@@ -227,7 +225,7 @@ public partial class VulcanWindow
         var hasLists = GatherBuddy.CraftingListManager.Lists.Count > 0;
         using (ImRaii.Disabled(_filteredUncraftedRecipeCount == 0 || !hasLists))
         {
-            if (ImGui.Button($"批量加入 {_filteredUncraftedRecipeCount} 个配方...", new Vector2(-1, 0)))
+            if (ImGui.Button($"批量添加 {_filteredUncraftedRecipeCount} 个配方...", new Vector2(-1, 0)))
             {
                 _bulkAddFilteredListSearch = string.Empty;
                 ImGui.OpenPopup("BulkAddFilteredRecipesPopup");
@@ -236,14 +234,14 @@ public partial class VulcanWindow
 
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
-            const string description = "将当前筛选结果中所有尚未制作的配方一次性加入所选制作清单";
+            const string description = "将当前筛选出的所有未制作配方添加到您选择的制作清单中";
             if (!hasLists)
             {
                 ImGui.SetTooltip($"{description}\n\n请先创建一个制作清单");
             }
             else if (_filteredUncraftedRecipeCount == 0)
             {
-                ImGui.SetTooltip($"{description}\n\n当前筛选条件下没有尚未制作的配方");
+                ImGui.SetTooltip($"{description}\n\n当前筛选条件下没有未制作的配方");
             }
             else
             {
@@ -251,13 +249,13 @@ public partial class VulcanWindow
             }
         }
 
-        ImGui.SetNextWindowSize(new Vector2(320f, 0f), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(320f, 0f), ImGuiCond.Appearing);
         if (ImGui.BeginPopup("BulkAddFilteredRecipesPopup"))
         {
             ImGui.TextWrapped($"将当前筛选结果中 {_filteredUncraftedRecipeCount} 个尚未制作的配方批量加入:");
             ImGui.Spacing();
             ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextWithHint("##BulkAddFilteredListSearch", "搜索清单...", ref _bulkAddFilteredListSearch, 128);
+            ImGui.InputTextWithHint("##BulkAddFilteredListSearch", "Search lists...", ref _bulkAddFilteredListSearch, 128);
 
             var filteredLists = string.IsNullOrWhiteSpace(_bulkAddFilteredListSearch)
                 ? GatherBuddy.CraftingListManager.Lists.OrderBy(list => list.Name, StringComparer.OrdinalIgnoreCase).ToList()
@@ -267,7 +265,7 @@ public partial class VulcanWindow
                     .ToList();
 
             var rowH = ImGui.GetTextLineHeightWithSpacing();
-            var popupHeight = filteredLists.Count > 0 ? Math.Min(filteredLists.Count * rowH, 180f) : rowH;
+            var popupHeight = filteredLists.Count > 0 ? Math.Min(filteredLists.Count * rowH, VulcanUiScaling.Scaled(180f)) : rowH;
             ImGui.BeginChild("##BulkAddFilteredListScroll", new Vector2(0, popupHeight), true);
             if (filteredLists.Count == 0)
             {
@@ -322,26 +320,27 @@ public partial class VulcanWindow
             return;
         }
 
+        var sortControlsWidth = VulcanUiScaling.Scaled(180f);
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), $"  {_filteredRecipes.Count} 个配方");
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 180);
+        ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetContentRegionMax().X - sortControlsWidth));
         
         var sortLabel = _sortColumn switch
         {
-            SortColumn.Level => _filterByEquipLevel ? "装备等级" : "等级",
-            SortColumn.Crafted => "制作状态",
-            _ => "排序"
+            SortColumn.Level => _filterByEquipLevel ? "Equip Lv" : "Level",
+            SortColumn.Crafted => "Crafted",
+            _ => "Sort"
         };
         var sortIcon = _sortDirection == SortDirection.Ascending ? FontAwesomeIcon.ArrowUp : FontAwesomeIcon.ArrowDown;
         
         ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "排序:");
         ImGui.SameLine();
         
-        if (ImGui.Button($"{sortLabel}##sortBtn", new Vector2(90, 0)))
+        if (ImGui.Button($"{sortLabel}##sortBtn", new Vector2(VulcanUiScaling.Scaled(90f), 0)))
         {
             ImGui.OpenPopup("##sortMenu");
         }
         
-        ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             ImGui.Text(sortIcon.ToIconString());
@@ -349,7 +348,7 @@ public partial class VulcanWindow
         
         if (ImGui.BeginPopup("##sortMenu"))
         {
-            if (ImGui.MenuItem("等级", "", _sortColumn == SortColumn.Level))
+            if (ImGui.MenuItem("Level", "", _sortColumn == SortColumn.Level))
             {
                 if (_sortColumn == SortColumn.Level)
                     _sortDirection = _sortDirection == SortDirection.Ascending ? SortDirection.Descending : SortDirection.Ascending;
@@ -357,7 +356,7 @@ public partial class VulcanWindow
                     _sortColumn = SortColumn.Level;
                 _filtersDirty = true;
             }
-            if (ImGui.MenuItem("制作状态", "", _sortColumn == SortColumn.Crafted))
+            if (ImGui.MenuItem("Crafted", "", _sortColumn == SortColumn.Crafted))
             {
                 if (_sortColumn == SortColumn.Crafted)
                     _sortDirection = _sortDirection == SortDirection.Ascending ? SortDirection.Descending : SortDirection.Ascending;
@@ -370,9 +369,9 @@ public partial class VulcanWindow
         
         ImGui.Separator();
 
-        var iconSm = new Vector2(28, 28);
-        var jobIconSm = new Vector2(20, 20);
-        const float rightGroupWidth = 70f;
+        var iconSm = VulcanUiScaling.Scaled(28f, 28f);
+        var jobIconSm = VulcanUiScaling.Scaled(20f, 20f);
+        var rightGroupWidth = VulcanUiScaling.Scaled(70f);
         var contentMaxX = ImGui.GetContentRegionMax().X;
         var itemHeight = iconSm.Y + ImGui.GetStyle().ItemSpacing.Y;
 
@@ -401,7 +400,7 @@ public partial class VulcanWindow
             else
                 ImGui.Dummy(iconSm);
             
-            ImGui.SameLine(0, 4);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
 
             var cursorY = ImGui.GetCursorPosY();
             ImGui.SetCursorPosY(cursorY + (iconSm.Y - ImGui.GetTextLineHeight()) / 2);
@@ -419,6 +418,11 @@ public partial class VulcanWindow
             {
                 _selectedRecipe = recipe;
             }
+            if (GatherBuddy.Config.ShowRecipeBrowserTooltips && ImGui.IsItemHovered())
+            {
+                if (TryGetRecipesTooltipAnchor(out var tooltipAnchorMin, out var tooltipAnchorMax, out var tooltipExpandRight))
+                    GatherBuddy.NativeItemTooltipBridge?.RequestItemTooltip(recipe.Recipe.ItemResult.RowId, tooltipAnchorMin, tooltipAnchorMax, tooltipExpandRight);
+            }
 
             if (_pendingRecipeScrollId == recipe.Recipe.RowId)
             {
@@ -432,7 +436,7 @@ public partial class VulcanWindow
             
             if (isPopupOpen)
             {
-                if (ImGui.MenuItem("显示配方属性 (调试)"))
+                if (ImGui.MenuItem("Show Recipe Properties (Debug)"))
                 {
                     GatherBuddy.Log.Information($"=== Recipe Properties for {recipe.Name} ===");
                     GatherBuddy.Log.Information($"Recipe.RowId: {recipe.Recipe.RowId}");
@@ -472,18 +476,18 @@ public partial class VulcanWindow
 
                 ImGui.TextColored(new Vector4(0.7f, 1.0f, 0.7f, 1.0f), "创建新清单:");
                 ImGui.SetNextItemWidth(-1);
-                var createEnter = ImGui.InputTextWithHint("##NewListName", "清单名称...", ref _contextMenuNewListName, 128, ImGuiInputTextFlags.EnterReturnsTrue);
-                ImGui.Checkbox("临时##ctxNewListEphemeral", ref _contextMenuNewListEphemeral);
+                var createEnter = ImGui.InputTextWithHint("##NewListName", "List name...", ref _contextMenuNewListName, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+                ImGui.Checkbox("Ephemeral##ctxNewListEphemeral", ref _contextMenuNewListEphemeral);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("制作完成后自动删除此清单\n可稍后在清单编辑器中关闭");
-                if ((ImGui.Button("创建并添加", new Vector2(-1, 0)) || createEnter) && !string.IsNullOrWhiteSpace(_contextMenuNewListName))
+                    ImGui.SetTooltip("Delete this list automatically after crafting completes.\nCan be disabled later in the list editor.");
+                if ((ImGui.Button("Create & Add", new Vector2(-1, 0)) || createEnter) && !string.IsNullOrWhiteSpace(_contextMenuNewListName))
                 {
                     var newList = GatherBuddy.CraftingListManager.CreateNewList(_contextMenuNewListName.Trim(), _contextMenuNewListEphemeral);
                     newList.Recipes.Add(new CraftingListItem(recipe.Recipe.RowId, _contextMenuAddQuantity));
                     GatherBuddy.CraftingListManager.SaveList(newList);
                     RefreshOpenCraftingList(newList.ID);
                     GatherBuddy.Log.Information($"[VulcanWindow] Created list '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}");
-                    Communicator.Print($"已创建 '{newList.Name}' 并添加 {recipe.Name} x{_contextMenuAddQuantity}");
+                    Communicator.Print($"Created '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}.");
                     ImGui.CloseCurrentPopup();
                 }
 
@@ -502,12 +506,14 @@ public partial class VulcanWindow
                     ImGui.AlignTextToFramePadding();
                     ImGui.Text("数量:");
                     ImGui.SameLine();
+                    ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
                     ImGui.InputInt("##ContextQty", ref _contextMenuAddQuantity, 1);
                     if (_contextMenuAddQuantity < 1) _contextMenuAddQuantity = 1;
                     ImGui.SetNextItemWidth(-1);
                     ImGui.InputTextWithHint("##ContextListSearch", "搜索清单...", ref _contextMenuListSearch, 128);
-
-                    var singleH = filteredLists.Count > 0 ? Math.Min(filteredLists.Count * rowH, 150f) : rowH;
+                    var childPaddingY = ImGui.GetStyle().WindowPadding.Y * 2f;
+                    var singleContentH = filteredLists.Count > 0 ? filteredLists.Count * rowH : rowH;
+                    var singleH = Math.Min(singleContentH + childPaddingY, VulcanUiScaling.Scaled(150f) + childPaddingY);
                     ImGui.BeginChild("##SingleAddScroll", new Vector2(0, singleH), true);
                     if (filteredLists.Count == 0)
                         ImGui.TextDisabled("无匹配");
@@ -519,7 +525,7 @@ public partial class VulcanWindow
                             GatherBuddy.CraftingListManager.SaveList(list);
                             RefreshOpenCraftingList(list.ID);
                             GatherBuddy.Log.Information($"Added {recipe.Name} x{_contextMenuAddQuantity} to crafting list '{list.Name}'");
-                            Communicator.Print($"已将 {recipe.Name} x{_contextMenuAddQuantity} 加入 '{list.Name}'");
+                            Communicator.Print($"Added {recipe.Name} x{_contextMenuAddQuantity} to '{list.Name}'.");
                             _contextMenuLastAddedList = list.Name;
                             _contextMenuLastAddedAt   = DateTime.Now;
                         }
@@ -543,7 +549,7 @@ public partial class VulcanWindow
                 }
                 else
                 {
-                    ImGui.TextDisabled("没有可用制作清单");
+                    ImGui.TextDisabled("No crafting lists available");
                 }
 
                 ImGui.EndPopup();
@@ -564,7 +570,7 @@ public partial class VulcanWindow
                 }
             }
             
-            ImGui.SameLine(0, 4);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
             ImGui.SetCursorPosY(rowStartY + (iconSm.Y - jobIconSm.Y) / 2);
             
             var jobIconId = 62100 + CraftTypeToClassJobId[recipe.Recipe.CraftType.RowId];
@@ -574,7 +580,7 @@ public partial class VulcanWindow
             if (jobWrap != null)
                 ImGui.Image(jobWrap.Handle, jobIconSm);
             
-            ImGui.SameLine(0, 2);
+            ImGui.SameLine(0, VulcanUiScaling.Scaled(2f));
             ImGui.SetCursorPosY(rowStartY + (iconSm.Y - ImGui.GetTextLineHeight()) / 2);
             ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), _filterByEquipLevel ? $"{recipe.ItemEquipLevel}" : $"{recipe.Level}");
             ImGui.SetCursorPosY(rowStartY + itemHeight);
@@ -583,87 +589,94 @@ public partial class VulcanWindow
 
     private void DrawDetailsPanel()
     {
+        var detailInset = VulcanUiScaling.Scaled(12f);
+        var detailLabelGap = VulcanUiScaling.Scaled(4f);
+        var detailSectionGap = VulcanUiScaling.Scaled(16f);
+        var footerButtonHeight = VulcanUiScaling.Scaled(22f);
         if (_selectedRecipe == null)
         {
             var center = ImGui.GetContentRegionAvail();
-            ImGui.SetCursorPos(new Vector2(12, center.Y / 2 - 20));
+            var emptyStateHeight = ImGui.GetTextLineHeightWithSpacing() * 2f;
+            var emptyStateStartY = Math.Max(0f, (center.Y - emptyStateHeight) * 0.5f);
+            ImGui.SetCursorPos(new Vector2(detailInset, emptyStateStartY));
             ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "选择配方以查看详情");
-            ImGui.SetCursorPosX(12);
-            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "并开始制作");
+            ImGui.SetCursorPosX(detailInset);
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "and start crafting.");
             return;
         }
 
         var recipe = _selectedRecipe;
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-        ImGui.TextColored(new Vector4(0.65f, 0.65f, 0.65f, 1.0f), $"配方 ID: {recipe.Recipe.RowId}");
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
+        ImGui.TextColored(new Vector4(0.65f, 0.65f, 0.65f, 1.0f), $"Recipe ID: {recipe.Recipe.RowId}");
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
+        var headerIconSize = VulcanUiScaling.Scaled(48f);
         if (recipe.Icon.TryGetWrap(out var wrap, out _))
-            ImGui.Image(wrap.Handle, new Vector2(48, 48));
+            ImGui.Image(wrap.Handle, new Vector2(headerIconSize, headerIconSize));
         else
-            ImGui.Dummy(new Vector2(48, 48));
+            ImGui.Dummy(new Vector2(headerIconSize, headerIconSize));
         
-        ImGui.SameLine(0, 12);
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (48 - ImGui.GetTextLineHeight()) / 2);
+        ImGui.SameLine(0, detailInset);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (headerIconSize - ImGui.GetTextLineHeight()) / 2);
         ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.6f, 1.0f), recipe.Name);
-
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         
         var r = recipe.Recipe;
         if (r.SecretRecipeBook.RowId > 0)
         {
-            ImGui.TextColored(new Vector4(0.9f, 0.7f, 1.0f, 1.0f), "[秘籍]");
+            ImGui.TextColored(new Vector4(0.9f, 0.7f, 1.0f, 1.0f), "[Master]");
             ImGui.SameLine();
         }
         if (r.ItemResult.Value.AlwaysCollectable)
         {
-            ImGui.TextColored(new Vector4(0.7f, 1.0f, 0.9f, 1.0f), "[收藏品]");
+            ImGui.TextColored(new Vector4(0.7f, 1.0f, 0.9f, 1.0f), "[Collectable]");
             ImGui.SameLine();
         }
         if (r.IsExpert)
         {
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.5f, 1.0f), "[专家]");
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.5f, 1.0f), "[Expert]");
             ImGui.SameLine();
         }
         if (r.ItemResult.Value.ItemSearchCategory.RowId == 0)
         {
-            ImGui.TextColored(new Vector4(0.5f, 0.9f, 1.0f, 1.0f), "[任务]");
+            ImGui.TextColored(new Vector4(0.5f, 0.9f, 1.0f, 1.0f), "[Quest]");
             ImGui.SameLine();
         }
         if (recipe.IsCrafted)
         {
-            ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.3f, 1.0f), "[已制作]");
+            ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.3f, 1.0f), "[Crafted]");
             ImGui.SameLine();
         }
         ImGui.NewLine();
 
         ImGui.Spacing();
 
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        var classIconSize = VulcanUiScaling.Scaled(24f);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         var classLineY = ImGui.GetCursorPosY();
-        var classMidY  = classLineY + (24 - ImGui.GetTextLineHeight()) / 2;
+        var classMidY  = classLineY + (classIconSize - ImGui.GetTextLineHeight()) / 2;
         var jobIconId  = 62100 + CraftTypeToClassJobId[r.CraftType.RowId];
         var jobWrap    = Icons.DefaultStorage.TextureProvider
             .GetFromGameIcon(new GameIconLookup(jobIconId))
             .GetWrapOrDefault();
         ImGui.SetCursorPosY(classMidY);
-            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "职业:");
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "职业:");
         ImGui.SameLine();
         ImGui.SetCursorPosY(classLineY);
         if (jobWrap != null)
-            ImGui.Image(jobWrap.Handle, new Vector2(24, 24));
-        ImGui.SameLine(0, 2);
+            ImGui.Image(jobWrap.Handle, new Vector2(classIconSize, classIconSize));
+        ImGui.SameLine(0, VulcanUiScaling.Scaled(2f));
         ImGui.SetCursorPosY(classMidY);
         ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), recipe.JobAbbreviation);
-        ImGui.SameLine(0, 16);
+        ImGui.SameLine(0, detailSectionGap);
         ImGui.SetCursorPosY(classMidY);
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "等级:");
         ImGui.SameLine();
         ImGui.SetCursorPosY(classMidY);
         ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), recipe.Level.ToString());
-        ImGui.SameLine(0, 16);
+        ImGui.SameLine(0, detailSectionGap);
         ImGui.SetCursorPosY(classMidY);
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "产量:");
         ImGui.SameLine();
@@ -677,12 +690,12 @@ public partial class VulcanWindow
         var durability  = (int)(lt.Durability  * r.DurabilityFactor  / 100);
         var statLabelColor = new Vector4(0.6f, 0.6f, 0.6f, 1.0f);
         var statValueColor = new Vector4(0.8f, 0.9f, 1.0f, 1.0f);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
-        ImGui.TextColored(statLabelColor, "难度:"); ImGui.SameLine(0, 4);
-        ImGui.TextColored(statValueColor, $"{difficulty}"); ImGui.SameLine(0, 16);
-        ImGui.TextColored(statLabelColor, "耐久:"); ImGui.SameLine(0, 4);
-        ImGui.TextColored(statValueColor, $"{durability}"); ImGui.SameLine(0, 16);
-        ImGui.TextColored(statLabelColor, "最高品质:"); ImGui.SameLine(0, 4);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
+        ImGui.TextColored(statLabelColor, "难度:"); ImGui.SameLine(0, detailLabelGap);
+        ImGui.TextColored(statValueColor, $"{difficulty}"); ImGui.SameLine(0, detailSectionGap);
+        ImGui.TextColored(statLabelColor, "耐久:"); ImGui.SameLine(0, detailLabelGap);
+        ImGui.TextColored(statValueColor, $"{durability}"); ImGui.SameLine(0, detailSectionGap);
+        ImGui.TextColored(statLabelColor, "最高品质:"); ImGui.SameLine(0, detailLabelGap);
         ImGui.TextColored(statValueColor, $"{qualityMax}");
 
         ImGui.Spacing();
@@ -712,15 +725,15 @@ public partial class VulcanWindow
         }
 
         ImGui.Spacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         var (resultNq, resultHq) = GetInventoryCountSplit(r.ItemResult.RowId);
         var bagTotal = resultNq + resultHq;
-        ImGui.TextColored(statLabelColor, "可制作:"); ImGui.SameLine(0, 4);
+        ImGui.TextColored(statLabelColor, "可制作:"); ImGui.SameLine(0, detailLabelGap);
         ImGui.TextColored(craftable > 0 ? statValueColor : new Vector4(1f, 0.4f, 0.4f, 1f), $"{craftable}");
-        ImGui.SameLine(0, 16);
-        ImGui.TextColored(statLabelColor, "背包中:"); ImGui.SameLine(0, 4);
+        ImGui.SameLine(0, detailSectionGap);
+        ImGui.TextColored(statLabelColor, "背包中:"); ImGui.SameLine(0, detailLabelGap);
         ImGui.TextColored(bagTotal > 0 ? statValueColor : new Vector4(0.5f, 0.5f, 0.5f, 1f),
-            resultHq > 0 ? $"{resultNq}+{resultHq} HQ" : $"{resultNq}");
+            resultHq > 0 ? $"{resultNq}+{resultHq}hq" : $"{resultNq}");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -744,7 +757,7 @@ public partial class VulcanWindow
         {
             ImGui.Separator();
             ImGui.Spacing();
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
             ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "已配置设置:");
             ImGui.Spacing();
             
@@ -752,17 +765,17 @@ public partial class VulcanWindow
             {
                 if (settings.FoodItemId.HasValue && itemSheet.TryGetRow(settings.FoodItemId.Value, out var food))
                 {
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 24);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
                     ImGui.Text($"食物: {food.Name.ExtractText()}");
                 }
                 if (settings.MedicineItemId.HasValue && itemSheet.TryGetRow(settings.MedicineItemId.Value, out var medicine))
                 {
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 24);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
                     ImGui.Text($"爆发药: {medicine.Name.ExtractText()}");
                 }
                 if (settings.ManualItemId.HasValue && itemSheet.TryGetRow(settings.ManualItemId.Value, out var manual))
                 {
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 24);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
                     ImGui.Text($"指南: {manual.Name.ExtractText()}");
                 }
             }
@@ -770,11 +783,12 @@ public partial class VulcanWindow
         }
 
         var avail = ImGui.GetContentRegionAvail();
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + Math.Max(0, avail.Y - 96));
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + Math.Max(0f, avail.Y - VulcanUiScaling.Scaled(96f)));
 
-        ImGui.AlignTextToFramePadding();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "数量:");
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(100f));
         ImGui.InputInt("##browserQty", ref _browserCraftQuantity, 1);
         if (_browserCraftQuantity < 1) _browserCraftQuantity = 1;
 
@@ -789,31 +803,30 @@ public partial class VulcanWindow
                 ? "制作前自动从雇员处取出缺少的材料"
                 : "需要安装 AllaganTools (InventoryTools) 插件");
 
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 12);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         var topRowButtonWidth = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2f;
         var artisanLoaded = IPCSubscriber.IsReady("Artisan");
         if (artisanLoaded)
         {
-            ImGuiUtil.DrawDisabledButton("检测到 Artisan", new Vector2(topRowButtonWidth, 22),
+            ImGuiUtil.DrawDisabledButton("检测到 Artisan", new Vector2(topRowButtonWidth, footerButtonHeight),
                 "Artisan 插件已加载, 请卸载 Artisan 后使用 Vulcan 制作系统", true);
         }
-        else if (ImGui.Button("开始制作"))
+        else if (ImGui.Button("开始制作", new Vector2(topRowButtonWidth, footerButtonHeight)))
         {
             StartBrowserCraft(recipe.Recipe, _browserCraftQuantity);
             MinimizeWindow();
         }
         ImGui.SameLine();
-        if (ImGui.Button("设置"))
+        if (ImGui.Button("设置", new Vector2(topRowButtonWidth, footerButtonHeight)))
             _craftSettingsPopup.Open(recipe.Recipe.RowId, recipe.Name);
-
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
         var canQuickSynth = recipe.Recipe.CanQuickSynth;
         var qsTooltip = artisanLoaded
             ? "Artisan 插件已加载, 请卸载 Artisan 后使用 Vulcan 制作系统"
             : canQuickSynth
                 ? $"简易制作 {recipe.Name} x{_browserCraftQuantity}"
                 : "此配方无法简易制作";
-        ImGui.SameLine();
-        if (ImGuiUtil.DrawDisabledButton("简易制作", new Vector2(-1, ImGui.GetFrameHeight()), qsTooltip, !canQuickSynth || artisanLoaded))
+        if (ImGuiUtil.DrawDisabledButton("简易制作", new Vector2(-1, footerButtonHeight), qsTooltip, !canQuickSynth || artisanLoaded))
         {
             StartBrowserQuickSynth(recipe.Recipe, _browserCraftQuantity);
             MinimizeWindow();
@@ -822,16 +835,16 @@ public partial class VulcanWindow
 
     private static void DrawIngredientSectionHeader(string title, bool showRetainer)
     {
-        const float colWidth = 40f;
+        var detailInset = VulcanUiScaling.Scaled(12f);
+        var colWidth = VulcanUiScaling.Scaled(40f);
         var currentX    = ImGui.GetCursorPosX();
         var headerY     = ImGui.GetCursorPosY();
         var contentMaxX = ImGui.GetContentRegionMax().X;
         var valueAreaStart = GetIngredientValueAreaStart(currentX, contentMaxX, showRetainer);
         var nqColStart  = valueAreaStart;
         var hqColStart  = valueAreaStart + colWidth;
-
-        var titleStartX   = currentX + 12f;
-        var titleMaxWidth = valueAreaStart - titleStartX - 8f;
+        var titleStartX   = currentX + detailInset;
+        var titleMaxWidth = valueAreaStart - titleStartX - VulcanUiScaling.Scaled(8f);
         title = TruncateTextToWidth(title, titleMaxWidth);
         ImGui.SetCursorPosX(titleStartX);
         if (title.Length > 0)
@@ -854,7 +867,7 @@ public partial class VulcanWindow
         if (showRetainer)
         {
             var retColStart = valueAreaStart + colWidth * 2;
-            var retW = ImGui.CalcTextSize("雇").X;
+            var retW = ImGui.CalcTextSize("Ret").X;
             ImGui.SetCursorPosX(retColStart + (colWidth - retW) / 2);
             ImGui.SetCursorPosY(headerY);
             ImGui.TextColored(colHeaderColor, "雇");
@@ -865,13 +878,14 @@ public partial class VulcanWindow
 
     private static void DrawIngredientRow(uint itemId, int needed, Item item, bool showRetainer)
     {
-        const float colWidth    = 40f;
-        const float xnWidth     = 32f;
-        const float iconSize    = 24f;
-        const float xnIconGap   = 4f;
-        const float iconNameGap = 6f;
+        var detailInset = VulcanUiScaling.Scaled(12f);
+        var colWidth = VulcanUiScaling.Scaled(40f);
+        var xnWidth = VulcanUiScaling.Scaled(32f);
+        var iconSize = VulcanUiScaling.Scaled(24f);
+        var xnIconGap = VulcanUiScaling.Scaled(4f);
+        var iconNameGap = VulcanUiScaling.Scaled(6f);
         var currentX    = ImGui.GetCursorPosX();
-        var rowStartX   = currentX + 12;
+        var rowStartX   = currentX + detailInset;
         var rowY        = ImGui.GetCursorPosY();
         var textY       = rowY + (iconSize - ImGui.GetTextLineHeight()) / 2;
         var contentMaxX = ImGui.GetContentRegionMax().X;
@@ -895,7 +909,7 @@ public partial class VulcanWindow
             ImGui.Dummy(new Vector2(iconSize, iconSize));
 
         var nameStartX   = iconX + iconSize + iconNameGap;
-        var nameMaxWidth = valueAreaStart - nameStartX - 6f;
+        var nameMaxWidth = valueAreaStart - nameStartX - VulcanUiScaling.Scaled(6f);
         ImGui.SetCursorPosX(nameStartX);
         ImGui.SetCursorPosY(textY);
         var name = TruncateTextToWidth(item.Name.ExtractText(), nameMaxWidth);
@@ -963,13 +977,13 @@ public partial class VulcanWindow
 
     private static float GetIngredientValueAreaStart(float currentX, float contentMaxX, bool showRetainer)
     {
-        const float leftIndent = 12f;
-        const float colWidth = 40f;
-        const float xnWidth = 32f;
-        const float xnIconGap = 4f;
-        const float iconSize = 24f;
-        const float iconNameGap = 6f;
-        const float minGapBeforeValues = 6f;
+        var leftIndent = VulcanUiScaling.Scaled(12f);
+        var colWidth = VulcanUiScaling.Scaled(40f);
+        var xnWidth = VulcanUiScaling.Scaled(32f);
+        var xnIconGap = VulcanUiScaling.Scaled(4f);
+        var iconSize = VulcanUiScaling.Scaled(24f);
+        var iconNameGap = VulcanUiScaling.Scaled(6f);
+        var minGapBeforeValues = VulcanUiScaling.Scaled(6f);
 
         var valueColumnCount = showRetainer ? 3 : 2;
         var desiredStart = contentMaxX - colWidth * valueColumnCount;

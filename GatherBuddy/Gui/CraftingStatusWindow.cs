@@ -8,11 +8,12 @@ namespace GatherBuddy.Gui;
 public class CraftingStatusWindow : Window
 {
     private CraftingQueueProcessor? _queueProcessor;
+    private bool? _pendingCollapseState = null;
+    private bool _requestFocus = false;
     private bool _wasFocusedLastFrame = false;
 
     public CraftingStatusWindow() 
-        : base("制作状态###GatherBuddyCraftingStatus", 
-               ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse)
+        : base("制作状态###GatherBuddyCraftingStatus", ImGuiWindowFlags.AlwaysAutoResize)
     {
         IsOpen = false;
         ShowCloseButton = true;
@@ -23,12 +24,51 @@ public class CraftingStatusWindow : Window
     public void SetQueueProcessor(CraftingQueueProcessor? processor)
     {
         _queueProcessor = processor;
-        IsOpen = processor != null;
+        if (processor == null)
+        {
+            IsOpen = false;
+            _pendingCollapseState = null;
+            _requestFocus = false;
+            return;
+        }
+
+        OpenOrRestore();
+    }
+
+    public bool HasActiveQueue
+        => _queueProcessor != null;
+
+    public void OpenOrRestore()
+    {
+        if (_queueProcessor == null)
+            return;
+
+        IsOpen = true;
+        _pendingCollapseState = false;
+        _requestFocus = true;
     }
 
     public override bool DrawConditions()
     {
         return _queueProcessor != null && IsOpen;
+    }
+
+    public override void PreDraw()
+    {
+        if (!IsOpen)
+            return;
+
+        if (_pendingCollapseState.HasValue)
+        {
+            ImGui.SetNextWindowCollapsed(_pendingCollapseState.Value, ImGuiCond.Always);
+            _pendingCollapseState = null;
+        }
+
+        if (_requestFocus)
+        {
+            ImGui.SetNextWindowFocus();
+            _requestFocus = false;
+        }
     }
 
     public override void Draw()
@@ -59,6 +99,13 @@ public class CraftingStatusWindow : Window
 
         ImGui.Text($"状态: {GetStateDisplayName(currentState)}");
         ImGui.Text($"进度: {Math.Min(currentIndex + 1, totalCount)} / {totalCount}");
+
+        if (_queueProcessor.Paused && !string.IsNullOrWhiteSpace(_queueProcessor.PauseReason))
+        {
+            ImGui.PushTextWrapPos();
+            ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.82f, 0.24f, 1.0f), _queueProcessor.PauseReason);
+            ImGui.PopTextWrapPos();
+        }
 
         if (currentItem != null)
         {
@@ -95,7 +142,7 @@ public class CraftingStatusWindow : Window
         }
         else
         {
-            ImGui.TextDisabled("队列处理中...");
+            ImGui.TextDisabled(_queueProcessor.Paused ? "队列已暂停" : "队列处理中...");
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -126,7 +173,7 @@ public class CraftingStatusWindow : Window
             ImGui.Spacing();
 
             var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
-            ImGui.SetNextItemWidth(150);
+            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.SliderInt("操作延迟 (ms)", ref delay, 0, 1000))
             {
                 GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);

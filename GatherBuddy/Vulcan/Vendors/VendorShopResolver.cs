@@ -68,6 +68,7 @@ public static class VendorShopResolver
     private static HashSet<uint> _fishIds       = new();
     private static HashSet<uint> _craftableIds  = new();
     private static HashSet<uint> _housingItemIds = new();
+    private static HashSet<uint> _equippableItemIds = new();
     private static HashSet<uint> _dyeItemIds     = new();
 
     public static bool IsInitialized  => _initialized;
@@ -82,10 +83,36 @@ public static class VendorShopResolver
     public static IReadOnlySet<uint> FishIds       => _fishIds;
     public static IReadOnlySet<uint> CraftableIds  => _craftableIds;
     public static IReadOnlySet<uint> HousingItemIds => _housingItemIds;
+    public static IReadOnlySet<uint> EquippableItemIds => _equippableItemIds;
     public static IReadOnlySet<uint> DyeItemIds     => _dyeItemIds;
 
     public static HashSet<uint> GetAllVendorNpcIds()
         => new(_allVendorNpcIds);
+
+    public static int GetInclusionShopSubPageCount(uint inclusionShopId, int pageIndex)
+    {
+        if (pageIndex < 0)
+            return 0;
+
+        var inclusionSheet = Dalamud.GameData.GetExcelSheet<InclusionShop>();
+        var categorySheet  = Dalamud.GameData.GetExcelSheet<InclusionShopCategory>();
+        var seriesSheet    = Dalamud.GameData.GetSubrowExcelSheet<InclusionShopSeries>();
+        if (inclusionSheet == null || categorySheet == null || seriesSheet == null)
+            return 0;
+        if (!inclusionSheet.TryGetRow(inclusionShopId, out var inclusionShop))
+            return 0;
+        if (pageIndex >= inclusionShop.Category.Count)
+            return 0;
+
+        var categoryRef = inclusionShop.Category[pageIndex];
+        if (categoryRef.RowId == 0 || !categorySheet.TryGetRow(categoryRef.RowId, out var category))
+            return 0;
+
+        var seriesId = category.InclusionShopSeries.RowId;
+        return seriesId != 0 && seriesSheet.TryGetRow(seriesId, out var seriesRow)
+            ? seriesRow.Count
+            : 0;
+    }
 
     public static void InitializeAsync()
     {
@@ -163,6 +190,7 @@ public static class VendorShopResolver
 
             _allVendorNpcIds = BuildVendorNpcIdSet(_gilShopEntries, _specialShopEntries, _gcShopEntries);
             VendorNpcLocationCache.InitializeAsync(_allVendorNpcIds);
+            global::GatherBuddy.Crafting.MaterialSourceClassifier.Reset();
             success = true;
         }
         catch (Exception ex)
@@ -254,6 +282,7 @@ public static class VendorShopResolver
 
             _craftableIds = new HashSet<uint>();
             _housingItemIds = new HashSet<uint>();
+            _equippableItemIds = new HashSet<uint>();
             _dyeItemIds = new HashSet<uint>();
             var recipeSheet = Dalamud.GameData.GetExcelSheet<Recipe>();
             if (recipeSheet != null)
@@ -267,6 +296,8 @@ public static class VendorShopResolver
                 {
                     if (IsHousingItem(item))
                         _housingItemIds.Add(item.RowId);
+                    if (IsEquippableItem(item))
+                        _equippableItemIds.Add(item.RowId);
                     if (IsDyeItem(item))
                         _dyeItemIds.Add(item.RowId);
                 }
@@ -279,6 +310,8 @@ public static class VendorShopResolver
 
     private static bool IsHousingItem(Item item)
         => item.ItemSearchCategory.RowId is 56 or >= 65 and <= 72;
+    private static bool IsEquippableItem(Item item)
+        => item.EquipSlotCategory.RowId > 0;
 
     private static bool IsDyeItem(Item item)
         => item.ItemSearchCategory.RowId == 54;
