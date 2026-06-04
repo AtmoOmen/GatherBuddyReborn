@@ -469,7 +469,7 @@ public partial class Interface
         _gatherGroupCache.Selector.Draw(SelectorWidth);
         ImGui.SameLine();
 
-        ItemDetailsWindow.Draw("Group Details", DrawGatherGroupHeaderLine, () =>
+        ItemDetailsWindow.Draw("采集组详情", DrawGatherGroupHeaderLine, () =>
         {
             if (_gatherGroupCache.Selector.Current != null)
                 DrawGatherGroup(_gatherGroupCache.Selector.Current);

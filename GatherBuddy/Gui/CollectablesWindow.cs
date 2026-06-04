@@ -110,7 +110,7 @@ public sealed class CollectablesWindow : Window
                     : CollectableTurnInRequirements.UnavailableHelpText);
         }
 
-        ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "Requires one of these plugins:", all: false);
+        ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "需要以下插件之一:", all: false);
 
         if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
             GatherBuddy.VulcanWindow?.RestoreWindow();
@@ -128,9 +128,9 @@ public sealed class CollectablesWindow : Window
         if (!turnInsAvailable && !autoTurnIn)
         {
             using var disabledAutoTurnIn = ImRaii.Disabled(true);
-            ImGui.Checkbox("Auto turn in collectables", ref autoTurnIn);
+            ImGui.Checkbox("自动缴纳收藏品", ref autoTurnIn);
         }
-        else if (ImGui.Checkbox("Auto turn in collectables", ref autoTurnIn))
+        else if (ImGui.Checkbox("自动缴纳收藏品", ref autoTurnIn))
         {
             config.AutoTurnInCollectables = autoTurnIn;
             if (autoTurnIn)
@@ -142,10 +142,10 @@ public sealed class CollectablesWindow : Window
             GatherBuddy.Config.Save();
         }
         var autoTurnInHovered = ImGui.IsItemHovered(turnInsAvailable || autoTurnIn ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled);
-        ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "Requires one of these plugins:", all: false);
+        ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "需要以下插件之一:", all: false);
         if (autoTurnInHovered)
             ImGui.SetTooltip(turnInsAvailable
-                ? "Lets Auto-Gather and Vulcan queues run collectable turn-ins automatically."
+                ? "允许自动采集和 Vulcan 队列自动执行收藏品缴纳"
                 : CollectableTurnInRequirements.UnavailableHelpText);
 
         if (!turnInsAvailable)
@@ -156,32 +156,32 @@ public sealed class CollectablesWindow : Window
 
         if (!config.AutoTurnInCollectables && !string.IsNullOrWhiteSpace(config.AutoTurnInHardFailReason))
         {
-            DrawWrappedColoredText(ImGuiColors.DalamudRed, "Auto turn-ins were forced off after a collectables hard failure.");
+            DrawWrappedColoredText(ImGuiColors.DalamudRed, "收藏品发生严重失败后自动缴纳已被强制关闭");
             DrawWrappedColoredText(ImGuiColors.DalamudYellow, config.AutoTurnInHardFailReason);
             ImGui.Spacing();
         }
 
         var runPurchaseList = config.BuyAfterEachCollect;
-        if (ImGui.Checkbox("Run vendor purchase list after turn-in", ref runPurchaseList))
+        if (ImGui.Checkbox("缴纳后运行商店购买清单", ref runPurchaseList))
         {
             config.BuyAfterEachCollect = runPurchaseList;
             GatherBuddy.Config.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Runs the selected buy list after turn-ins, or during scrip-cap recovery if space must be cleared.");
+            ImGui.SetTooltip("缴纳后运行所选购买清单, 或在工票上限时需要腾出空间时运行");
 
         var returnHome = HomeNavigationHelper.ShouldReturnHomeAfterCollectables();
-        if (ImGui.Checkbox("Return home after Vulcan queue turn-ins", ref returnHome))
+        if (ImGui.Checkbox("Vulcan 队列缴纳后回家", ref returnHome))
         {
             GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle = returnHome;
             GatherBuddy.Config.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("After a queue collectables interruption, return home before crafting resumes.");
+            ImGui.SetTooltip("收藏品队列中断后, 制作恢复前先回家");
 
         ImGui.Spacing();
         var useInventoryFullThreshold = config.UseInventoryFullThreshold;
-        if (ImGui.Checkbox("Use inventory-full threshold", ref useInventoryFullThreshold))
+        if (ImGui.Checkbox("使用物品栏已满阈值", ref useInventoryFullThreshold))
         {
             config.UseInventoryFullThreshold = useInventoryFullThreshold;
             GatherBuddy.Config.Save();
@@ -192,7 +192,7 @@ public sealed class CollectablesWindow : Window
         {
             var inventoryThreshold = config.InventoryFullThreshold;
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
-            if (ImGui.DragInt("Inventory threshold", ref inventoryThreshold, 1f, 1, 140))
+            if (ImGui.DragInt("物品栏阈值", ref inventoryThreshold, 1f, 1, 140))
             {
                 config.InventoryFullThreshold = Math.Clamp(inventoryThreshold, 1, 140);
                 GatherBuddy.Config.Save();
@@ -202,7 +202,7 @@ public sealed class CollectablesWindow : Window
         {
             var collectableThreshold = config.CollectableInventoryThreshold;
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
-            if (ImGui.DragInt("Collectable threshold", ref collectableThreshold, 1f, 1, 140))
+            if (ImGui.DragInt("收藏品阈值", ref collectableThreshold, 1f, 1, 140))
             {
                 config.CollectableInventoryThreshold = Math.Clamp(collectableThreshold, 1, 140);
                 GatherBuddy.Config.Save();
@@ -212,21 +212,21 @@ public sealed class CollectablesWindow : Window
 
     private static void DrawTurnInRouteSettings(IReadOnlyList<CollectableTurnInRouteOption> routes, CollectableTurnInRouteOption? selectedRoute)
     {
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Turn-In Route");
+        ImGui.TextColored(ImGuiColors.ParsedGold, "缴纳路线");
         if (routes.Count == 0)
         {
             var status = CollectableTurnInRouteResolver.HasLookupData
                 ? VendorNpcLocationCache.IsInitializing
-                    ? "Collectables route locations are still loading."
-                    : "No collectables turn-in routes are currently available."
-                : "Collectables route data is unavailable.";
+                    ? "收藏品路线位置仍在加载中"
+                    : "当前没有可用收藏品缴纳路线"
+                : "收藏品路线数据不可用";
             ImGui.TextColored(ImGuiColors.DalamudGrey3, status);
             return;
         }
 
-        var previewLabel = selectedRoute?.DisplayName ?? "Select a turn-in route...";
+        var previewLabel = selectedRoute?.DisplayName ?? "选择缴纳路线...";
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("Preferred turn-in route", previewLabel))
+        if (ImGui.BeginCombo("首选缴纳路线", previewLabel))
         {
             foreach (var route in routes)
             {
@@ -248,7 +248,7 @@ public sealed class CollectablesWindow : Window
         if (selectedRoute != null)
         {
             ImGui.TextColored(ImGuiColors.DalamudGrey3,
-                $"NPC: {selectedRoute.Vendor.Name} · Territory: {selectedRoute.ZoneName} · Source: {selectedRoute.Location.Source}");
+                $"NPC: {selectedRoute.Vendor.Name} · 区域: {selectedRoute.ZoneName} · 来源: {selectedRoute.Location.Source}");
         }
     }
 
@@ -259,8 +259,8 @@ public sealed class CollectablesWindow : Window
         if (!ImGui.BeginPopup(SetupGuidePopupId, ImGuiWindowFlags.NoResize))
             return;
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Collectables Setup Guide");
-        DrawWrappedText("Use Vulcan's Vendors tab to build the scrip purchase list, then assign that list here so collectables runs know what to buy after turn-ins.");
+        ImGui.TextColored(ImGuiColors.ParsedGold, "收藏品设置向导");
+        DrawWrappedText("使用 Vulcan 的「商店」标签页构建工票购买清单, 然后在此处分配, 收藏品运行便会知道缴纳后该购买什么");
         ImGui.Spacing();
 
         if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
@@ -274,27 +274,27 @@ public sealed class CollectablesWindow : Window
         ImGui.Spacing();
 
         DrawSetupGuideStep(
-            "1. Build the purchase list in Vulcan Vendors",
-            "Open Vulcan, switch to the Vendors tab, search for the scrip item you want, set Qty, then use the + button to add it to the active vendor list. Right-click the + button if you want to create a new list or add the item to a different existing list.");
+            "1. 在 Vulcan 商店中构建购买清单",
+            "打开 Vulcan, 切换到「商店」标签页, 搜索你要的工票物品, 设定数量, 然后点击 + 按钮添加到当前商店清单。如果需要新建清单或添加到其他已有清单, 请右键点击 + 按钮");
         DrawSetupGuideStep(
-            "2. Review the list in Vendor Buy Lists",
-            "Open Vendor Buy Lists to rename the list, adjust target quantities, and confirm the selected vendor route if an item has multiple NPC options.");
+            "2. 在商店购买清单中检查",
+            "打开商店购买清单, 重命名清单、调整目标数量, 并确认物品有多个 NPC 选项时的所选商店路线");
         DrawSetupGuideStep(
-            "3. Assign the list in Collectables",
-            "Choose a list under Gathering collectables purchase list for Auto-Gather runs and gathering manual turn-ins. Choose a list under Crafting collectables purchase list for Vulcan queue runs and crafting manual turn-ins. The 'Use Active Vendor List' buttons copy the currently active vendor list into that slot.");
+            "3. 在收藏品中分配清单",
+            "在采集收藏品购买清单中选择一个清单用于自动采集运行和手动采集缴纳。在制作收藏品购买清单中选择一个清单用于 Vulcan 队列运行和手动制作缴纳。「使用当前商店清单」按钮会将当前活跃的商店清单复制到对应栏位");
         DrawSetupGuideStep(
-            "4. Enable the purchase behavior you want",
-            "Turn on Run vendor purchase list after turn-in if you want collectables runs to spend scrips automatically. Reserve scrips keeps a buffer so the list does not spend your last scrip. Turn on Auto turn in collectables if you want Auto-Gather or Vulcan queue runs to trigger turn-ins automatically.");
+            "4. 启用所需购买行为",
+            "如需收藏品运行自动消耗工票, 请开启「缴纳后运行商店购买清单」。保留工票会留出缓冲, 避免清单花掉你最后的工票。如需自动采集或 Vulcan 队列运行自动触发缴纳, 请开启「自动缴纳收藏品」");
 
         ImGui.Spacing();
         DrawWrappedColoredText(ImGuiColors.DalamudYellow,
-            "If turn-ins or purchase automation are unavailable, install or enable Allagan Tools or Allagan Item Search first.");
+            "如果缴纳或购买自动化不可用, 请先安装或启用 Allagan Tools 或 Allagan Item Search");
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.Button("Close", VulcanUiScaling.Scaled(100f, 0f)))
+        if (ImGui.Button("关闭", VulcanUiScaling.Scaled(100f, 0f)))
             ImGui.CloseCurrentPopup();
 
         ImGui.EndPopup();
@@ -305,28 +305,28 @@ public sealed class CollectablesWindow : Window
         VendorBuyListDefinition? selectedGatheringList,
         VendorBuyListDefinition? selectedCraftingList)
     {
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Purchase Lists");
+        ImGui.TextColored(ImGuiColors.ParsedGold, "购买清单");
 
         var reserveScripAmount = config.ReserveScripAmount;
         ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(130f));
-        if (ImGui.DragInt("Reserve scrips", ref reserveScripAmount, 1f, 0, 4000))
+        if (ImGui.DragInt("保留工票", ref reserveScripAmount, 1f, 0, 4000))
         {
             config.ReserveScripAmount = Math.Clamp(reserveScripAmount, 0, 4000);
             GatherBuddy.Config.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Keeps at least this many of each scrip when collectables buy lists spend scrips.");
+            ImGui.SetTooltip("收藏品购买清单消费工票时, 每种工票至少保留此数量");
 
         ImGui.Spacing();
 
         if (manager.Lists.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "No vendor buy lists are available.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "没有可用的商店购买清单");
             return;
         }
 
         DrawPurchaseListSelector(
-            "Gathering collectables purchase list",
+            "采集收藏品购买清单",
             config.GatheringPurchaseListId,
             id => config.GatheringPurchaseListId = id,
             manager);
@@ -335,7 +335,7 @@ public sealed class CollectablesWindow : Window
 
         using (var disabled = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.GatheringPurchaseListId))
         {
-            if (ImGui.Button("Use Active Vendor List for Gathering", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
+            if (ImGui.Button("使用当前商店清单 (采集)", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
             {
                 config.GatheringPurchaseListId = manager.ActiveList.Id;
                 GatherBuddy.Config.Save();
@@ -344,7 +344,7 @@ public sealed class CollectablesWindow : Window
 
         ImGui.Spacing();
         DrawPurchaseListSelector(
-            "Crafting collectables purchase list",
+            "制作收藏品购买清单",
             config.CraftingPurchaseListId,
             id => config.CraftingPurchaseListId = id,
             manager);
@@ -352,7 +352,7 @@ public sealed class CollectablesWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudGrey3, GetPurchaseListSummary(manager, selectedCraftingList));
 
         using var disabledCrafting = ImRaii.Disabled(manager.ActiveList == null || manager.ActiveList.Id == config.CraftingPurchaseListId);
-        if (ImGui.Button("Use Active Vendor List for Crafting", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
+        if (ImGui.Button("使用当前商店清单 (制作)", VulcanUiScaling.Scaled(250f, 0f)) && manager.ActiveList != null)
         {
             config.CraftingPurchaseListId = manager.ActiveList.Id;
             GatherBuddy.Config.Save();
@@ -362,12 +362,12 @@ public sealed class CollectablesWindow : Window
     private static void DrawPurchaseListSelector(string label, Guid selectedListId, Action<Guid> setter, VendorBuyListManager manager)
     {
         var selectedList = manager.Lists.FirstOrDefault(list => list.Id == selectedListId);
-        var previewLabel = selectedList?.Name ?? "No list selected";
+        var previewLabel = selectedList?.Name ?? "未选择清单";
         ImGui.SetNextItemWidth(-1);
         if (!ImGui.BeginCombo(label, previewLabel))
             return;
 
-        if (ImGui.Selectable("No list selected", selectedListId == Guid.Empty))
+        if (ImGui.Selectable("未选择清单", selectedListId == Guid.Empty))
         {
             setter(Guid.Empty);
             GatherBuddy.Config.Save();
@@ -389,7 +389,7 @@ public sealed class CollectablesWindow : Window
     private static string GetPurchaseListSummary(VendorBuyListManager manager, VendorBuyListDefinition selectedList)
     {
         var pendingCount = selectedList.Entries.Count(managerEntry => manager.GetRemainingQuantity(managerEntry) > 0);
-        return $"{selectedList.Entries.Count} entry(s) · {pendingCount} pending with current inventory";
+        return $"{selectedList.Entries.Count} 个条目 · {pendingCount} 个待处理 (基于当前物品栏)";
     }
 
     private static void DrawStatus(
@@ -397,33 +397,33 @@ public sealed class CollectablesWindow : Window
         VendorBuyListDefinition? selectedGatheringList,
         VendorBuyListDefinition? selectedCraftingList)
     {
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Status");
+        ImGui.TextColored(ImGuiColors.ParsedGold, "状态");
         var stateColor = manager.IsRunning ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey3;
-        DrawWrappedColoredText(stateColor, string.IsNullOrWhiteSpace(manager.StatusText) ? "Idle" : manager.StatusText);
+        DrawWrappedColoredText(stateColor, string.IsNullOrWhiteSpace(manager.StatusText) ? "空闲" : manager.StatusText);
         if (!CollectableTurnInRequirements.IsAvailable)
             DrawWrappedColoredText(ImGuiColors.DalamudYellow, CollectableTurnInRequirements.UnavailableHelpText);
         CollectableInventoryHelper.InitializeAsync();
         if (!CollectableInventoryHelper.IsTurnInItemMetadataReady)
         {
             var status = CollectableInventoryHelper.IsTurnInItemMetadataLoading
-                ? "Collectables item data is still loading."
-                : "Collectables item data is unavailable.";
+                ? "收藏品物品数据仍在加载中"
+                : "收藏品物品数据不可用";
             DrawWrappedColoredText(ImGuiColors.DalamudGrey3, status);
         }
         else
         {
             var thresholdState = CollectableInventoryHelper.GetThresholdState(GatherBuddy.Config.CollectableConfig);
             ImGui.TextColored(ImGuiColors.DalamudGrey3,
-                $"Collectables: {thresholdState.CollectableCount} · Inventory: {thresholdState.UsedSlots}/{thresholdState.TotalSlots}");
+                $"收藏品: {thresholdState.CollectableCount} · 物品栏: {thresholdState.UsedSlots}/{thresholdState.TotalSlots}");
         }
         if (!GatherBuddy.Config.CollectableConfig.BuyAfterEachCollect)
             return;
 
         if (selectedGatheringList == null)
-            DrawWrappedColoredText(ImGuiColors.DalamudYellow, "Select a gathering purchase list for Auto-Gather and gathering manual turn-ins.");
+            DrawWrappedColoredText(ImGuiColors.DalamudYellow, "请为自动采集和手动采集缴纳选择采集购买清单");
 
         if (selectedCraftingList == null)
-            DrawWrappedColoredText(ImGuiColors.DalamudYellow, "Select a crafting purchase list for Vulcan and crafting manual turn-ins.");
+            DrawWrappedColoredText(ImGuiColors.DalamudYellow, "请为 Vulcan 和手动制作缴纳选择制作购买清单");
     }
 
     private static void DrawWrappedColoredText(Vector4 color, string text)

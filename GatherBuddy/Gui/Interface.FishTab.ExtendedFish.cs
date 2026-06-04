@@ -281,7 +281,7 @@ public partial class Interface
                 Data.FishingSpots.Where(f => f.ClosestAetheryte != null).Select(f => f.ClosestAetheryte!.Name).Distinct());
             if (!Aetherytes.Contains('\n'))
                 Aetherytes = '\0' + Aetherytes;
-            Patch = string.Intern($"Patch {Data.Patch.ToVersionString()}");
+            Patch = string.Intern($"版本 {Data.Patch.ToVersionString()}");
             FishType = Data.OceanFish ? "海钓" :
                 Data.IsSpearFish      ? "刺鱼" :
                 Data.IsBigFish        ? "鱼王" : "常规";
