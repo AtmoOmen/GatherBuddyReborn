@@ -2136,6 +2136,6 @@ public class CraftingListEditor
             if (classJob.RowId > 0)
                 return classJob.Abbreviation.ExtractText();
         }
-        return "Unknown";
+        return "未知";
     }
 }

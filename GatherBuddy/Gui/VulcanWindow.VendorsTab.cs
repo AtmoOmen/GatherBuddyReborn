@@ -194,7 +194,7 @@ public partial class VulcanWindow
 
         if (GatherBuddy.ControllerSupport != null && !_vendorsTabRequestFocus)
         {
-            var handle = ImRaii.TabItem("Vendors##vendorsTab");
+            var handle = ImRaii.TabItem("商店##vendorsTab");
             tabItem = handle;
             tabOpen = handle.Success;
         }
@@ -204,11 +204,11 @@ public partial class VulcanWindow
             if (_vendorsTabRequestFocus)
             {
                 bool dummy = true;
-                handle = ImRaii.TabItem("Vendors##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
+                handle = ImRaii.TabItem("商店##vendorsTab", ref dummy, ImGuiTabItemFlags.SetSelected);
             }
             else
             {
-                handle = ImRaii.TabItem("Vendors##vendorsTab");
+                handle = ImRaii.TabItem("商店##vendorsTab");
             }
 
             tabItem = handle;
@@ -228,7 +228,7 @@ public partial class VulcanWindow
             if (VendorShopResolver.IsInitializing)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading vendor data...");
+                ImGui.TextColored(ImGuiColors.DalamudGrey, "正在加载商店数据...");
                 return;
             }
 
@@ -260,7 +260,7 @@ public partial class VulcanWindow
 
     private VendorDisplayRow BuildVendorDisplayRow(VendorShopEntry entry, bool locationCacheReady)
     {
-        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(entry.Npcs, "building the Vendors tab", entry.ItemName);
+        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(entry.Npcs, "构建商店标签页", entry.ItemName);
         var npcOptions = new List<VendorDisplayNpcOption>(selectableNpcs.Count);
         foreach (var npc in selectableNpcs)
         {
@@ -913,14 +913,14 @@ public partial class VulcanWindow
 
         if (_vendorCategory == VendorShopType.GrandCompanySeals && GetCurrentGrandCompanyEntryCount() == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Loading GC Seal data...");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "正在加载军票数据...");
             return;
         }
 
         var overflow = _vendorDisplay.Count > 500;
         ImGui.TextColored(ImGuiColors.DalamudGrey3, overflow
-            ? $"Showing 500 of {_vendorDisplay.Count} \u2014 refine your search"
-            : $"{_vendorDisplay.Count} result(s)");
+            ? $"显示 {_vendorDisplay.Count} 项中的 500 项 - 请缩小搜索范围"
+            : $"{_vendorDisplay.Count} 个结果");
         ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - VulcanUiScaling.Scaled(140f)));
         DrawVendorSortControl();
         ImGui.Spacing();
@@ -934,12 +934,12 @@ public partial class VulcanWindow
             return;
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("Item",     ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Cost",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(110f));
+        ImGui.TableSetupColumn("物品",     ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("价格",     ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(110f));
         if (showAutomationControls)
-            ImGui.TableSetupColumn("Qty",      ImGuiTableColumnFlags.WidthFixed, quantityColumnWidth);
-        ImGui.TableSetupColumn("Vendor",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(170f));
-        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(180f));
+            ImGui.TableSetupColumn("数量",      ImGuiTableColumnFlags.WidthFixed, quantityColumnWidth);
+        ImGui.TableSetupColumn("商人",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(170f));
+        ImGui.TableSetupColumn("位置", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(180f));
         ImGui.TableSetupColumn("##flag",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(32f));
         if (showAutomationControls)
             ImGui.TableSetupColumn("##list",   ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(32f));
