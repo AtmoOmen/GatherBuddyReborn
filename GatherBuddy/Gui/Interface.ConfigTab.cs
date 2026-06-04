@@ -695,52 +695,52 @@ public partial class Interface
                 "复制报告时，将最短和最长时间添加到报告中。",
                 GatherBuddy.Config.EnableReportTime, b => GatherBuddy.Config.EnableReportTime = b);
         public static void DrawEnableReportSize()  
-            => DrawCheckbox("Copy Sizes Stats when reporting.",
-                "When copying the report, add min and max sizes to the report.",
+            => DrawCheckbox("报告时复制尺寸统计",
+                "复制报告时，将最小和最大尺寸添加到报告中。",
                 GatherBuddy.Config.EnableReportSize, b => GatherBuddy.Config.EnableReportSize = b);
         public static void DrawEnableReportMulti() 
-            => DrawCheckbox("Copy Multi Hook Stats when reporting.",
-                "When copying the report, add stats about multi-hook yields to the report.",
+            => DrawCheckbox("报告时复制多重提钩统计",
+                "复制报告时，将多重提钩产出统计添加到报告中。",
                 GatherBuddy.Config.EnableReportMulti, b => GatherBuddy.Config.EnableReportMulti = b);
         public static void DrawEnableGraphs()      
-            => DrawCheckbox("Enable Graphs.",
-                "When viewing a fishing spot, enable visualization of fish report data. Extreme Testing!",
+            => DrawCheckbox("启用图表",
+                "查看渔场时，启用鱼类报告数据的可视化。极度测试阶段！",
                 GatherBuddy.Config.EnableFishStatsGraphs, b => GatherBuddy.Config.EnableFishStatsGraphs = b);
 
         // Spearfishing Helper
         public static void DrawSpearfishHelperBox()
             => DrawCheckbox("显示刺鱼辅助器",
-                "Toggle whether to show the Spearfishing Helper while spearfishing.",
+                "切换刺鱼时是否显示刺鱼辅助器。",
                 GatherBuddy.Config.ShowSpearfishHelper, b => GatherBuddy.Config.ShowSpearfishHelper = b);
 
         public static void DrawSpearfishNamesBox()
             => DrawCheckbox("显示鱼名覆盖层",
-                "Toggle whether to show the identified names of fish in the spearfishing window.",
+                "切换是否在刺鱼窗口中显示已识别的鱼名。",
                 GatherBuddy.Config.ShowSpearfishNames, b => GatherBuddy.Config.ShowSpearfishNames = b);
 
         public static void DrawAvailableSpearfishBox()
             => DrawCheckbox("显示可用鱼类列表",
-                "Toggle whether to show the list of fish available in your current spearfishing spot on the side of the spearfishing window.",
+                "切换是否在刺鱼窗口侧边显示当前刺鱼点可用的鱼类列表。",
                 GatherBuddy.Config.ShowAvailableSpearfish, b => GatherBuddy.Config.ShowAvailableSpearfish = b);
 
         public static void DrawSpearfishSpeedBox()
             => DrawCheckbox("在覆盖层中显示鱼的速度",
-                "Toggle whether to show the speed of fish in the spearfishing window in addition to their names.",
+                "切换是否在刺鱼窗口中除鱼名外还显示鱼的速度。",
                 GatherBuddy.Config.ShowSpearfishSpeed, b => GatherBuddy.Config.ShowSpearfishSpeed = b);
 
         public static void DrawSpearfishCenterLineBox()
             => DrawCheckbox("显示中心线",
-                "Toggle whether to show a straight line up from the center of the spearfishing gig in the spearfishing window.",
+                "切换是否在刺鱼窗口中显示从鱼叉中心向上的直线。",
                 GatherBuddy.Config.ShowSpearfishCenterLine, b => GatherBuddy.Config.ShowSpearfishCenterLine = b);
 
         public static void DrawSpearfishIconsAsTextBox()
             => DrawCheckbox("将速度和尺寸显示为文字",
-                "Toggle whether to show the speed and size of available fish as text instead of icons.",
+                "切换是否以文字而非图标显示可用鱼类的速度和尺寸。",
                 GatherBuddy.Config.ShowSpearfishListIconsAsText, b => GatherBuddy.Config.ShowSpearfishListIconsAsText = b);
 
         public static void DrawSpearfishFishNameFixed()
             => DrawCheckbox("在固定位置显示鱼名",
-                "Toggle whether to show the identified names of fish on the moving fish themselves or in a fixed position.",
+                "切换是否在移动的鱼身上显示已识别的鱼名，还是在固定位置显示。",
                 GatherBuddy.Config.FixNamesOnPosition, b => GatherBuddy.Config.FixNamesOnPosition = b);
 
         public static void DrawSpearfishFishNamePercentage()
@@ -764,22 +764,22 @@ public partial class Interface
         // Gather Window
         public static void DrawShowGatherWindowBox()
             => DrawCheckbox("显示采集窗口",
-                "Show a small window with pinned Gatherables and their uptimes.",
+                "显示一个包含已固定可采集物品及其出现时段的小窗口。",
                 GatherBuddy.Config.ShowGatherWindow, b => GatherBuddy.Config.ShowGatherWindow = b);
 
         public static void DrawGatherWindowAnchorBox()
             => DrawCheckbox("将采集窗口锚定到左下角",
-                "Lets the Gather Window grow to the top and shrink from the top instead of the bottom.",
+                "让采集窗口从顶部增长和收缩，而非从底部。",
                 GatherBuddy.Config.GatherWindowBottomAnchor, b => GatherBuddy.Config.GatherWindowBottomAnchor = b);
 
         public static void DrawGatherWindowTimersBox()
             => DrawCheckbox("显示采集窗口计时器",
-                "Show the uptimes for gatherables in the gather window.",
+                "在采集窗口中显示可采集物品的出现时段。",
                 GatherBuddy.Config.ShowGatherWindowTimers, b => GatherBuddy.Config.ShowGatherWindowTimers = b);
 
         public static void DrawGatherWindowAlarmsBox()
             => DrawCheckbox("在采集窗口中显示活动闹钟",
-                "Additionally show active alarms as a last gather window preset, obeying the regular rules for the window.",
+                "同时将活动闹钟显示为最后的采集窗口预设，遵循窗口的常规规则。",
                 GatherBuddy.Config.ShowGatherWindowAlarms, b =>
                 {
                     GatherBuddy.Config.ShowGatherWindowAlarms = b;
@@ -788,12 +788,12 @@ public partial class Interface
 
         public static void DrawSortGatherWindowBox()
             => DrawCheckbox("按出现时间排序采集窗口",
-                "Sort the items selected for the gather window by their uptimes.",
+                "按出现时间排序采集窗口中所选的物品。",
                 GatherBuddy.Config.SortGatherWindowByUptime, b => GatherBuddy.Config.SortGatherWindowByUptime = b);
 
         public static void DrawGatherWindowShowOnlyAvailableBox()
             => DrawCheckbox("仅显示可用物品",
-                "Show only those items from your gather window setup that are currently available.",
+                "仅显示采集窗口设置中当前可用的物品。",
                 GatherBuddy.Config.ShowGatherWindowOnlyAvailable, b => GatherBuddy.Config.ShowGatherWindowOnlyAvailable = b);
 
         public static void DrawHideGatherWindowCompletedItemsBox()
