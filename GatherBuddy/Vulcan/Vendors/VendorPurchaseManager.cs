@@ -603,7 +603,7 @@ public sealed class VendorPurchaseManager : IDisposable
             _activeInclusionSubPageIndex = candidateSubPageIndex;
             _inclusionSubPageSelected = true;
             _lastActionTime = DateTime.UtcNow;
-            _statusText = $"Scanning inclusion subpage {candidateSubPageIndex} for {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+            _statusText = $"正在扫描综合商店子页面 {candidateSubPageIndex} 以寻找 {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
             GatherBuddy.Log.Debug($"[VendorPurchaseManager] Scanning fallback InclusionShop page={GetDisplayInclusionPageIndex()} subpage={candidateSubPageIndex} for requested item {_request.ItemId}.");
             return true;
         }
@@ -624,12 +624,12 @@ public sealed class VendorPurchaseManager : IDisposable
     private string BuildInclusionRecoveryFailureMessage()
     {
         if (_request == null)
-            return "Could not recover the InclusionShop item selection.";
+            return "无法恢复综合商店物品选择";
 
         var scannedSubPages = 1 + _inclusionRecoverySubPageCandidateIndex;
         var visibleRows     = VendorInteractionHelper.DescribeVisibleInclusionShopItems();
         GatherBuddy.Log.Error($"[VendorPurchaseManager] Failed to find requested item {_request.ItemId} after scanning {scannedSubPages} InclusionShop subpages on page={GetDisplayInclusionPageIndex()}. Last checked subpage={DescribeInclusionSubPageIndex(_activeInclusionSubPageIndex)}. Visible rows: {visibleRows}");
-        return $"Could not find {_request.ItemName} in {_request.Vendor.Name}'s inclusion shop after scanning {scannedSubPages} subpages on page {GetDisplayInclusionPageIndex()}.";
+        return $"在扫描页面 {GetDisplayInclusionPageIndex()} 的 {scannedSubPages} 个子页面后，在 {_request.Vendor.Name} 的综合商店中找不到 {_request.ItemName}";
     }
 
     private int GetDisplayInclusionPageIndex()
@@ -683,7 +683,7 @@ public sealed class VendorPurchaseManager : IDisposable
 
         if (_request.Vendor.ShopItemIndex < 0)
         {
-            Fail($"No special-shop item index is available for {_request.ItemName}.");
+            Fail($"没有可用于 {_request.ItemName} 的特殊商店物品索引");
             return;
         }
 
@@ -696,7 +696,7 @@ public sealed class VendorPurchaseManager : IDisposable
         if (activeAddonName.Length == 0)
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"The direct special shop closed before {_request.ItemName} could be selected.");
+                Fail($"在选择 {_request.ItemName} 之前直接特殊商店已关闭");
             return;
         }
 
@@ -732,14 +732,14 @@ public sealed class VendorPurchaseManager : IDisposable
 
         if (_request.Vendor.ShopItemIndex < 0)
         {
-            Fail($"No inclusion-shop item index is available for {_request.ItemName}.");
+            Fail($"没有可用于 {_request.ItemName} 的综合商店物品索引");
             return;
         }
 
         if (!GenericHelpers.TryGetAddonByName("InclusionShop", out AtkUnitBase* shop) || !shop->IsVisible)
         {
             if ((DateTime.UtcNow - _stateStartTime) > ShopOpenTimeout)
-                Fail($"The inclusion shop closed before {_request.ItemName} could be selected.");
+                Fail($"在选择 {_request.ItemName} 之前综合商店已关闭");
             return;
         }
 
@@ -916,7 +916,7 @@ public sealed class VendorPurchaseManager : IDisposable
         _lastActionTime = DateTime.UtcNow;
         _statusText = opensCurrencyExchange
             ? $"设置 {_currentBatchQuantity:N0}x {_request.ItemName} 的数量 ({_completedQuantity:N0}/{_request.Quantity:N0})"
-            : $"Confirming purchase of {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
+            : $"确认购买 {_currentBatchQuantity:N0}x {_request.ItemName} ({_completedQuantity:N0}/{_request.Quantity:N0})";
     }
 
     private void UpdateConfirmingPurchase()
