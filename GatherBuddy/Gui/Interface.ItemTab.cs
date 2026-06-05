@@ -529,13 +529,13 @@ public partial class Interface
             {
                 return item.Data.GatheringType switch
                 {
-                    GatheringType.Mining     => FilterValue.HasFlag(ItemFilter.Mining),
-                    GatheringType.Quarrying  => FilterValue.HasFlag(ItemFilter.Quarrying),
-                    GatheringType.Logging    => FilterValue.HasFlag(ItemFilter.Logging),
-                    GatheringType.Harvesting => FilterValue.HasFlag(ItemFilter.Harvesting),
-                    GatheringType.Botanist   => (FilterValue & (ItemFilter.Logging | ItemFilter.Harvesting)) != 0,
-                    GatheringType.Miner      => (FilterValue & (ItemFilter.Mining | ItemFilter.Quarrying)) != 0,
-                    GatheringType.Multiple   => (FilterValue & AllFlags) != 0,
+                    GatheringType.采掘     => FilterValue.HasFlag(ItemFilter.Mining),
+                    GatheringType.碎石  => FilterValue.HasFlag(ItemFilter.Quarrying),
+                    GatheringType.采伐    => FilterValue.HasFlag(ItemFilter.Logging),
+                    GatheringType.割草 => FilterValue.HasFlag(ItemFilter.Harvesting),
+                    GatheringType.园艺工   => (FilterValue & (ItemFilter.Logging | ItemFilter.Harvesting)) != 0,
+                    GatheringType.采矿工      => (FilterValue & (ItemFilter.Mining | ItemFilter.Quarrying)) != 0,
+                    GatheringType.多职业   => (FilterValue & AllFlags) != 0,
                     _                        => false,
                 };
             }
@@ -559,11 +559,11 @@ public partial class Interface
             {
                 return item.Data.NodeType switch
                 {
-                    NodeType.Regular   => FilterValue.HasFlag(ItemFilter.Regular),
-                    NodeType.Unspoiled => FilterValue.HasFlag(ItemFilter.Unspoiled),
-                    NodeType.Ephemeral => FilterValue.HasFlag(ItemFilter.Ephemeral),
-                    NodeType.Legendary => FilterValue.HasFlag(ItemFilter.Legendary),
-                    NodeType.Clouded   => FilterValue.HasFlag(ItemFilter.Clouded),
+                    NodeType.常规   => FilterValue.HasFlag(ItemFilter.Regular),
+                    NodeType.未知 => FilterValue.HasFlag(ItemFilter.Unspoiled),
+                    NodeType.限时 => FilterValue.HasFlag(ItemFilter.Ephemeral),
+                    NodeType.传说 => FilterValue.HasFlag(ItemFilter.Legendary),
+                    NodeType.梦幻   => FilterValue.HasFlag(ItemFilter.Clouded),
                     _                  => false,
                 };
             }
@@ -704,7 +704,7 @@ public partial class Interface
 
         private static IReadOnlyList<(int Key, string Label)> GetLevelFilterOptions()
             => _levelFilterOptions ??= GatherBuddy.GameData.Gatherables.Values
-                .Where(gatherable => gatherable.GatheringType != GatheringType.Unknown)
+                .Where(gatherable => gatherable.GatheringType != GatheringType.未知)
                 .GroupBy(GetLevelFilterKey)
                 .OrderBy(group => group.Key)
                 .Select(group => (group.Key, GetLevelFilterLabel(group.First())))
@@ -712,7 +712,7 @@ public partial class Interface
 
         private static IReadOnlyList<(uint Key, string Label)> GetFolkloreFilterOptions()
             => _folkloreFilterOptions ??= GatherBuddy.GameData.Gatherables.Values
-                .Where(gatherable => gatherable.GatheringType != GatheringType.Unknown)
+                .Where(gatherable => gatherable.GatheringType != GatheringType.未知)
                 .GroupBy(GetFolkloreFilterKey)
                 .OrderBy(group => group.Key == 0 ? 0 : 1)
                 .ThenBy(group => GetFolkloreFilterLabel(group.First()), StringComparer.InvariantCulture)
@@ -745,7 +745,7 @@ public partial class Interface
 
         public ItemTable()
             : base("ItemTable",
-                GatherBuddy.GameData.Gatherables.Values.Where(g => g.GatheringType != GatheringType.Unknown)
+                GatherBuddy.GameData.Gatherables.Values.Where(g => g.GatheringType != GatheringType.未知)
                     .Select(g => new ExtendedGatherable(g)).ToList(), _nameColumn, _gatheredColumn, _levelingColumn, _nextUptimeColumn, _aetheryteColumn,
                 _levelColumn, _jobColumn, _typeColumn, _expansionColumn, _folkloreColumn, _uptimesColumn, _bestNodeColumn, _bestZoneColumn,
                 _itemIdColumn, _gatheringIdColumn)
@@ -784,8 +784,8 @@ public partial class Interface
         _itemTable.ExtraHeight = (GatherBuddy.Config.ShowStatusLine ? ImGui.GetTextLineHeight() : 0)
           + ImGui.GetFrameHeightWithSpacing();
         _itemTable.Draw(ImGui.GetTextLineHeightWithSpacing());
-        DrawAddAllFilteredToAutoGather(_itemTable, g => g.Data, "Gatherables");
-        DrawStatusLine(_itemTable, "Items");
+        DrawAddAllFilteredToAutoGather(_itemTable, g => g.Data, "可采集物品");
+        DrawStatusLine(_itemTable, "物品");
         DrawClippy();
     }
 }

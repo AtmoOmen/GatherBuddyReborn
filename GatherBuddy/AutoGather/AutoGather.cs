@@ -418,7 +418,7 @@ namespace GatherBuddy.AutoGather
                     var node = gatherTarget.Node;
                     var fishingSpot = gatherTarget.FishingSpot;
                     
-                    if (gatherable != null && (gatherable.NodeType == NodeType.Regular || gatherable.NodeType == NodeType.Ephemeral)
+                    if (gatherable != null && (gatherable.NodeType == NodeType.常规 || gatherable.NodeType == NodeType.限时)
                         && VisitedNodes.LastOrDefault() != targetNode.BaseId
                         && node != null && node.WorldPositions.ContainsKey(targetNode.BaseId))
                     {
@@ -771,7 +771,7 @@ namespace GatherBuddy.AutoGather
             if (Diadem.IsInside && GatherBuddy.Config.AutoGatherConfig.DiademFarmCloudedNodes && _activeItemList.IsCloudedNodeConsumed)
             {
                 var currentWeather = EnhancedCurrentWeather.GetCurrentWeatherId();
-                if (_activeItemList.Any(x => x.Node?.NodeType == NodeType.Clouded && x.Node.UmbralWeather.Id == currentWeather))
+                if (_activeItemList.Any(x => x.Node?.NodeType == NodeType.梦幻 && x.Node.UmbralWeather.Id == currentWeather))
                 {
                     GatherBuddy.Log.Information($"[Umbral] 已采集本影节点 - 正离开云冠群岛以重置会话");
                     StopNavigation();
@@ -1055,7 +1055,7 @@ namespace GatherBuddy.AutoGather
 
             if (territoryId == 886 && next.Location.Territory.Id == Diadem.Territory.Id)
             {
-                if (JobAsGatheringType == GatheringType.Unknown)
+                if (JobAsGatheringType == GatheringType.未知)
                 {
                     var requiredGatheringType = next.Location.GatheringType.ToGroup();
                     if (ChangeGearSet(requiredGatheringType, 2400))
@@ -1745,7 +1745,7 @@ namespace GatherBuddy.AutoGather
             // so we only need to check the first item in the list.
             // Let the normal navigation logic handle Skybuilders' Tools quest items and Umbral nodes.
 
-            if (next.Node.NodeType == NodeType.Clouded)
+            if (next.Node.NodeType == NodeType.梦幻)
             {
                 var currentWeather = EnhancedCurrentWeather.GetCurrentWeatherId();
                 if (next.Node.UmbralWeather.Id != currentWeather || _activeItemList.IsCloudedNodeConsumed)
@@ -1904,7 +1904,7 @@ namespace GatherBuddy.AutoGather
             var isSpearfishing = next.Fish?.IsSpearFish == true;
             if (!isSpearfishing)
             {
-                var isTimedNode = next.Gatherable?.NodeType is NodeType.Unspoiled or NodeType.Legendary or NodeType.Clouded;
+                var isTimedNode = next.Gatherable?.NodeType is NodeType.未知 or NodeType.传说 or NodeType.梦幻;
                 if (ActivateGatheringBuffs(isTimedNode))
                     return;
             }
@@ -1951,7 +1951,7 @@ namespace GatherBuddy.AutoGather
             (uint? Id, Vector3 Position) selectedFarNode;
 
             // Only Legendary, Unspoiled, and Clouded nodes show a map marker.
-            var mapMarkerAvailable = next.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled or NodeType.Clouded;
+            var mapMarkerAvailable = next.Node?.NodeType is NodeType.传说 or NodeType.未知 or NodeType.梦幻;
             // Wait an additional 8 seconds because it takes a few seconds for the previous flag to disappear.
             var gracePeriod = next.Time == TimeInterval.Always ? 0 : next.Time.Start - GatherBuddy.Time.ServerTime.AddSeconds(-8);
             var mapMarker = mapMarkerAvailable && gracePeriod <= 0 ? TimedNodePosition : null;
@@ -2150,10 +2150,10 @@ namespace GatherBuddy.AutoGather
         {
             var level = gatheringType switch
             {
-                GatheringType.Miner    => DiscipleOfLand.MinerLevel,
-                GatheringType.Botanist => DiscipleOfLand.BotanistLevel,
-                GatheringType.Fisher   => DiscipleOfLand.FisherLevel,
-                GatheringType.Multiple => Math.Max(DiscipleOfLand.MinerLevel, DiscipleOfLand.BotanistLevel),
+                GatheringType.采矿工    => DiscipleOfLand.MinerLevel,
+                GatheringType.园艺工 => DiscipleOfLand.BotanistLevel,
+                GatheringType.捕鱼人   => DiscipleOfLand.FisherLevel,
+                GatheringType.多职业 => Math.Max(DiscipleOfLand.MinerLevel, DiscipleOfLand.BotanistLevel),
                 _                      => 0
             };
             if (level < Actions.Collect.MinLevel)
@@ -2164,8 +2164,8 @@ namespace GatherBuddy.AutoGather
 
             var questId = gatheringType switch
             {
-                GatheringType.Miner    => Actions.Collect.QuestIds.Miner,
-                GatheringType.Botanist => Actions.Collect.QuestIds.Botanist,
+                GatheringType.采矿工    => Actions.Collect.QuestIds.Miner,
+                GatheringType.园艺工 => Actions.Collect.QuestIds.Botanist,
                 _                      => 0u
             };
 
@@ -2217,9 +2217,9 @@ namespace GatherBuddy.AutoGather
         {
             var set = job switch
             {
-                GatheringType.Miner => GatherBuddy.Config.MinerSetName,
-                GatheringType.Botanist => GatherBuddy.Config.BotanistSetName,
-                GatheringType.Fisher => GatherBuddy.Config.FisherSetName,
+                GatheringType.采矿工 => GatherBuddy.Config.MinerSetName,
+                GatheringType.园艺工 => GatherBuddy.Config.BotanistSetName,
+                GatheringType.捕鱼人 => GatherBuddy.Config.FisherSetName,
                 _ => null,
             };
             if (string.IsNullOrEmpty(set))
@@ -2228,7 +2228,7 @@ namespace GatherBuddy.AutoGather
                 return false;
             }
 
-            if (job is GatheringType.Miner or GatheringType.Botanist
+            if (job is GatheringType.采矿工 or GatheringType.园艺工
                 && Player.Job == 18 /* FSH */
                 && GatherBuddy.Config.AutoGatherConfig.UseAutoHook
                 && AutoHook.Enabled)
@@ -2338,7 +2338,7 @@ namespace GatherBuddy.AutoGather
                         continue;
                     
                     var gatheringType = gatherable.GatheringType.ToGroup();
-                    if ((isMiner && gatheringType != GatheringType.Miner) || (isBotanist && gatheringType != GatheringType.Botanist))
+                    if ((isMiner && gatheringType != GatheringType.采矿工) || (isBotanist && gatheringType != GatheringType.园艺工))
                     {
                         continue;
                     }
@@ -2377,7 +2377,7 @@ namespace GatherBuddy.AutoGather
                     if (_currentGatherTarget != null)
                     {
                         var target = _currentGatherTarget.Value;
-                        if (target.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled)
+                        if (target.Node?.NodeType is NodeType.传说 or NodeType.未知)
                         {
                             return false;
                         }
@@ -2386,7 +2386,7 @@ namespace GatherBuddy.AutoGather
                     var nextItem = _activeItemList.GetNextOrDefault();
                     if (nextItem != default)
                     {
-                        if (nextItem.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled)
+                        if (nextItem.Node?.NodeType is NodeType.传说 or NodeType.未知)
                         {
                             if (nextItem.Time.InRange(AdjustedServerTime) && 
                                 !_activeItemList.DebugVisitedTimedLocations.ContainsKey(nextItem.Node))

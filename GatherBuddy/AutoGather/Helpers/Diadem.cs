@@ -88,8 +88,8 @@ namespace GatherBuddy.AutoGather.Helpers
             }
             ShortestPaths = new Dictionary<GatheringType, ImmutableArray<uint>>
             {
-                [GatheringType.Miner] = results[0],
-                [GatheringType.Botanist] = results[1]
+                [GatheringType.采矿工] = results[0],
+                [GatheringType.园艺工] = results[1]
             }.ToFrozenDictionary();
 
             RegularBaseNodes = GatherBuddy.GameData.GatheringNodes.Values

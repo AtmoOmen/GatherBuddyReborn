@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Utility;
@@ -33,8 +31,8 @@ public class Gatherable : IComparable<Gatherable>, IGatherable
     public uint GatheringId
         => GatheringData.RowId;
 
-    public NodeType      NodeType      { get; internal set; } = NodeType.Unknown;
-    public GatheringType GatheringType { get; internal set; } = GatheringType.Unknown;
+    public NodeType      NodeType      { get; internal set; } = NodeType.无;
+    public GatheringType GatheringType { get; internal set; } = GatheringType.未知;
 
     public uint ExpansionIdx { get; internal set; } = uint.MaxValue;
 

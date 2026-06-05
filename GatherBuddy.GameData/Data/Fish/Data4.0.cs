@@ -9,420 +9,420 @@ public static partial class Fish
     {
         data.Apply     (20018, Patch.Stormblood) // Liopleurodon
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 9);
         data.Apply     (20019, Patch.Stormblood) // Ala Mhigan Ribbon
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20020, Patch.Stormblood) // Yanxian Barramundi
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20021, Patch.Stormblood) // Seraphim
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (960, 1440);
         data.Apply     (20022, Patch.Stormblood) // Blackfin Snake Eel
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20023, Patch.Stormblood) // Tail Mountains Minnow
             .Mooch     (data, 20614, 20127)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20024, Patch.Stormblood) // Sweatfish
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20025, Patch.Stormblood) // Rock Saltfish
             .Bait      (data, 20616)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Snag      (data, Snagging.None);
         data.Apply     (20026, Patch.Stormblood) // Comet Minnow
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20027, Patch.Stormblood) // Doman Grass Carp
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (1200, 240);
         data.Apply     (20028, Patch.Stormblood) // Samurai Fish
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20029, Patch.Stormblood) // Golden Cichlid
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20030, Patch.Stormblood) // Hak Bitterling
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (0, 240)
             .Weather   (data, 7);
         data.Apply     (20031, Patch.Stormblood) // Yat Goby
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20032, Patch.Stormblood) // Ruby Meagre
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20033, Patch.Stormblood) // Greenstream Loach
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20034, Patch.Stormblood) // Tawny Wench Shark
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (600, 1080)
             .Weather   (data, 1);
         data.Apply     (20035, Patch.Stormblood) // Whitehorse
             .Bait      (data, 20616)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20036, Patch.Stormblood) // Killifish
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Weather   (data, 1);
         data.Apply     (20037, Patch.Stormblood) // Coeurl Snake Eel
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20038, Patch.Stormblood) // Zekki Grouper
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20039, Patch.Stormblood) // Saltshield Snapper
             .Bait      (data, 20616)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20040, Patch.Stormblood) // Sculptor
             .Mooch     (data, 20616, 20025)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (720, 1080)
             .Weather   (data, 10);
         data.Apply     (20041, Patch.Stormblood) // Pearl-eye
             .Mooch     (data, 20616, 20025)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20042, Patch.Stormblood) // Abalathian Bitterling
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20043, Patch.Stormblood) // Steelshark
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Weather   (data, 1);
         data.Apply     (20044, Patch.Stormblood) // Tao Bitterling
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20045, Patch.Stormblood) // Idle Goby
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20046, Patch.Stormblood) // River Barramundi
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20047, Patch.Stormblood) // Mirage Chub
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20048, Patch.Stormblood) // Harutsuge
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20049, Patch.Stormblood) // Steelhead Trout
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20050, Patch.Stormblood) // Heather Charr
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20051, Patch.Stormblood) // Silken Koi
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 7);
         data.Apply     (20052, Patch.Stormblood) // Yellow Prismfish
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20053, Patch.Stormblood) // Blue Prismfish
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20054, Patch.Stormblood) // Hanatatsu
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20055, Patch.Stormblood) // Broken Crab
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20056, Patch.Stormblood) // Gyr Abanian Trout
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Snag      (data, Snagging.None);
         data.Apply     (20057, Patch.Stormblood) // Bloodsipper
             .Mooch     (data, 20615, 20056)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20058, Patch.Stormblood) // Miounnefish
             .Mooch     (data, 20614, 20064)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 3, 4);
         data.Apply     (20059, Patch.Stormblood) // Monk Betta
             .Mooch     (data, 20615, 20056)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20060, Patch.Stormblood) // Electric Catfish
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20061, Patch.Stormblood) // Pagan Pirarucu
             .Mooch     (data, 20615, 20056)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20062, Patch.Stormblood) // Temple Carp
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20063, Patch.Stormblood) // Gilfish
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20064, Patch.Stormblood) // Balloon Frog
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.None);
         data.Apply     (20065, Patch.Stormblood) // Lantern Marimo
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20066, Patch.Stormblood) // Death Loach
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20067, Patch.Stormblood) // Grymm Crab
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20068, Patch.Stormblood) // Enid Shrimp
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20069, Patch.Stormblood) // Invisible Crayfish
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20070, Patch.Stormblood) // Rapids Jumper
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20071, Patch.Stormblood) // Abalathian Salamander
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20072, Patch.Stormblood) // Adamantite Bichir
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20073, Patch.Stormblood) // Meditator
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Snag      (data, Snagging.None)
             .Weather   (data, 3, 5, 4, 11);
         data.Apply     (20074, Patch.Stormblood) // Deemster
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 5);
         data.Apply     (20075, Patch.Stormblood) // Stonytongue
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20076, Patch.Stormblood) // Bull's Bite
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 4, 5, 3, 11);
         data.Apply     (20077, Patch.Stormblood) // Peeping Pisces
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20078, Patch.Stormblood) // Scimitarfish
             .Mooch     (data, 20615, 20056)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20079, Patch.Stormblood) // Gigant Bass
             .Mooch     (data, 20615, 20056)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20080, Patch.Stormblood) // Nhaama's Boon
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20081, Patch.Stormblood) // Cave Killifish
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20082, Patch.Stormblood) // Bone Melter
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20083, Patch.Stormblood) // Fallen Leaf
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20084, Patch.Stormblood) // Falling Star
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Weather   (data, 3, 4);
         data.Apply     (20085, Patch.Stormblood) // Capsized Squeaker
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Time      (960, 1095);
         data.Apply     (20086, Patch.Stormblood) // Nirvana Crab
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 3, 4);
         data.Apply     (20087, Patch.Stormblood) // Velodyna Grass Carp
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20088, Patch.Stormblood) // Black Velodyna Carp
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20089, Patch.Stormblood) // Rhalgr's Bolt
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20090, Patch.Stormblood) // Highland Perch
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20091, Patch.Stormblood) // Gravel Gudgeon
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20092, Patch.Stormblood) // Grinning Anchovy
             .Bait      (data, 20617)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20093, Patch.Stormblood) // Glass Herring
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20094, Patch.Stormblood) // Hellyfish
             .Bait      (data, 20617)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20095, Patch.Stormblood) // Ruby Coral
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.Required)
             .ForceBig  (false);
         data.Apply     (20096, Patch.Stormblood) // Sapphire Coral
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.Required)
             .ForceBig  (false);
         data.Apply     (20097, Patch.Stormblood) // Bone Coral
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.Required)
             .ForceBig  (false);
         data.Apply     (20098, Patch.Stormblood) // Butterfly Fish
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20099, Patch.Stormblood) // Dafu
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20100, Patch.Stormblood) // Swordfish
             .Bait      (data, 20676)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (480, 960)
             .Weather   (data, 3, 5);
         data.Apply     (20101, Patch.Stormblood) // Leaf Tatsunoko
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20102, Patch.Stormblood) // Glass Flounder
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20103, Patch.Stormblood) // Zekki Gator
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20104, Patch.Stormblood) // Daio Squid
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20105, Patch.Stormblood) // Koromo Octopus
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20106, Patch.Stormblood) // Gliding Fish
             .Bait      (data, 20618)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20107, Patch.Stormblood) // Globefish
             .Bait      (data, 28634)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20108, Patch.Stormblood) // Fan Clam
             .Bait      (data, 20617)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Snag      (data, Snagging.Required);
         data.Apply     (20109, Patch.Stormblood) // Blockhead
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary);
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply     (20110, Patch.Stormblood) // Glass Tuna
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20111, Patch.Stormblood) // Doman Crayfish
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20112, Patch.Stormblood) // Ruby Shrimp
             .Bait      (data, 20617)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.None);
         data.Apply     (20113, Patch.Stormblood) // Striped Fugu
             .Mooch     (data, 20617, 20112)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20114, Patch.Stormblood) // Raitonfish
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 7, 8);
         data.Apply     (20115, Patch.Stormblood) // Blank Oscar
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20116, Patch.Stormblood) // Dragonfish
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20117, Patch.Stormblood) // Lordly Salmon
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20118, Patch.Stormblood) // Yanxian Koi
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20119, Patch.Stormblood) // Kotsu Zetsu
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20120, Patch.Stormblood) // Longhair Catfish
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20121, Patch.Stormblood) // Plum Gazer
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20122, Patch.Stormblood) // Pandamoth
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (600, 1080);
         data.Apply     (20123, Patch.Stormblood) // Doman Trout
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20124, Patch.Stormblood) // Doman Eel
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (1020, 600)
             .Snag      (data, Snagging.None);
         data.Apply     (20125, Patch.Stormblood) // Brassfish
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20126, Patch.Stormblood) // Othardian Trout
             .Mooch     (data, 20614, 20127)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20127, Patch.Stormblood) // Zagas Khaal
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.None);
         data.Apply     (20128, Patch.Stormblood) // Steppe Skipper
             .Bait      (data, 20615)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20129, Patch.Stormblood) // Dry Steppe Skipper
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20130, Patch.Stormblood) // Sun Bass
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20131, Patch.Stormblood) // Skytear
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20132, Patch.Stormblood) // Dawn Crayfish
             .Mooch     (data, 20614, 20127)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20133, Patch.Stormblood) // Dusk Crayfish
             .Bait      (data, 20613)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20134, Patch.Stormblood) // Bowfish
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20135, Patch.Stormblood) // Jade Sculpin
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (20136, Patch.Stormblood) // Padjali Loach
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20137, Patch.Stormblood) // Nogoi
             .Bait      (data, 20614)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20138, Patch.Stormblood) // Curtain Pleco
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20140, Patch.Stormblood) // Hardscale
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (20141, Patch.Stormblood) // Eastern Pike
             .Bait      (data, 20619)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 1, 2);
         data.Apply     (20142, Patch.Stormblood) // Wraithfish
             .Bait      (data, 20675)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (0, 240)
             .Weather   (data, 4);
         data.Apply     (20143, Patch.Stormblood) // Little Perykos
             .Mooch     (data, 2585, 4869, 4904)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 7, 8)
             .ForceBig  (true);
         data.Apply     (20144, Patch.Stormblood) // Wentletrap
@@ -627,7 +627,7 @@ public static partial class Fish
             .Predators (data, 0, (20236, 7));
         data.Apply     (20524, Patch.Stormblood) // Castaway Chocobo Chick
             .Mooch     (data, 2585, 4869, 4904)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (480, 960);
         data.Apply     (20528, Patch.Stormblood) // Tiny Tatsunoko
             .Spear     (data, SpearfishSize.Small, SpearfishSpeed.Average)

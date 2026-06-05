@@ -144,7 +144,7 @@ public class AutoHookPresetBuilder
         
         var targetBiteTypes = targetFish
             .Select(f => f.Mooches.Length > 0 ? f.Mooches[0].BiteType : f.BiteType)
-            .Where(bt => bt != BiteType.Unknown && bt != BiteType.None)
+            .Where(bt => bt != BiteType.未知 && bt != BiteType.无)
             .Distinct()
             .ToList();
         
@@ -590,10 +590,10 @@ public class AutoHookPresetBuilder
     {
         return gbBiteType switch
         {
-            BiteType.Weak => AHBiteType.Weak,
-            BiteType.Strong => AHBiteType.Strong,
-            BiteType.Legendary => AHBiteType.Legendary,
-            BiteType.None => AHBiteType.None,
+            BiteType.轻竿 => AHBiteType.Weak,
+            BiteType.普通竿 => AHBiteType.Strong,
+            BiteType.鱼王竿 => AHBiteType.Legendary,
+            BiteType.无 => AHBiteType.None,
             _ => AHBiteType.Unknown
         };
     }
@@ -703,8 +703,8 @@ public class AutoHookPresetBuilder
         {
             var sourcefish = targetMoochChain.Last();
             isSourceFish = fish.BiteType == sourcefish.BiteType && 
-                          fish.BiteType != BiteType.Unknown && 
-                          fish.BiteType != BiteType.None &&
+                          fish.BiteType != BiteType.未知 && 
+                          fish.BiteType != BiteType.无 &&
                           !isPartOfTargetMoochChain &&
                           !targetFishList.Any(f => f.ItemId == fish.ItemId);
         }
@@ -754,7 +754,7 @@ public class AutoHookPresetBuilder
         }
         
         var fishBiteType = fish.BiteType;
-        if (fishBiteType == BiteType.Unknown || fishBiteType == BiteType.None)
+        if (fishBiteType == BiteType.未知 || fishBiteType == BiteType.无)
         {
             return new AHAutoSurfaceSlap(false);
         }
@@ -772,8 +772,8 @@ public class AutoHookPresetBuilder
             relevantBiteType = targetFish.BiteType;
         
         bool sharesBiteType = fishBiteType == relevantBiteType && 
-            relevantBiteType != BiteType.Unknown && 
-            relevantBiteType != BiteType.None;
+            relevantBiteType != BiteType.未知 && 
+            relevantBiteType != BiteType.无;
         
         if (sharesBiteType)
         {

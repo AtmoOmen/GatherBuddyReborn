@@ -65,7 +65,7 @@ public partial class Configuration : IPluginConfiguration
     public bool             ShowStatusLine            { get; set; } = true;
     public ModifiableHotkey MainInterfaceHotkey       { get; set; } = new();
     public bool             PlaceCustomWaymarks       { get; set; } = true;
-    public GatheringType    PreferredGatheringType    { get; set; } = GatheringType.Multiple;
+    public GatheringType    PreferredGatheringType    { get; set; } = GatheringType.多职业;
 
     // AutoGather Config
     public AutoGatherConfig AutoGatherConfig              { get; set; } = new();

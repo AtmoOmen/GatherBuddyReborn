@@ -33,7 +33,7 @@ namespace GatherBuddy.AutoGather.Lists
         private          bool                                    _activeItemsChanged;
         private          bool                                    _consumedCloudedNode;
         private          bool                                    _forceUpdateUnconditionally;
-        private          GatheringType                           _lastJob            = GatheringType.Unknown;
+        private          GatheringType                           _lastJob            = GatheringType.未知;
         private          GatherTarget                            _currentItem;
 
         internal ReadOnlyDictionary<GatheringNode, TimeInterval> DebugVisitedTimedLocations
@@ -121,12 +121,12 @@ namespace GatherBuddy.AutoGather.Lists
 
             switch (node?.NodeType)
             {
-                case NodeType.Legendary:
-                case NodeType.Unspoiled:
+                case NodeType.传说:
+                case NodeType.未知:
                     _visitedTimedNodes[node] = time;
                     _forceUpdateUnconditionally = true;
                     break;
-                case NodeType.Clouded:
+                case NodeType.梦幻:
                     _consumedCloudedNode = true;
                     _forceUpdateUnconditionally = true;
                     break;
@@ -136,9 +136,9 @@ namespace GatherBuddy.AutoGather.Lists
         internal void DebugMarkVisited(GatherTarget x)
         {
             _forceUpdateUnconditionally = true;
-            if (x.Time != TimeInterval.Always && x.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled)
+            if (x.Time != TimeInterval.Always && x.Node?.NodeType is NodeType.传说 or NodeType.未知)
                 _visitedTimedNodes[x.Node] = x.Time;
-            if (x.Node?.NodeType == NodeType.Clouded)
+            if (x.Node?.NodeType == NodeType.梦幻)
                 _consumedCloudedNode = EnhancedCurrentWeather.GetCurrentWeatherId() == x.Node.UmbralWeather.Id;
         }
 
@@ -340,8 +340,8 @@ namespace GatherBuddy.AutoGather.Lists
                 // Remove nodes with a level higher than the player can gather.
                 .Where(x => x.Location.GatheringType.ToGroup() switch
                 {
-                    GatheringType.Miner => (x.Location as GatheringNode)!.Level <= minerLevel,
-                    GatheringType.Botanist => (x.Location as GatheringNode)!.Level <= botanistLevel,
+                    GatheringType.采矿工 => (x.Location as GatheringNode)!.Level <= minerLevel,
+                    GatheringType.园艺工 => (x.Location as GatheringNode)!.Level <= botanistLevel,
                     _ => true
                 })
                 // Apply predators and mooch dependencies time restrictions.
@@ -359,10 +359,10 @@ namespace GatherBuddy.AutoGather.Lists
                         x.Location == x.PreferredLocation ? 0
                         : x.Location.GatheringType.ToGroup() == Player.Job switch
                         {
-                            16 /* MIN */ => GatheringType.Miner,
-                            17 /* BTN */ => GatheringType.Botanist,
-                            18 /* FSH */ => GatheringType.Fisher,
-                            _ => GatheringType.Unknown
+                            16 /* MIN */ => GatheringType.采矿工,
+                            17 /* BTN */ => GatheringType.园艺工,
+                            18 /* FSH */ => GatheringType.捕鱼人,
+                            _ => GatheringType.未知
                         } ? 1
                         : x.Location.GatheringType.ToGroup() == GatherBuddy.Config.PreferredGatheringType ? 2
                         : 3)
@@ -400,10 +400,10 @@ namespace GatherBuddy.AutoGather.Lists
                     // Try not to change job within the same territory.
                     .ThenBy(x => x.Location.GatheringType.ToGroup() != Player.Job switch
                     {
-                        16 /* MIN */ => GatheringType.Miner,
-                        17 /* BTN */ => GatheringType.Botanist,
-                        18 /* FSH */ => GatheringType.Fisher,
-                        _ => GatheringType.Unknown
+                        16 /* MIN */ => GatheringType.采矿工,
+                        17 /* BTN */ => GatheringType.园艺工,
+                        18 /* FSH */ => GatheringType.捕鱼人,
+                        _ => GatheringType.未知
                     })
                     // Then by distance to the player (for current territory).
                     .ThenBy(x => GetHorizontalSquaredDistanceToPlayer(x.Location));
@@ -476,8 +476,8 @@ namespace GatherBuddy.AutoGather.Lists
         {
             if (loc is GatheringNode node)
             {
-                return node.NodeType == NodeType.Legendary
-                 || node.NodeType == NodeType.Unspoiled
+                return node.NodeType == NodeType.传说
+                 || node.NodeType == NodeType.未知
                  || node.Territory == Diadem.Territory;
             }
             else
@@ -566,11 +566,11 @@ namespace GatherBuddy.AutoGather.Lists
         {
             return item.NodeType switch
             {
-                NodeType.Legendary => 0,
-                NodeType.Unspoiled => 1,
-                NodeType.Ephemeral => 2,
-                NodeType.Clouded   => 3,
-                NodeType.Regular   => 9,
+                NodeType.传说 => 0,
+                NodeType.未知 => 1,
+                NodeType.限时 => 2,
+                NodeType.梦幻   => 3,
+                NodeType.常规   => 9,
                 _                  => 99,
             };
         }
@@ -619,10 +619,10 @@ namespace GatherBuddy.AutoGather.Lists
         {
             var currentJob = Player.Job switch
             {
-                16 /* MIN */ => GatheringType.Miner,
-                17 /* BTN */ => GatheringType.Botanist,
-                18 /* FSH */ => GatheringType.Fisher,
-                _ => GatheringType.Unknown
+                16 /* MIN */ => GatheringType.采矿工,
+                17 /* BTN */ => GatheringType.园艺工,
+                18 /* FSH */ => GatheringType.捕鱼人,
+                _ => GatheringType.未知
             };
             
             if (_activeItemsChanged
@@ -650,10 +650,10 @@ namespace GatherBuddy.AutoGather.Lists
             var lastEorzeaHour     = _lastUpdateTime.TotalEorzeaHours();
             var currentJob = Player.Job switch
             {
-                16 /* MIN */ => GatheringType.Miner,
-                17 /* BTN */ => GatheringType.Botanist,
-                18 /* FSH */ => GatheringType.Fisher,
-                _ => GatheringType.Unknown
+                16 /* MIN */ => GatheringType.采矿工,
+                17 /* BTN */ => GatheringType.园艺工,
+                18 /* FSH */ => GatheringType.捕鱼人,
+                _ => GatheringType.未知
             };
 
             _activeItemsChanged = false;

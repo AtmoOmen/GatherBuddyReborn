@@ -220,10 +220,10 @@ public partial class FishRecord
     {
         var b = bite switch
         {
-            BiteType.None      => 0,
-            BiteType.Weak      => 1,
-            BiteType.Strong    => 2,
-            BiteType.Legendary => 3,
+            BiteType.无      => 0,
+            BiteType.轻竿      => 1,
+            BiteType.普通竿    => 2,
+            BiteType.鱼王竿 => 3,
             _                  => 4,
         };
         b |= set switch
@@ -244,11 +244,11 @@ public partial class FishRecord
     public BiteType Tug
         => (_tugAndHook & 0x0F) switch
         {
-            0 => BiteType.None,
-            1 => BiteType.Weak,
-            2 => BiteType.Strong,
-            3 => BiteType.Legendary,
-            _ => BiteType.Unknown,
+            0 => BiteType.无,
+            1 => BiteType.轻竿,
+            2 => BiteType.普通竿,
+            3 => BiteType.鱼王竿,
+            _ => BiteType.未知,
         };
 
     [IgnoreMember]
@@ -266,13 +266,13 @@ public partial class FishRecord
         };
 
     public bool Escaped()
-        => Hook != HookSet.None && Tug != BiteType.None;
+        => Hook != HookSet.None && Tug != BiteType.无;
 
     public bool MissedChance()
-        => Tug != BiteType.None && Hook == HookSet.None;
+        => Tug != BiteType.无 && Hook == HookSet.None;
 
     public bool NothingHooked()
-        => Hook == HookSet.None && Tug != BiteType.None;
+        => Hook == HookSet.None && Tug != BiteType.无;
 
     public SimpleFishRecord ToSimpleRecord()
     {
@@ -443,7 +443,7 @@ public partial class FishRecord
         if (_catch == 0 && (Amount > 0 || Size != 0 || Flags.HasFlag(Effects.Collectible | Effects.Large)))
             return false;
 
-        if (_catch != 0 && (Amount == 0 || Size == 0 || Tug is BiteType.None or BiteType.Unknown || Hook is HookSet.None or HookSet.Unknown))
+        if (_catch != 0 && (Amount == 0 || Size == 0 || Tug is BiteType.无 or BiteType.未知 || Hook is HookSet.None or HookSet.Unknown))
             return false;
 
         if (!Flags.HasFlag(Effects.Patience) && !Flags.HasFlag(Effects.Patience2) && Hook is HookSet.Powerful or HookSet.Precise)

@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Structs;
@@ -30,7 +27,7 @@ public class FishingSpot : IComparable<FishingSpot>, ILocation
     public Fish[]    Items     { get; init; }
 
     public GatheringType GatheringType
-        => Spearfishing ? GatheringType.Spearfishing : GatheringType.Fisher;
+        => Spearfishing ? GatheringType.刺鱼 : GatheringType.捕鱼人;
 
     public IEnumerable<IGatherable> Gatherables
         => Items;

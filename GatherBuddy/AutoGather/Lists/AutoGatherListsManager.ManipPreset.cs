@@ -252,7 +252,7 @@ public partial class AutoGatherListsManager
                     continue;
                 
                 var gatheringType = gatherable.GatheringType.ToGroup();
-                if ((isMiner && gatheringType != GatheringType.Miner) || (isBotanist && gatheringType != GatheringType.Botanist))
+                if ((isMiner && gatheringType != GatheringType.采矿工) || (isBotanist && gatheringType != GatheringType.园艺工))
                 {
                     continue;
                 }
@@ -304,7 +304,7 @@ public partial class AutoGatherListsManager
                 return true;
             }
             
-            if ((isMiner && gatheringType != GatheringType.Miner) || (isBotanist && gatheringType != GatheringType.Botanist))
+            if ((isMiner && gatheringType != GatheringType.采矿工) || (isBotanist && gatheringType != GatheringType.园艺工))
             {
                 GatherBuddy.Log.Debug($"[自动采集] 跳过 {gatherable.Name[GatherBuddy.Language]} 的鉴别力验证 - 物品属于不同的采集职业");
                 return true;

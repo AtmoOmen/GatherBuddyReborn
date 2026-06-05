@@ -1040,7 +1040,7 @@ public partial class Interface
             foreach (var x in GatherBuddy.AutoGather.ItemsToGather)
             {
                 ImGui.Text($"物品: {x.Item.Name}; 位置: {x.Location.Name}; 有效截止: {(x.Time == TimeInterval.Always ? "始终" : x.Time.End.ConvertToEorzea().DateTime.ToString("HH:mm", CultureInfo.InvariantCulture))} ET; 数量: {x.Quantity}");
-                if (x.Time == TimeInterval.Always || x.Node == null || x.Node.NodeType is not NodeType.Unspoiled and not NodeType.Legendary and not NodeType.Clouded)
+                if (x.Time == TimeInterval.Always || x.Node == null || x.Node.NodeType is not NodeType.未知 and not NodeType.传说 and not NodeType.梦幻)
                     continue;
                 ImGui.SameLine();
                 if (ImGui.Button($"标记已访问##{x.Item.ItemId}"))

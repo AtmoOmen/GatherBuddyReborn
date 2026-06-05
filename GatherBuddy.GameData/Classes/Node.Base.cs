@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using GatherBuddy.Data;
 using GatherBuddy.Enums;
@@ -38,10 +35,10 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
         => (GatheringType)BaseNodeData.GatheringType.RowId;
 
     public bool IsMiner
-        => GatheringType.ToGroup() == GatheringType.Miner;
+        => GatheringType.ToGroup() == GatheringType.采矿工;
 
     public bool IsBotanist
-        => GatheringType.ToGroup() == GatheringType.Botanist;
+        => GatheringType.ToGroup() == GatheringType.园艺工;
     public uint FolkloreId { get; init; }
     public bool IsLeveling { get; init; }
 
@@ -99,11 +96,11 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
         IsLeveling = subCategoryItemId == 0;
         Folklore = MultiString.ParseSeStringLumina(subCategory?.FolkloreBook);
         var extendedRow = nodeRow == null ? null : data.DataManager.GetExcelSheet<GatheringPointTransient>()?.GetRow(nodeRow.Value.RowId);
-        (Times, NodeType) = nodeRow?.Type == 8 ? (BitfieldUptime.AllHours, NodeType.Clouded) : GetTimes(extendedRow);
-        if (Folklore.Length > 0 && NodeType == NodeType.Unspoiled && subCategoryItemId != 0)
-            NodeType = NodeType.Legendary;
+        (Times, NodeType) = nodeRow?.Type == 8 ? (BitfieldUptime.AllHours, Clouded: NodeType.梦幻) : GetTimes(extendedRow);
+        if (Folklore.Length > 0 && NodeType == NodeType.未知 && subCategoryItemId != 0)
+            NodeType = NodeType.传说;
 
-        if (NodeType == NodeType.Clouded)
+        if (NodeType == NodeType.梦幻)
             UmbralWeather = data.Weathers[(uint)UmbralNodes.UmbralNodeData.First(data => data.BaseNodeId == node.RowId).Weather];
 
         // Obtain the items and add the node to their individual lists.
@@ -121,7 +118,7 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
                 if (data.GatherablesByGatherId.TryGetValue(g, out var gatherable)
                  && !Items.Contains(gatherable))
                 {
-                    if (NodeType == NodeType.Ephemeral && gatherable.IsCrystal)
+                    if (NodeType == NodeType.限时 && gatherable.IsCrystal)
                         continue;
                     Items.Add(gatherable);
                 }
@@ -142,19 +139,19 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
     private static (BitfieldUptime, NodeType) GetTimes(GatheringPointTransient? row)
     {
         if (row == null)
-            return (BitfieldUptime.AllHours, NodeType.Regular);
+            return (BitfieldUptime.AllHours, NodeType.常规);
 
         // Check for ephemeral nodes
         if (row.Value.GatheringRarePopTimeTable.RowId == 0)
         {
             var time = new BitfieldUptime(row.Value.EphemeralStartTime, row.Value.EphemeralEndTime);
-            return time.AlwaysUp() ? (time, NodeType.Regular) : (time, NodeType.Ephemeral);
+            return time.AlwaysUp() ? (time, Regular: NodeType.常规) : (time, Ephemeral: NodeType.限时);
         }
         // and for unspoiled
         else
         {
             var time = new BitfieldUptime(row.Value.GatheringRarePopTimeTable.Value);
-            return time.AlwaysUp() ? (time, NodeType.Regular) : (time, NodeType.Unspoiled);
+            return time.AlwaysUp() ? (time, Regular: NodeType.常规) : (time, Unspoiled: NodeType.未知);
         }
     }
 }

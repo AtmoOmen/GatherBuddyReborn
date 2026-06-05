@@ -279,10 +279,10 @@ public partial class Interface
             public override bool FilterFunc(FishRecord item)
                 => item.Tug switch
                 {
-                    BiteType.Weak => _filter.HasFlag(TugTypeFilter.Weak),
-                    BiteType.Strong => _filter.HasFlag(TugTypeFilter.Strong),
-                    BiteType.Legendary => _filter.HasFlag(TugTypeFilter.Legendary),
-                    BiteType.None => _filter.HasFlag(TugTypeFilter.None),
+                    BiteType.轻竿 => _filter.HasFlag(TugTypeFilter.Weak),
+                    BiteType.普通竿 => _filter.HasFlag(TugTypeFilter.Strong),
+                    BiteType.鱼王竿 => _filter.HasFlag(TugTypeFilter.Legendary),
+                    BiteType.无 => _filter.HasFlag(TugTypeFilter.None),
                     _ => _filter.HasFlag(TugTypeFilter.Unknown),
                 };
 

@@ -31,8 +31,8 @@ internal static class CraftingRowIcons
     {
         var preferredJobId = GatherBuddy.Config.PreferredGatheringType.ToGroup() switch
         {
-            GatheringType.Miner    => MinerClassJobId,
-            GatheringType.Botanist => BotanistClassJobId,
+            GatheringType.采矿工    => MinerClassJobId,
+            GatheringType.园艺工 => BotanistClassJobId,
             _                      => 0u,
         };
         if (preferredJobId == 0)
@@ -121,9 +121,9 @@ internal static class CraftingRowIcons
             var group = gatherable.GatheringType.ToGroup();
             classJobId = group switch
             {
-                GatheringType.Miner    => MinerClassJobId,
-                GatheringType.Botanist => BotanistClassJobId,
-                GatheringType.Fisher   => FisherClassJobId,
+                GatheringType.采矿工    => MinerClassJobId,
+                GatheringType.园艺工 => BotanistClassJobId,
+                GatheringType.捕鱼人   => FisherClassJobId,
                 _                      => 0,
             };
             if (classJobId != 0)

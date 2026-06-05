@@ -257,11 +257,11 @@ namespace GatherBuddy.AutoGather
 
             var nodeTypeMatch = gatherable.NodeType switch
                 {
-                    Enums.NodeType.Regular => NodeType.Regular,
-                    Enums.NodeType.Unspoiled => NodeType.Unspoiled,
-                    Enums.NodeType.Legendary => NodeType.Legendary,
-                    Enums.NodeType.Ephemeral => NodeType.Ephemeral,
-                    Enums.NodeType.Clouded => NodeType.Clouded,
+                    Enums.NodeType.常规 => NodeType.Regular,
+                    Enums.NodeType.未知 => NodeType.Unspoiled,
+                    Enums.NodeType.传说 => NodeType.Legendary,
+                    Enums.NodeType.限时 => NodeType.Ephemeral,
+                    Enums.NodeType.梦幻 => NodeType.Clouded,
                     _ => false
                 };
             if (!nodeTypeMatch)

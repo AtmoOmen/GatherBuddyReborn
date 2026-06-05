@@ -1,5 +1,3 @@
-using System;
-
 namespace GatherBuddy.Enums;
 
 public enum Patch : ushort

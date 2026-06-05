@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using GatherBuddy.Utility;
 using Lumina.Excel.Sheets;
 using AetheryteRow = Lumina.Excel.Sheets.Aetheryte;

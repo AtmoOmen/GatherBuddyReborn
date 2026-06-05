@@ -45,7 +45,7 @@ public static class OceanUptime
             }
         }
 
-        if (fish.OceanTime == OceanTime.Always)
+        if (fish.OceanTime == OceanTime.总是)
             return TimeInterval.Always;
 
         // The offset in milliseconds from when the current loop started to the current time.

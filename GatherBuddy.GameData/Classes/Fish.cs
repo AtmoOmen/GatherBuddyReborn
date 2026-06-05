@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Dalamud.Plugin.Services;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
@@ -86,7 +84,7 @@ public partial class Fish : IComparable<Fish>, IGatherable
         Folklore         = string.Empty;
         Size             = SpearfishSize.Unknown;
         Speed            = SpearfishSpeed.Unknown;
-        BiteType         = BiteType.None;
+        BiteType         = BiteType.无;
         Snagging         = Snagging.None;
         HookSet          = HookSet.None;
         FishType         = ItemData.Rarity > 1 ? FishType.Big : FishType.Normal;
@@ -103,7 +101,7 @@ public partial class Fish : IComparable<Fish>, IGatherable
         Folklore = MultiString.ParseSeStringLumina(fishRow.GatheringSubCategory.ValueNullable?.FolkloreBook);
         Size     = SpearfishSize.None;
         Speed    = SpearfishSpeed.None;
-        BiteType = BiteType.Unknown;
+        BiteType = BiteType.未知;
         Snagging = Snagging.Unknown;
         HookSet  = HookSet.Unknown;
         FishType = ItemData.Rarity > 1 ? FishType.Big : FishType.Normal;

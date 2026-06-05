@@ -11,5 +11,5 @@ public sealed class SeTugType : SeAddressBase
     { }
 
     public unsafe BiteType Bite
-        => Address != IntPtr.Zero ? *(BiteType*)Address : BiteType.Unknown;
+        => Address != IntPtr.Zero ? *(BiteType*)Address : BiteType.未知;
 }

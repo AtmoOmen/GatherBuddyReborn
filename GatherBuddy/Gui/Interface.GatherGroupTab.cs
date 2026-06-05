@@ -265,7 +265,7 @@ public partial class Interface
         DrawLocationInput(group, i, node);
         ImGui.TableNextColumn();
         var length = node.Length();
-        ImGuiUtil.DrawTextButton($"{length} 分钟", Vector2.Zero,
+        ImGuiUtil.DrawTextButton($"{length}", Vector2.Zero,
             minutes < length ? ColorId.WarningBg.Value() : ImGui.GetColorU32(ImGuiCol.FrameBg));
         if (minutes < length)
             HoverTooltip($"有 {length - minutes} 分钟因为设置了早于采集品的出现时间被覆盖");

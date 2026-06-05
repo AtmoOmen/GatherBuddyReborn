@@ -111,10 +111,10 @@ namespace GatherBuddy.AutoGather
                 var job = Player.Job;
                 return job switch
                 {
-                    16 => GatheringType.Miner,     // MIN
-                    17 => GatheringType.Botanist,  // BTN
-                    18 => GatheringType.Fisher,    // FSH
-                    _ => GatheringType.Unknown
+                    16 => GatheringType.采矿工,     // MIN
+                    17 => GatheringType.园艺工,  // BTN
+                    18 => GatheringType.捕鱼人,    // FSH
+                    _ => GatheringType.未知
                 };
             }
         }

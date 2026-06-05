@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 
 namespace GatherBuddy.Time;
@@ -113,14 +112,14 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
         return tmp.Time switch
         {
             > RealTime.MillisecondsPerDay => shortString
-                ? $">{tmp.TotalDays}d"
-                : $"{((float)tmp.Time / RealTime.MillisecondsPerDay).ToString("F2", CultureInfo.InvariantCulture)} 天",
+                ? $">{tmp.TotalDays}"
+                : $"{((float)tmp.Time / RealTime.MillisecondsPerDay).ToString("F2", CultureInfo.InvariantCulture)}",
             > RealTime.MillisecondsPerHour => shortString
-                ? $">{tmp.TotalHours}h"
-                : $"{tmp.TotalHours:D2}:{tmp.CurrentMinute:D2} 小时",
+                ? $">{tmp.TotalHours}"
+                : $"{tmp.TotalHours:D2}:{tmp.CurrentMinute:D2}",
             _ => shortString
-                ? $"{tmp.TotalMinutes}:{tmp.CurrentSecond:D2}m"
-                : $"{tmp.TotalMinutes:D2}:{tmp.CurrentSecond:D2} 分钟",
+                ? $"{tmp.TotalMinutes}:{tmp.CurrentSecond:D2}"
+                : $"{tmp.TotalMinutes:D2}:{tmp.CurrentSecond:D2}",
         };
     }
 

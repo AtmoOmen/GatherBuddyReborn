@@ -47,9 +47,9 @@ public partial class Interface
             public static (string, uint) FromBiteType(BiteType bite)
                 => bite switch
                 {
-                    BiteType.Weak      => Weak,
-                    BiteType.Strong    => Strong,
-                    BiteType.Legendary => Legendary,
+                    BiteType.轻竿      => Weak,
+                    BiteType.普通竿    => Strong,
+                    BiteType.鱼王竿 => Legendary,
                     _                  => Unknown,
                 };
         }
@@ -259,7 +259,7 @@ public partial class Interface
             if (seconds == 0)
                 return minutes == 1 ? "鱼识持续 1 分钟" : string.Intern($"鱼识持续 {minutes} 分钟");
 
-            return string.Intern($"鱼识持续 {minutes}:{seconds:D2} 分钟");
+            return string.Intern($"鱼识持续 {minutes}:{seconds:D2}");
         }
 
         public ExtendedFish(Fish data)
@@ -313,12 +313,12 @@ public partial class Interface
         {
             return time switch
             {
-                OceanTime.Sunset                   => "日落",
-                OceanTime.Sunset | OceanTime.Night => "日落 / 夜晚",
-                OceanTime.Sunset | OceanTime.Day   => "日落 / 白昼",
-                OceanTime.Night                    => "夜晚",
-                OceanTime.Night | OceanTime.Day    => "白昼 / 夜晚",
-                OceanTime.Day                      => "白昼",
+                OceanTime.日落                   => "日落",
+                OceanTime.日落 | OceanTime.夜晚 => "日落 / 夜晚",
+                OceanTime.日落 | OceanTime.白昼   => "日落 / 白昼",
+                OceanTime.夜晚                    => "夜晚",
+                OceanTime.夜晚 | OceanTime.白昼    => "白昼 / 夜晚",
+                OceanTime.白昼                      => "白昼",
                 _                                  => "未知",
             };
         }

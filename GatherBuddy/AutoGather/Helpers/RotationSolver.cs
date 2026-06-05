@@ -272,7 +272,7 @@ namespace GatherBuddy.AutoGather.Helpers
                 BountifulYield         = AutoGather.CalculateBountifulBonus(slot.Item),
                 BountyYield            = Player.Level >= 71 ? 3 : 2,
                 IsCrystal              = slot.Item.IsCrystal,
-                OptimizeForCost        = slot.Item.NodeType == Enums.NodeType.Regular,
+                OptimizeForCost        = slot.Item.NodeType == Enums.NodeType.常规,
                 AvailableActions       = SolverActions.Where(a => a.Filter(slot)).ToList(),
                 GPRegenPerTick         = gpQuest ? (Player.Level switch { >= 83 => 8u, >= 80 => 7u, _ => 6u }) : 5u,
                 GPRegenPerHit          = (gpQuest && Player.Level >= 80) ? 6u : 5u,
@@ -295,11 +295,11 @@ namespace GatherBuddy.AutoGather.Helpers
                     | (Player.Status.Any(s => s.StatusId == Actions.BountifulII.EffectId) ? EffectType.Bountiful : EffectType.None)
             };
 
-            if (slot.Item.NodeType is Enums.NodeType.Unspoiled or Enums.NodeType.Legendary or Enums.NodeType.Clouded)
+            if (slot.Item.NodeType is Enums.NodeType.未知 or Enums.NodeType.传说 or Enums.NodeType.梦幻)
             {
                 await Task.Run(() => SolveInternal(state));
             }
-            else if (slot.Item.NodeType is Enums.NodeType.Regular)
+            else if (slot.Item.NodeType is Enums.NodeType.常规)
             {
                 await SolveForRegularNodes(state);
             }

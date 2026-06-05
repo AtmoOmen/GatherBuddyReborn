@@ -9,367 +9,367 @@ public static partial class Fish
     {
         data.Apply     (35604, Patch.Endwalker) // Giant Aetherlouse
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (35605, Patch.Endwalker) // Garjana Wrasse
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (35606, Patch.Endwalker) // Garlean Clam
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (35607, Patch.Endwalker) // Smaragdos
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36385, Patch.Endwalker) // Pecten
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak)
+            .Bite      (data, HookSet.Precise, BiteType.轻竿)
             .Snag      (data, Snagging.Required)
             .ForceBig  (false);
         data.Apply     (36386, Patch.Endwalker) // Northern Herring
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36387, Patch.Endwalker) // Dog-faced Puffer
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36388, Patch.Endwalker) // Cobalt Chromis
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36389, Patch.Endwalker) // Guitarfish
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36390, Patch.Endwalker) // Astacus
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36392, Patch.Endwalker) // Peacock Bass
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36393, Patch.Endwalker) // Academician
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36394, Patch.Endwalker) // Swordspine Snook
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36395, Patch.Endwalker) // Ponderer
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36396, Patch.Endwalker) // Tidal Dahlia
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36397, Patch.Endwalker) // Butterfly Fry
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36398, Patch.Endwalker) // Xenocypris
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36399, Patch.Endwalker) // Topminnow
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36400, Patch.Endwalker) // Tessera
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36402, Patch.Endwalker) // Fat Snook
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36403, Patch.Endwalker) // Prochilodus Luminosus
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36404, Patch.Endwalker) // Mesonauta
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36405, Patch.Endwalker) // Greengill Salmon
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36407, Patch.Endwalker) // Raiamas
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36408, Patch.Endwalker) // Red Bowfin
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36409, Patch.Endwalker) // Macrobrachium Lar
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36410, Patch.Endwalker) // Blowgun
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36411, Patch.Endwalker) // Darksteel Knifefish
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36412, Patch.Endwalker) // Astacus Aetherius
             .Bait      (data, 36591)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36414, Patch.Endwalker) // Labyrinthos Tilapia
             .Mooch     (data, 36589, 36412)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (480, 960)
             .Weather   (data, 2);
         data.Apply     (36415, Patch.Endwalker) // Trunkblessed
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36417, Patch.Endwalker) // Seema Duta
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36418, Patch.Endwalker) // Longear Sunfish
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36419, Patch.Endwalker) // Silver Characin
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36420, Patch.Endwalker) // Thavnairian Goby
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36421, Patch.Endwalker) // Qeyiq Sole
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36422, Patch.Endwalker) // Gwl Crab
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36423, Patch.Endwalker) // Pantherscale Grouper
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36425, Patch.Endwalker) // Fate's Design
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36426, Patch.Endwalker) // Shadowdart Sardine
             .Bait      (data, 36593)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36427, Patch.Endwalker) // Paksa Fish
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36430, Patch.Endwalker) // Golden Barramundi
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36431, Patch.Endwalker) // Kadjaya's Castaway
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36432, Patch.Endwalker) // Marid Frog
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36434, Patch.Endwalker) // Bluegill
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36435, Patch.Endwalker) // Bronze Pipira
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36436, Patch.Endwalker) // Green Swordtail
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36438, Patch.Endwalker) // Ksirapayin
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36439, Patch.Endwalker) // Wakeful Watcher
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36440, Patch.Endwalker) // Red Drum
             .Bait      (data, 36591)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Time      (960, 1440)
             .Weather   (data, 2);
         data.Apply     (36441, Patch.Endwalker) // Forgeflame
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36442, Patch.Endwalker) // Bicuda
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36443, Patch.Endwalker) // Radzbalik
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36444, Patch.Endwalker) // Half-moon Betta
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36446, Patch.Endwalker) // Banana Eel
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36447, Patch.Endwalker) // Handy Hamsa
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36448, Patch.Endwalker) // Flowerhorn
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36449, Patch.Endwalker) // Thavnairian Caiman
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36450, Patch.Endwalker) // Fiery Goby
             .Bait      (data, 36592)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36451, Patch.Endwalker) // Puff-paya
             .Bait      (data, 36593)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36452, Patch.Endwalker) // Narunnairian Octopus
             .Bait      (data, 36593)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36453, Patch.Endwalker) // Roosterfish
             .Mooch     (data, 36593, 36451)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36454, Patch.Endwalker) // Basilosaurus
             .Mooch     (data, 36593, 36451)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 2);
         data.Apply     (36456, Patch.Endwalker) // Eblan Trout
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36457, Patch.Endwalker) // Animulus
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36458, Patch.Endwalker) // Cerule Core
             .Bait      (data, 36591)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36459, Patch.Endwalker) // Icepike
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36460, Patch.Endwalker) // Dark Crown
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36461, Patch.Endwalker) // Imperial Pleco
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36462, Patch.Endwalker) // Bluetail
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36463, Patch.Endwalker) // Star-blue Guppy
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36465, Patch.Endwalker) // Lunar Cichlid
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36466, Patch.Endwalker) // Teareye
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36467, Patch.Endwalker) // Replipirarucu
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36468, Patch.Endwalker) // Feverfish
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36470, Patch.Endwalker) // Calicia
             .Bait      (data, 36595)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36471, Patch.Endwalker) // Protomyke #987
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36472, Patch.Endwalker) // Lunar Deathworm
             .Mooch     (data, 36595, 36470)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Weather   (data, 2);
         data.Apply     (36473, Patch.Endwalker) // Fleeting Brand
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36475, Patch.Endwalker) // Regotoise
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36476, Patch.Endwalker) // Isle Skipper
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36477, Patch.Endwalker) // Iribainion
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36478, Patch.Endwalker) // Albino Loach
             .Bait      (data, 36591)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36479, Patch.Endwalker) // Golden Shiner
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36480, Patch.Endwalker) // Mangar
             .Mooch     (data, 36591, 36478)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong)
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿)
             .Weather   (data, 3);
         data.Apply     (36481, Patch.Endwalker) // Dermogenys
             .Bait      (data, 36589)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36484, Patch.Endwalker) // Antheia
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36485, Patch.Endwalker) // Colossoma
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36487, Patch.Endwalker) // Superstring
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36488, Patch.Endwalker) // Star Eater
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36489, Patch.Endwalker) // Vacuum Shrimp
             .Bait      (data, 36595)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36491, Patch.Endwalker) // Cosmic Noise
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36492, Patch.Endwalker) // Glassfish
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36494, Patch.Endwalker) // Foun Myhk
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36495, Patch.Endwalker) // Dragonscale
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36496, Patch.Endwalker) // Ypupîara
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36497, Patch.Endwalker) // Eehs Forhnesh
             .Bait      (data, 36594)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36499, Patch.Endwalker) // Katoptron
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36501, Patch.Endwalker) // Comet Tail
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36502, Patch.Endwalker) // Aoide
             .Bait      (data, 36590)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36503, Patch.Endwalker) // Protoflesh
             .Bait      (data, 36588)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36505, Patch.Endwalker) // Wandering Starscale
             .Bait      (data, 29717)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36506, Patch.Endwalker) // Wormhole Worm
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36507, Patch.Endwalker) // Unidentified Flying Biomass II
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36508, Patch.Endwalker) // Triaina
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36509, Patch.Endwalker) // Sophos Deka-okto
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36510, Patch.Endwalker) // Class Twenty-four
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36511, Patch.Endwalker) // Terrifyingway
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36512, Patch.Endwalker) // Alien Mertone
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36513, Patch.Endwalker) // Monster Carrot
             .Bait      (data, 36597)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36514, Patch.Endwalker) // Argonaut
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Precise, BiteType.Weak);
+            .Bite      (data, HookSet.Precise, BiteType.轻竿);
         data.Apply     (36515, Patch.Endwalker) // Echinos
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36516, Patch.Endwalker) // Space Bishop
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36517, Patch.Endwalker) // Alyketos
             .Bait      (data, 36597)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36518, Patch.Endwalker) // Horizon Event
             .Bait      (data, 36597)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36519, Patch.Endwalker) // E.B.E.-9318
             .Bait      (data, 36596)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36520, Patch.Endwalker) // Unbegotten
             .Mooch     (data, 36596, 36518)
-            .Bite      (data, HookSet.Powerful, BiteType.Strong);
+            .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (36521, Patch.Endwalker) // Phallaina 
             .Mooch     (data, 36597, 36518)
-            .Bite      (data, HookSet.Powerful, BiteType.Legendary)
+            .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (0, 240);
         data.Apply     (36522, Patch.Endwalker) // Thavnairian Cucumber
             .Spear     (data, SpearfishSize.Small, SpearfishSpeed.ExtremelySlow);

@@ -17,12 +17,12 @@ public partial class Fish
     public Snagging          Snagging        { get; internal set; } = Snagging.Unknown;
     public Lure              Lure            { get; internal set; } = Lure.None;
     public HookSet           HookSet         { get; internal set; } = HookSet.Unknown;
-    public BiteType          BiteType        { get; internal set; } = BiteType.Unknown;
+    public BiteType          BiteType        { get; internal set; } = BiteType.未知;
     public SpearfishSize     Size            { get; internal set; } = SpearfishSize.Unknown;
     public SpearfishSpeed    Speed           { get; internal set; } = SpearfishSpeed.Unknown;
     public Fish?             SurfaceSlap     { get; internal set; }
     public string            Guide           { get; internal set; } = string.Empty;
-    public OceanTime         OceanTime       { get; internal set; } = OceanTime.Always;
+    public OceanTime         OceanTime       { get; internal set; } = OceanTime.总是;
     public OceanSpecies      OceanSpecies    { get; internal set; }
     public short             Points          { get; internal set; }
     public byte              MultiHookLower  { get; internal set; }

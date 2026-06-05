@@ -1,4 +1,3 @@
-using System.Linq;
 using Lumina.Excel.Sheets;
 
 namespace GatherBuddy.Structs;

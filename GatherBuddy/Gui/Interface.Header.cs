@@ -224,15 +224,15 @@ public partial class Interface
         nextHourS    -= nextHourM * RealTime.SecondsPerMinute;
         nextWeatherS -= nextWeatherM * RealTime.SecondsPerMinute;
 
-        var nextWeatherString = $"  {nextWeatherM:D2}:{nextWeatherS:D2} Min.  ";
+        var nextWeatherString = $" 剩余 {nextWeatherM:D2}:{nextWeatherS:D2} ";
         var width = -(ImGui.CalcTextSize(nextWeatherString).X
           + (WeatherIconSize.X + ItemSpacing.X + FramePadding.X) * 3);
 
         _headerCache.UpdateCurrentTerritory();
         using var _ = ImRaii.Group();
-        DrawEorzeaTime($"ET {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
+        DrawEorzeaTime($"艾欧泽亚时间 {GatherBuddy.Time.EorzeaHourOfDay:D2}:{GatherBuddy.Time.EorzeaMinuteOfHour:D2}");
         ImGui.SameLine();
-        DrawNextEorzeaHour($"{nextHourM:D2}:{nextHourS:D2} 分钟后进入下个小时", new Vector2(width, WeatherIconSize.Y));
+        DrawNextEorzeaHour($"{nextHourM:D2}:{nextHourS:D2} 后进入下个小时", WeatherIconSize with { X = width });
         ImGui.SameLine();
         DrawNextWeather(nextWeatherString);
     }

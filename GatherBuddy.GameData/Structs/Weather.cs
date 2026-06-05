@@ -1,4 +1,3 @@
-using System;
 using GatherBuddy.Data;
 using GatherBuddy.Utility;
 using LuminaWeather = Lumina.Excel.Sheets.Weather;

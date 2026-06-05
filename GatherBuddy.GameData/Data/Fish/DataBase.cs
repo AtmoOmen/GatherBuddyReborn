@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using GatherBuddy.Enums;
 using GatherBuddy.Structs;
@@ -216,7 +212,7 @@ public static partial class Fish
         return fish;
     }
 
-    private static Classes.Fish? Bite(this Classes.Fish? fish, GameData data, HookSet hookSet, BiteType biteType = BiteType.Unknown)
+    private static Classes.Fish? Bite(this Classes.Fish? fish, GameData data, HookSet hookSet, BiteType biteType = BiteType.未知)
     {
         if (fish == null)
             return null;
@@ -228,7 +224,7 @@ public static partial class Fish
         }
 
         fish.HookSet  = hookSet == HookSet.Unknown ? fish.HookSet : hookSet;
-        fish.BiteType = biteType == BiteType.Unknown ? fish.BiteType : biteType;
+        fish.BiteType = biteType == BiteType.未知 ? fish.BiteType : biteType;
         return fish;
     }
 
@@ -334,8 +330,8 @@ public static partial class Fish
         if (fish == null)
             return null;
 
-        fish.OceanTime = times.Aggregate(OceanTime.Never, (a, b) => a | b);
-        if (fish.OceanTime != OceanTime.Always)
+        fish.OceanTime = times.Aggregate(OceanTime.永不, (a, b) => a | b);
+        if (fish.OceanTime != OceanTime.总是)
             fish.FishRestrictions |= FishRestrictions.Time;
         return fish;
     }
@@ -447,8 +443,8 @@ public static partial class Fish
                         fish.Mooch(data, mooch);
 
                     if (custom.HookSet is not HookSet.Unknown)
-                        fish.Bite(data, custom.HookSet, custom.BiteType is not BiteType.Unknown ? custom.BiteType : fish.BiteType);
-                    else if (custom.BiteType is not BiteType.Unknown)
+                        fish.Bite(data, custom.HookSet, custom.BiteType is not BiteType.未知 ? custom.BiteType : fish.BiteType);
+                    else if (custom.BiteType is not BiteType.未知)
                         fish.Bite(data, fish.HookSet, custom.BiteType);
 
                     if (custom.Lure is { } lure)

@@ -9,55 +9,55 @@ public static partial class Fish
     {
         data.Apply(38810, Patch.GodsRevelLandsTremble) // Ondo Kelp
             .Bait(data, 28634)
-            .Bite(data, HookSet.Precise, BiteType.Weak);
+            .Bite(data, HookSet.Precise, BiteType.轻竿);
         data.Apply(38811, Patch.GodsRevelLandsTremble) // Ken Kiln
             .Spear(data, SpearfishSize.Average, SpearfishSpeed.Average);
         data.Apply(38812, Patch.GodsRevelLandsTremble) // Purpure Cod
             .Bait(data, 28634)
-            .Bite(data, HookSet.Precise, BiteType.Weak);
+            .Bite(data, HookSet.Precise, BiteType.轻竿);
         data.Apply(38813, Patch.GodsRevelLandsTremble) // Glorianda's Tear
             .Spear(data, SpearfishSize.Small, SpearfishSpeed.VerySlow);
         data.Apply(38814, Patch.GodsRevelLandsTremble) // Il Lydha
             .Bait(data, 28634)
-            .Bite(data, HookSet.Precise, BiteType.Weak);
+            .Bite(data, HookSet.Precise, BiteType.轻竿);
         data.Apply(38830, Patch.GodsRevelLandsTremble) // Catastrophizer
             .Bait(data, 36591)
             .Time(480, 840)
             .Transition(data, 2)
             .Weather(data, 1)
-            .Bite(data, HookSet.Precise, BiteType.Legendary);
+            .Bite(data, HookSet.Precise, BiteType.鱼王竿);
         data.Apply(38831, Patch.GodsRevelLandsTremble) // Mossgill Salmon
             .Bait(data, 36590)
             .Transition(data, 3)
             .Weather(data, 7)
-            .Bite(data, HookSet.Powerful, BiteType.Legendary);
+            .Bite(data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply(38832, Patch.GodsRevelLandsTremble) // Vidyutvat Wrasse
             .Bait(data, 36592)
             .Time(1200, 1440)
             .Transition(data, 3)
             .Weather(data, 1)
-            .Bite(data, HookSet.Powerful, BiteType.Legendary);
+            .Bite(data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply(38833, Patch.GodsRevelLandsTremble) // Browned Banana Eel
             .Bait(data, 36591)
             .Time(1320, 120)
             .Weather(data, 7)
-            .Bite(data, HookSet.Powerful, BiteType.Legendary);
+            .Bite(data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply(38834, Patch.GodsRevelLandsTremble) // Frozen Regotoise
             .Bait(data, 36595)
             .Time(600, 780)
             .Weather(data, 49)
-            .Bite(data, HookSet.Powerful, BiteType.Legendary);
+            .Bite(data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply(38835, Patch.GodsRevelLandsTremble) // Cosmic Haze
             .Mooch(data, 36595, 36489)
             .Time(1200, 240)
             .Weather(data, 149)
-            .Bite(data, HookSet.Powerful, BiteType.Legendary);
+            .Bite(data, HookSet.Powerful, BiteType.鱼王竿);
         data.Apply(38836, Patch.GodsRevelLandsTremble) // Antheian Dahlia
             .Bait(data, 36591)
             .Time(240, 600)
             .Transition(data, 3)
             .Weather(data, 1)
-            .Bite(data, HookSet.Precise, BiteType.Legendary);
+            .Bite(data, HookSet.Precise, BiteType.鱼王竿);
         data.Apply(38837, Patch.GodsRevelLandsTremble) // Lakeskipper
             .Spear(data, SpearfishSize.Small, SpearfishSpeed.VerySlow);
         data.Apply(38838, Patch.GodsRevelLandsTremble) // Bronze Eel
@@ -72,28 +72,28 @@ public static partial class Fish
             .Comment("Catch 4 Guppies in one node.");
         data.Apply(38935, Patch.GodsRevelLandsTremble) // Jhinga
             .Bait(data, 36593)
-            .Bite(data, HookSet.Precise, BiteType.Weak);
+            .Bite(data, HookSet.Precise, BiteType.轻竿);
         data.Apply(38939, Patch.GodsRevelLandsTremble) // Verdigris Guppy
             .Spear(data, SpearfishSize.Small, SpearfishSpeed.Fast);
         data.Apply(39240, Patch.GodsRevelLandsTremble) // Phyllinos
             .Bait(data, 36591)
             .Time(300, 480)
-            .Bite(data, HookSet.Precise, BiteType.Weak);
+            .Bite(data, HookSet.Precise, BiteType.轻竿);
         data.Apply(38792, Patch.GodsRevelLandsTremble) // Platinum Seahorse
             .Bait(data, 38808)
-            .Bite(data, HookSet.Precise, BiteType.Weak)
+            .Bite(data, HookSet.Precise, BiteType.轻竿)
             .ForceBig(false);
         data.Apply(38793, Patch.GodsRevelLandsTremble) // Clavekeeper
-            .Bite(data, HookSet.Powerful, BiteType.Strong)
+            .Bite(data, HookSet.Powerful, BiteType.普通竿)
             .Bait(data, 38808)
             .ForceBig(false);
         data.Apply(38798, Patch.GodsRevelLandsTremble) // Mirror Image
             .Bait(data, 38808)
-            .Bite(data, HookSet.Precise, BiteType.Weak)
+            .Bite(data, HookSet.Precise, BiteType.轻竿)
             .ForceBig(false);
         data.Apply(38799, Patch.GodsRevelLandsTremble) // Spangled Pirarucu
             .Bait(data, 38808)
-            .Bite(data, HookSet.Powerful, BiteType.Strong)
+            .Bite(data, HookSet.Powerful, BiteType.普通竿)
             .ForceBig(false);
     }
     // @formatter:on

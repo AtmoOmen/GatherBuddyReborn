@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Frozen;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using Dalamud;
 using Dalamud.Logging;
@@ -144,7 +141,7 @@ public class GameData
                 .ToFrozenDictionary(group => group.Key, group => group.Select(g => g.RowId).Distinct().ToList());
 
             GatheringNodes = DataManager.GetExcelSheet<GatheringPointBase>()
-                .Where(b => b.GatheringType.RowId < (int)Enums.GatheringType.Spearfishing)
+                .Where(b => b.GatheringType.RowId < (int)Enums.GatheringType.刺鱼)
                 .Select(b => new GatheringNode(this, tmpGatheringPoints, tmpGatheringItemPoint, b))
                 .Where(n => n.Territory.Id > 1 && n.Items.Count > 0)
                 .ToFrozenDictionary(n => n.Id, n => n);
@@ -207,7 +204,7 @@ public class GameData
 
             foreach (var gatherable in Gatherables.Values)
             {
-                if (gatherable.NodeType != NodeType.Unknown && !gatherable.NodeList.Any(n => n.Times.AlwaysUp()))
+                if (gatherable.NodeType != NodeType.无 && !gatherable.NodeList.Any(n => n.Times.AlwaysUp()))
                     gatherable.InternalLocationId = ++TimedGatherables;
                 else if (gatherable.NodeList.Count > 1)
                     gatherable.InternalLocationId = -++MultiNodeGatherables;
@@ -288,13 +285,13 @@ public class GameData
             var row = routeSheet.GetRow(i);
             var (start, day, sunset, night) = row.Time[0].RowId switch
             {
-                1 => (OceanTime.Sunset, spots[(int)row.Spot[1].RowId - 1], spots[(int)row.Spot[2].RowId - 1],
+                1 => (Sunset: OceanTime.日落, spots[(int)row.Spot[1].RowId - 1], spots[(int)row.Spot[2].RowId - 1],
                     spots[(int)row.Spot[0].RowId - 1]),
-                2 => (OceanTime.Night, spots[(int)row.Spot[0].RowId - 1], spots[(int)row.Spot[1].RowId - 1],
+                2 => (Night: OceanTime.夜晚, spots[(int)row.Spot[0].RowId - 1], spots[(int)row.Spot[1].RowId - 1],
                     spots[(int)row.Spot[2].RowId - 1]),
-                3 => (OceanTime.Day, spots[(int)row.Spot[2].RowId - 1], spots[(int)row.Spot[0].RowId - 1],
+                3 => (Day: OceanTime.白昼, spots[(int)row.Spot[2].RowId - 1], spots[(int)row.Spot[0].RowId - 1],
                     spots[(int)row.Spot[1].RowId - 1]),
-                _ => (OceanTime.Sunset, spots[(int)row.Spot[1].RowId - 1], spots[(int)row.Spot[2].RowId - 1],
+                _ => (Sunset: OceanTime.日落, spots[(int)row.Spot[1].RowId - 1], spots[(int)row.Spot[2].RowId - 1],
                     spots[(int)row.Spot[0].RowId - 1]),
             };
             ret[i - 1] = new OceanRoute

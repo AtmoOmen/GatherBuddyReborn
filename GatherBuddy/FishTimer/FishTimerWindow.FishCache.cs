@@ -82,16 +82,16 @@ public partial class FishTimerWindow
 
             return (bite, uncaught) switch
             {
-                (BiteType.Weak, false)   => ColorId.FishTimerWeakTug,
-                (BiteType.Weak, true)    => ColorId.FishTimerWeakTugUncaught,
-                (BiteType.Strong, false) => ColorId.FishTimerStrongTug,
-                (BiteType.Strong, true)  => ColorId.FishTimerStrongTugUncaught,
+                (BiteType.轻竿, false)   => ColorId.FishTimerWeakTug,
+                (BiteType.轻竿, true)    => ColorId.FishTimerWeakTugUncaught,
+                (BiteType.普通竿, false) => ColorId.FishTimerStrongTug,
+                (BiteType.普通竿, true)  => ColorId.FishTimerStrongTugUncaught,
 
-                (BiteType.Legendary, false) => hook == HookSet.Precise
+                (BiteType.鱼王竿, false) => hook == HookSet.Precise
                     ? ColorId.FishTimerLegendaryTugPrecision
                     : ColorId.FishTimerLegendaryTugPowerful,
 
-                (BiteType.Legendary, true) => hook == HookSet.Precise
+                (BiteType.鱼王竿, true) => hook == HookSet.Precise
                     ? ColorId.FishTimerLegendaryTugPrecisionUncaught
                     : ColorId.FishTimerLegendaryTugPowerfulUncaught,
 

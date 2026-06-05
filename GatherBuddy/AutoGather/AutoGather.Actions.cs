@@ -462,7 +462,7 @@ namespace GatherBuddy.AutoGather
         {
             if (GatherBuddy.Config.AutoGatherConfig.UseGivingLandOnCooldown
              && desiredItem != null
-             && desiredItem.NodeType == Enums.NodeType.Regular)
+             && desiredItem.NodeType == Enums.NodeType.常规)
             {
                 var anyCrystal = GetAnyCrystalInNode();
                 return anyCrystal != null && ShouldUseGivingLand(anyCrystal, MatchConfigPreset(anyCrystal.Item));
