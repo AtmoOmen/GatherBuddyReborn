@@ -97,6 +97,13 @@ public class UserMacroSolver : Solver
         GatherBuddy.Log.Debug($"[UserMacroSolver] Fallback solver: {(fallbackDesc == default ? "none" : fallbackDesc.Name)}");
     }
 
+    internal UserMacroSolver(UserMacro macro, CraftState craft, Solver? fallback)
+    {
+        _macro = macro ?? throw new ArgumentNullException(nameof(macro));
+        _craft = craft ?? throw new ArgumentNullException(nameof(craft));
+        _fallback = fallback;
+    }
+
     public override Recommendation Solve(CraftState craft, StepState step)
     {
         var fallback = _fallback?.Solve(craft, step);

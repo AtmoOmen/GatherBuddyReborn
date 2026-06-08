@@ -9,6 +9,7 @@ using FFXIVClientStructs.FFXIV.Client.Enums;
 using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using GatherBuddy.Automation;
+using Functions = GatherBuddy.Plugin.Functions;
 
 namespace GatherBuddy.Gui;
 
@@ -43,16 +44,35 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
     }
 
     public void BeginImGuiFrame()
-        => _requestedThisFrame = false;
+    {
+        _requestedThisFrame = false;
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
+            HideTooltip(false);
+        }
+    }
 
     public void EndImGuiFrame()
     {
-        if (!_requestedThisFrame)
-            HideTooltip();
+        if (_requestedThisFrame)
+            return;
+
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
+            HideTooltip(false);
+            return;
+        }
+
+        HideTooltip();
     }
 
     public void RequestItemTooltip(uint itemId, Vector2 rectMin, Vector2 rectMax, bool expandRight)
     {
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
+            HideTooltip(false);
+            return;
+        }
         _requestedThisFrame = true;
         if (itemId == 0)
         {
@@ -226,9 +246,42 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         GatherBuddy.Log.Debug($"[NativeItemTooltipBridge] {message}");
     }
 
+    private static bool TryCheckNativeTooltipReadiness(out string reason)
+    {
+        if (!Dalamud.ClientState.IsLoggedIn)
+        {
+            reason = "client is not logged in";
+            return false;
+        }
+
+        if (Dalamud.Objects.LocalPlayer == null)
+        {
+            reason = "local player is unavailable";
+            return false;
+        }
+
+        if (Functions.BetweenAreas())
+        {
+            reason = "player is transitioning between areas";
+            return false;
+        }
+
+        if (!GenericHelpers.IsScreenReady())
+        {
+            reason = "screen is not ready";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+
     private bool TryPrepareAnchor(Vector2 rectMin, Vector2 rectMax, out ushort parentAddonId)
     {
         parentAddonId = 0;
+        if (!TryCheckNativeTooltipReadiness(out _))
+            return false;
         if (!EnsureAnchorNode())
             return false;
 
@@ -368,7 +421,7 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         _anchorNode->IsDirty = true;
     }
 
-    private void HideTooltip()
+    private void HideTooltip(bool updateHost = true)
     {
         if (!_tooltipVisible && (_anchorNode == null || !_anchorNode->IsVisible()))
             return;
@@ -383,8 +436,7 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
             {
                 GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to hide tooltip: {ex.Message}");
             }
-
-        SetAnchorVisibility(false);
+        SetAnchorVisibility(false, updateHost);
         _tooltipVisible = false;
         _tooltipParentAddonId = 0;
         _tooltipItemId = 0;
@@ -487,14 +539,14 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         return false;
     }
 
-    private void SetAnchorVisibility(bool visible)
+    private void SetAnchorVisibility(bool visible, bool updateHost = true)
     {
         if (_anchorNode == null || _anchorNode->IsVisible() == visible)
             return;
 
         _anchorNode->ToggleVisibility(visible);
         _anchorNode->IsDirty = true;
-        if (TryGetHostAddon(out var hostAddon) && (nint)hostAddon == _attachedHostAddonAddress)
+        if (updateHost && TryGetHostAddon(out var hostAddon) && (nint)hostAddon == _attachedHostAddonAddress)
             hostAddon->UldManager.UpdateDrawNodeList();
     }
 

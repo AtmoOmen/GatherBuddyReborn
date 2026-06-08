@@ -47,9 +47,9 @@ public partial class VulcanWindow
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.BeginCombo("Solver Mode###SolverMode", modeNames[safeModeIndex]))
             {
-                if (ImGui.Selectable("Pure Raphael", currentMode == RaphaelSolverMode.PureRaphael))
+                if (ImGui.Selectable("Pure Raphael", currentMode == VulcanSolverMode.PureRaphael))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.PureRaphael;
+                    raphaelConfig.SolverMode = VulcanSolverMode.PureRaphael;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }
@@ -61,9 +61,9 @@ public partial class VulcanWindow
                     ImGui.EndTooltip();
                 }
 
-                if (ImGui.Selectable("Standard Solver", currentMode == RaphaelSolverMode.StandardSolver))
+                if (ImGui.Selectable("Standard Solver", currentMode == VulcanSolverMode.StandardSolver))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.StandardSolver;
+                    raphaelConfig.SolverMode = VulcanSolverMode.StandardSolver;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }
@@ -75,9 +75,9 @@ public partial class VulcanWindow
                     ImGui.EndTooltip();
                 }
 
-                if (ImGui.Selectable("Progress Only", currentMode == RaphaelSolverMode.ProgressOnly))
+                if (ImGui.Selectable("Progress Only", currentMode == VulcanSolverMode.ProgressOnly))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.ProgressOnly;
+                    raphaelConfig.SolverMode = VulcanSolverMode.ProgressOnly;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }

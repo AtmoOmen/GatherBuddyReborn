@@ -214,9 +214,9 @@ public class RecipeCraftSettingsPopup
         
         if (!_isOpen) return;
         
-        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 0f), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 450f), ImGuiCond.Appearing);
         
-        if (ImGui.Begin($"Craft Settings - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.Begin($"Craft Settings - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen))
         {
             RefreshValidationIfNeeded();
             DrawMacroSelector();

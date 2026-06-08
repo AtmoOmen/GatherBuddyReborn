@@ -120,10 +120,10 @@ public class CraftingStatusWindow : Window
         if (currentState != CraftingQueueProcessor.QueueState.Idle
             && currentState != CraftingQueueProcessor.QueueState.Complete && currentState != CraftingQueueProcessor.QueueState.WaitingForGather)
         {
-            var remainingMs = CraftingTimeEstimator.EstimateRemainingMs(_queueProcessor.Queue, currentIndex);
+            var remainingMs = CraftingTimeEstimator.EstimateRemainingMs(_queueProcessor.Queue, currentIndex, _queueProcessor.ListConsumables);
             ImGui.Text($"Estimated Time Remaining: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Estimate based on action count per craft (macro length when set, otherwise the Raphael solver's action count once available) and the configured action delay. Excludes time spent gathering, repairing, or switching jobs.");
+                ImGui.SetTooltip("Estimate based on the active craft path for each queue item. Macros, Standard Solver, and Progress Only are simulated, while Raphael uses cached solution length when available and falls back to a provisional default until ready. Excludes time spent gathering, repairing, or switching jobs.");
         }
 
         ImGui.Spacing();

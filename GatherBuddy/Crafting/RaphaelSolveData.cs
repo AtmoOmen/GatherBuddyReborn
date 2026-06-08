@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GatherBuddy.Vulcan;
 
 namespace GatherBuddy.Crafting;
 
@@ -14,6 +15,18 @@ public record RaphaelSolveRequest(
     int InitialQuality = 0
 )
 {
+    public static RaphaelSolveRequest FromCraftState(CraftState craft, bool allowSpecialistActions)
+        => new(
+            RecipeId: craft.RecipeId,
+            Level: craft.StatLevel,
+            Craftsmanship: craft.StatCraftsmanship,
+            Control: craft.StatControl,
+            CP: craft.StatCP,
+            Manipulation: craft.UnlockedManipulation,
+            Specialist: allowSpecialistActions && craft.Specialist,
+            InitialQuality: craft.InitialQuality
+        );
+
     public string GetKey()
     {
         return $"{RecipeId}/{Level}/{Craftsmanship}/{Control}/{CP}/{(Manipulation ? "1" : "0")}/{(Specialist ? "1" : "0")}/{InitialQuality}";
@@ -39,7 +52,7 @@ public class CachedRaphaelSolution
     }
 }
 
-public enum RaphaelSolverMode
+public enum VulcanSolverMode
 {
     PureRaphael,     // Static Raphael rotations only
     StandardSolver,  // Dynamic standard solver
@@ -55,5 +68,5 @@ public class RaphaelSolveCoordinatorConfig
     public bool RaphaelAllowSpecialistActions { get; set; } = false;
     public bool AutoClearSolutionCache { get; set; } = true;
     public int SolutionCacheMaxAgeDays { get; set; } = 30;
-    public RaphaelSolverMode SolverMode { get; set; } = RaphaelSolverMode.PureRaphael;
+    public VulcanSolverMode SolverMode { get; set; } = VulcanSolverMode.PureRaphael;
 }

@@ -399,8 +399,8 @@ public partial class AutoGatherListsManager
 
         list.RemoveCompletedItems = value;
         Save();
-        if (value && list.Enabled && list.Items.Count > 0)
-            SetActiveItems();
+        if (value && list.Enabled && !list.Fallback && list.Items.Count > 0)
+            SetActiveItems(true);
     }
 
     public bool RemoveCompletedItemFromLists(IGatherable item)
@@ -409,7 +409,7 @@ public partial class AutoGatherListsManager
         var removedAny = false;
         foreach (var list in _fileSystem.Select(kvp => kvp.Key))
         {
-            if (!list.Enabled || !list.RemoveCompletedItems)
+            if (!list.Enabled || !list.RemoveCompletedItems || list.Fallback)
                 continue;
             if (!list.EnabledItems.TryGetValue(item, out var itemEnabled) || !itemEnabled)
                 continue;
@@ -439,7 +439,7 @@ public partial class AutoGatherListsManager
         var removedAny = false;
         foreach (var list in _fileSystem.Select(kvp => kvp.Key))
         {
-            if (!list.Enabled || !list.RemoveCompletedItems)
+            if (!list.Enabled || !list.RemoveCompletedItems || list.Fallback)
                 continue;
 
             for (var i = list.Items.Count - 1; i >= 0; --i)

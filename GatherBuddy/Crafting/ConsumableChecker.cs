@@ -7,6 +7,8 @@ namespace GatherBuddy.Crafting;
 
 public static class ConsumableChecker
 {
+    public static uint GetConsumableInventoryItemId(uint itemId, bool hq)
+        => hq ? itemId + 1_000_000u : itemId;
     public static unsafe bool UseItem(uint itemId)
     {
         var actionManager = ActionManager.Instance();
@@ -101,6 +103,63 @@ public static class ConsumableChecker
         
         return inventoryManager->GetInventoryItemCount(itemId) > 0;
     }
+
+    public static bool HasConfiguredConsumableInInventory(uint itemId, bool hq)
+        => HasItemInInventory(GetConsumableInventoryItemId(itemId, hq));
+
+    public static RecipeCraftSettings? GetProjectedCraftStatConsumables(RecipeCraftSettings? settings)
+    {
+        if (settings == null)
+            return null;
+
+        RecipeCraftSettings? projected = null;
+
+        if (settings.FoodItemId.HasValue
+            && (HasFoodBuff(settings.FoodItemId.Value) || HasConfiguredConsumableInInventory(settings.FoodItemId.Value, settings.FoodHQ)))
+        {
+            projected ??= new RecipeCraftSettings();
+            projected.FoodItemId = settings.FoodItemId;
+            projected.FoodHQ = settings.FoodHQ;
+        }
+
+        if (settings.MedicineItemId.HasValue
+            && (HasMedicineBuff(settings.MedicineItemId.Value) || HasConfiguredConsumableInInventory(settings.MedicineItemId.Value, settings.MedicineHQ)))
+        {
+            projected ??= new RecipeCraftSettings();
+            projected.MedicineItemId = settings.MedicineItemId;
+            projected.MedicineHQ = settings.MedicineHQ;
+        }
+
+        return projected;
+    }
+
+    public static RecipeCraftSettings? GetPendingCraftStatConsumables(RecipeCraftSettings? settings)
+    {
+        if (settings == null)
+            return null;
+
+        RecipeCraftSettings? pending = null;
+
+        if (settings.FoodItemId.HasValue
+            && !HasFoodBuff(settings.FoodItemId.Value)
+            && HasConfiguredConsumableInInventory(settings.FoodItemId.Value, settings.FoodHQ))
+        {
+            pending ??= new RecipeCraftSettings();
+            pending.FoodItemId = settings.FoodItemId;
+            pending.FoodHQ = settings.FoodHQ;
+        }
+
+        if (settings.MedicineItemId.HasValue
+            && !HasMedicineBuff(settings.MedicineItemId.Value)
+            && HasConfiguredConsumableInInventory(settings.MedicineItemId.Value, settings.MedicineHQ))
+        {
+            pending ??= new RecipeCraftSettings();
+            pending.MedicineItemId = settings.MedicineItemId;
+            pending.MedicineHQ = settings.MedicineHQ;
+        }
+
+        return pending;
+    }
     
     public static bool ApplyConsumables(RecipeCraftSettings settings)
     {
@@ -110,7 +169,7 @@ public static class ConsumableChecker
         {
             if (!HasFoodBuff(settings.FoodItemId.Value))
             {
-                uint itemToUse = settings.FoodHQ ? settings.FoodItemId.Value + 1_000_000 : settings.FoodItemId.Value;
+                uint itemToUse = GetConsumableInventoryItemId(settings.FoodItemId.Value, settings.FoodHQ);
                 if (HasItemInInventory(itemToUse))
                 {
                     GatherBuddy.Log.Debug($"[ConsumableChecker] Using food item {settings.FoodItemId.Value} ({(settings.FoodHQ ? "HQ" : "NQ")})");
@@ -128,7 +187,7 @@ public static class ConsumableChecker
         {
             if (!HasMedicineBuff(settings.MedicineItemId.Value))
             {
-                uint itemToUse = settings.MedicineHQ ? settings.MedicineItemId.Value + 1_000_000 : settings.MedicineItemId.Value;
+                uint itemToUse = GetConsumableInventoryItemId(settings.MedicineItemId.Value, settings.MedicineHQ);
                 if (HasItemInInventory(itemToUse))
                 {
                     GatherBuddy.Log.Debug($"[ConsumableChecker] Using medicine item {settings.MedicineItemId.Value} ({(settings.MedicineHQ ? "HQ" : "NQ")})");

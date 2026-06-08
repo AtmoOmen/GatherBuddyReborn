@@ -103,7 +103,7 @@ public partial class VulcanWindow
         }
         
         var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
-        if (solverMode != RaphaelSolverMode.PureRaphael)
+        if (solverMode != VulcanSolverMode.PureRaphael)
         {
             CraftingGameInterop.StartCraft(recipe, 1);
             return;
@@ -119,9 +119,10 @@ public partial class VulcanWindow
         }
         
         var gearsetStats = baseStats;
-        if (settings != null && (settings.FoodItemId.HasValue || settings.MedicineItemId.HasValue))
+        var projectedConsumables = ConsumableChecker.GetProjectedCraftStatConsumables(settings);
+        if (projectedConsumables != null)
         {
-            gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(baseStats, settings);
+            gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(baseStats, projectedConsumables);
             GatherBuddy.Log.Debug($"[VulcanWindow] Stats with consumables: Craftsmanship={gearsetStats.Craftsmanship}, Control={gearsetStats.Control}, CP={gearsetStats.CP}");
         }
 
