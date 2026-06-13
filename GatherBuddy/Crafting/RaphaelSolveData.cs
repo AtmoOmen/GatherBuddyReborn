@@ -52,6 +52,12 @@ public class CachedRaphaelSolution
     }
 }
 
+public enum RaphaelSolvePriority
+{
+    Background,
+    Urgent,
+}
+
 public enum VulcanSolverMode
 {
     PureRaphael,     // Static Raphael rotations only

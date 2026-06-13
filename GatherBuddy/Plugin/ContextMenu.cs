@@ -259,6 +259,7 @@ public class ContextMenu : IDisposable
 
         args.OpenSubmenu(menuItems);
     }
+
     private void OpenCreateCraftingListPopup(uint recipeId)
     {
         var vulcanWindow = GatherBuddy.VulcanWindow;
@@ -287,6 +288,7 @@ public class ContextMenu : IDisposable
         }
 
         GatherBuddy.CraftingListManager.SaveList(list);
+        Crafting.RaphaelAssessmentService.QueueWarmupForAddedListRecipe(recipe.RowId, list);
         GatherBuddy.VulcanWindow?.RefreshOpenCraftingList(list.ID);
     }
 

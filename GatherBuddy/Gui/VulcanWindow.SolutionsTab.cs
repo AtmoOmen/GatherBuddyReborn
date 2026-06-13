@@ -59,6 +59,14 @@ public partial class VulcanWindow
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(220f));
             ImGui.InputTextWithHint("##solutionsSearch", "Search items...", ref _solutionsSearch, 128);
             ImGui.SameLine();
+            using (ImRaii.Disabled(coordinator.PendingSolves <= 0))
+            {
+                if (ImGui.Button("Stop Queue", VulcanUiScaling.Scaled(90f, 0f)))
+                    coordinator.CancelAllPendingSolves();
+            }
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Cancel queued and active Raphael solves while keeping completed cached solutions.");
+            ImGui.SameLine();
             if (ImGui.Button("Clear All", VulcanUiScaling.Scaled(90f, 0f)))
             {
                 coordinator.Clear();

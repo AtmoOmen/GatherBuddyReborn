@@ -21,6 +21,7 @@ public class CraftingListConsumablesPopup
     private string? _workingDefaultFinalMacroId;
     private SolverOverrideMode _workingDefaultPrecraftSolverOverride = SolverOverrideMode.Default;
     private SolverOverrideMode _workingDefaultFinalSolverOverride = SolverOverrideMode.Default;
+    private bool _workingUseAllHQ;
     private string _foodSearch = string.Empty;
     private string _medicineSearch = string.Empty;
     private string _precraftMacroSearch = string.Empty;
@@ -44,6 +45,7 @@ public class CraftingListConsumablesPopup
         _workingDefaultFinalMacroId = list.DefaultFinalMacroId;
         _workingDefaultPrecraftSolverOverride = list.DefaultPrecraftSolverOverride;
         _workingDefaultFinalSolverOverride = list.DefaultFinalSolverOverride;
+        _workingUseAllHQ = list.UseAllHQ;
         _foodSearch = string.Empty;
         _medicineSearch = string.Empty;
         _precraftMacroSearch = string.Empty;
@@ -68,7 +70,6 @@ public class CraftingListConsumablesPopup
             if (ImGui.Button("Save Defaults", SaveButtonSize))
             {
                 Save();
-                _isOpen = false;
             }
 
             ImGui.SameLine();
@@ -88,6 +89,12 @@ public class CraftingListConsumablesPopup
         DrawMacroSection();
         ImGui.Spacing();
         ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.Checkbox("Assume All HQ Materials##ListUseAllHQ", ref _workingUseAllHQ);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Use all HQ-capable ingredients as the list default for planning and Raphael warmup.\nItem and precraft settings can still override this.");
+
         ImGui.Spacing();
 
         var foodItemId = _workingDefaults.FoodItemId;
@@ -517,7 +524,9 @@ public class CraftingListConsumablesPopup
         _list.DefaultFinalMacroId = _workingDefaultFinalMacroId;
         _list.DefaultPrecraftSolverOverride = _workingDefaultPrecraftSolverOverride;
         _list.DefaultFinalSolverOverride = _workingDefaultFinalSolverOverride;
+        _list.UseAllHQ = _workingUseAllHQ;
         GatherBuddy.CraftingListManager.SaveList(_list);
+        RaphaelAssessmentService.QueueWarmupForList(_list);
         MacroValidator.InvalidateAll();
         OnSaved?.Invoke();
     }

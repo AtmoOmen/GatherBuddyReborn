@@ -81,6 +81,9 @@ public class CraftingListEditor
     private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayIngredientDemands = null;
     private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayCraftMaterialDemands = null;
     private string _cachedDisplayMaterialsHash = string.Empty;
+    private int _lastRaphaelActiveSolves = -1;
+    private int _lastRaphaelPendingSolves = -1;
+    private int _lastRaphaelCachedSolutions = -1;
     private sealed class QueueDisplayRow
     {
         public int QueueIndex { get; init; }
@@ -93,6 +96,7 @@ public class CraftingListEditor
         public bool EffectiveQuickSynth { get; init; }
         public bool ForceQuickSynth { get; init; }
         public MacroValidationResult? Validation { get; init; }
+        public RaphaelAssessment? RaphaelAssessment { get; init; }
     }
 
     private sealed class RecipeDisplayRow
@@ -103,6 +107,7 @@ public class CraftingListEditor
         public string Label { get; init; } = string.Empty;
         public Vector4 TextColor { get; init; }
         public MacroValidationResult? Validation { get; init; }
+        public RaphaelAssessment? RaphaelAssessment { get; init; }
     }
 
     private List<QueueDisplayRow>? _cachedQueueDisplayRows = null;
@@ -246,6 +251,7 @@ public class CraftingListEditor
     public void Draw()
     {
         ProcessPendingInventoryChanges();
+        RefreshRaphaelAssessmentCaches();
         var availableWidth = ImGui.GetContentRegionAvail().X;
         var availableHeight = ImGui.GetContentRegionAvail().Y;
         
@@ -271,6 +277,22 @@ public class CraftingListEditor
         
         _craftSettingsPopup.Draw();
         _consumablesPopup.Draw();
+    }
+
+    private void RefreshRaphaelAssessmentCaches()
+    {
+        var activeSolves = GatherBuddy.RaphaelSolveCoordinator.ActiveSolves;
+        var pendingSolves = GatherBuddy.RaphaelSolveCoordinator.PendingSolves;
+        var cachedSolutions = GatherBuddy.RaphaelSolveCoordinator.CachedSolutionCount;
+        if (activeSolves == _lastRaphaelActiveSolves
+         && pendingSolves == _lastRaphaelPendingSolves
+         && cachedSolutions == _lastRaphaelCachedSolutions)
+            return;
+
+        _lastRaphaelActiveSolves = activeSolves;
+        _lastRaphaelPendingSolves = pendingSolves;
+        _lastRaphaelCachedSolutions = cachedSolutions;
+        InvalidatePresentationCaches();
     }
 
     private void OnInventoryChanged(IReadOnlyCollection<InventoryEventArgs> events)
@@ -589,7 +611,7 @@ public class CraftingListEditor
                 TriggerMaterialsRegeneration();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Override ingredient quality preferences for affected crafts and prefer NQ materials unless HQ is required as fallback.");
+                ImGui.SetTooltip("Enable the Quick Synthesis 'Synthesize NQ items only' toggle for affected crafts.");
 
             var quickSynthAllPrecraftsOnly = _list.QuickSynthAllPrecraftsOnly;
             if (ImGui.Checkbox("Precrafts Only##qsapo", ref quickSynthAllPrecraftsOnly))
@@ -866,6 +888,13 @@ public class CraftingListEditor
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false));
             hasAny = true;
         }
+        if (_list.UseAllHQ)
+        {
+            ImGui.TextColored(labelColor, "HQ Mats:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, "All HQ");
+            hasAny = true;
+        }
         if (!hasAny)
             ImGui.TextColored(ImGuiColors.DalamudGrey, "None set.");
 
@@ -896,6 +925,7 @@ public class CraftingListEditor
             {
                 _list.AddRecipe(_selectedRecipe.Value.RowId, _searchQuantity);
                 GatherBuddy.CraftingListManager.SaveList(_list);
+                RaphaelAssessmentService.QueueWarmupForAddedListRecipe(_selectedRecipe.Value.RowId, _list);
                 _cachedQueueValid     = false;
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
@@ -1107,12 +1137,27 @@ public class CraftingListEditor
             var forceQuickSynth = planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
             var forcePreferNQNoQuickSynth = !recipeData.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(queueItem.IsOriginalRecipe);
             var queueItemCraftSettings = GetEffectiveCraftSettings(queueItem.RecipeId, queueItem.IsOriginalRecipe);
-            var validation = WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe)
+            var hasExecutionContext = CraftingContextResolver.TryResolveListExecutionContext(
+                planningList,
+                queueItem.RecipeId,
+                queueItem.IsOriginalRecipe,
+                out var executionContext);
+            var usesQuickSynth = hasExecutionContext
+                ? executionContext.UseQuickSynthesis
+                : WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe);
+            var validation = usesQuickSynth
                 ? null
                 : MacroValidator.GetOrCompute(queueItem.RecipeId,
                     ResolveEffectiveMacroId(queueItemCraftSettings, !queueItem.IsOriginalRecipe),
                     queueItemCraftSettings,
                     planningList.Consumables);
+            RaphaelAssessment? raphaelAssessment = null;
+            if (hasExecutionContext
+             && CraftingContextResolver.UsesRaphaelSolver(executionContext))
+            {
+                RaphaelAssessmentService.TryAssessListQueueItem(queueItem.RecipeId, queueItem.IsOriginalRecipe, planningList, out var resolvedAssessment);
+                raphaelAssessment = resolvedAssessment;
+            }
             rows.Add(new QueueDisplayRow
             {
                 QueueIndex = i,
@@ -1129,6 +1174,7 @@ public class CraftingListEditor
                 EffectiveQuickSynth = effectiveQuickSynth,
                 ForceQuickSynth = forceQuickSynth,
                 Validation = validation,
+                RaphaelAssessment = raphaelAssessment,
             });
         }
 
@@ -1144,9 +1190,17 @@ public class CraftingListEditor
         var textColor = willBeSkipped
             ? new Vector4(1f, 0.3f, 0.3f, 1f)
             : row.BaseTextColor;
+        if (row.RaphaelAssessment != null)
+        {
+            ImGui.AlignTextToFramePadding();
+            DrawRaphaelAssessmentMarker(row.RaphaelAssessment);
+        }
 
         if (row.Validation != null)
+        {
+            ImGui.AlignTextToFramePadding();
             DrawValidationMarker(row.Validation);
+        }
 
         var crafterIcon     = CraftingRowIcons.GetCrafterIcon(row.Recipe);
         var innerSpacing    = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -1305,6 +1359,7 @@ public class CraftingListEditor
 
     private List<RecipeDisplayRow> BuildRecipeDisplayRows()
     {
+        var planningList = GetPlanningList();
         var rows = new List<RecipeDisplayRow>(_list.Recipes.Count);
         for (var i = 0; i < _list.Recipes.Count; i++)
         {
@@ -1317,13 +1372,25 @@ public class CraftingListEditor
             var jobName = GetCraftingJobName(recipe.Value.CraftType.RowId);
             var effectiveCraftSettings = GetEffectiveCraftSettings(item.RecipeId, true);
             var effectiveQuickSynth = IsEffectivelyQuickSynth(recipe.Value, item.RecipeId, true);
-            var forcePreferNQNoQuickSynth = !recipe.Value.CanQuickSynth && _list.ShouldForcePreferNQ(true);
-            var validation = WillUseQuickSynth(recipe.Value, item.RecipeId, true)
+            var forcePreferNQNoQuickSynth = !recipe.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(true);
+            var hasExecutionContext = CraftingContextResolver.TryResolveListExecutionContext(
+                planningList,
+                item,
+                out var executionContext);
+            var usesQuickSynth = hasExecutionContext
+                ? executionContext.UseQuickSynthesis
+                : WillUseQuickSynth(recipe.Value, item.RecipeId, true);
+            var validation = usesQuickSynth
                 ? null
                 : MacroValidator.GetOrCompute(item.RecipeId,
                     ResolveEffectiveMacroId(effectiveCraftSettings, false),
                     effectiveCraftSettings,
-                    _list.Consumables);
+                    planningList.Consumables);
+            RaphaelAssessment? raphaelAssessment = null;
+            if (hasExecutionContext
+             && CraftingContextResolver.UsesRaphaelSolver(executionContext)
+             && RaphaelAssessmentService.TryAssessListRecipe(item.RecipeId, planningList, effectiveCraftSettings, out var resolvedAssessment))
+                raphaelAssessment = resolvedAssessment;
             rows.Add(new RecipeDisplayRow
             {
                 ListIndex = i,
@@ -1336,6 +1403,7 @@ public class CraftingListEditor
                         ? new Vector4(0.3f, 0.9f, 0.9f, 1f)
                         : new Vector4(1f, 1f, 1f, 1f),
                 Validation = validation,
+                RaphaelAssessment = raphaelAssessment,
             });
         }
 
@@ -1348,6 +1416,11 @@ public class CraftingListEditor
             return;
 
         var item = _list.Recipes[row.ListIndex];
+        if (row.RaphaelAssessment != null)
+        {
+            ImGui.AlignTextToFramePadding();
+            DrawRaphaelAssessmentMarker(row.RaphaelAssessment);
+        }
         if (row.Validation != null)
         {
             ImGui.AlignTextToFramePadding();
@@ -1505,6 +1578,27 @@ public class CraftingListEditor
             ImGui.SetTooltip(validation.IsValid
                 ? $"Macro: PASS\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}\nQuality: {validation.FinalQuality}\nDurability: {validation.FinalDurability}"
                 : $"Macro: {validation.Failure} at step {validation.FailedAtStep}\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}");
+        ImGui.SameLine();
+    }
+
+    private static void DrawRaphaelAssessmentMarker(RaphaelAssessment assessment)
+    {
+        var dotColor = assessment.State switch
+        {
+            RaphaelAssessmentState.Ready when assessment.Outcome is RaphaelAssessmentOutcome.FullQuality
+                or RaphaelAssessmentOutcome.CollectibleTier3
+                or RaphaelAssessmentOutcome.MinimumQualityMet
+                or RaphaelAssessmentOutcome.NoQualityRequired
+                => new Vector4(0.30f, 0.70f, 0.30f, 1f),
+            RaphaelAssessmentState.Ready => new Vector4(0.78f, 0.62f, 0.15f, 1f),
+            RaphaelAssessmentState.Generating => new Vector4(0.35f, 0.65f, 0.90f, 1f),
+            RaphaelAssessmentState.Failed => new Vector4(0.78f, 0.25f, 0.25f, 1f),
+            RaphaelAssessmentState.Unavailable => new Vector4(0.78f, 0.62f, 0.15f, 1f),
+            _ => new Vector4(0.55f, 0.55f, 0.55f, 1f),
+        };
+        ImGui.TextColored(dotColor, "\u25cf");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip($"Raphael: {assessment.Summary}\n{assessment.Details}");
         ImGui.SameLine();
     }
 
@@ -1780,7 +1874,12 @@ public class CraftingListEditor
         var sourceSettings = isOriginalRecipe
             ? planningList.Recipes.FirstOrDefault(r => r.RecipeId == recipeId)?.CraftSettings
             : planningList.PrecraftCraftSettings.GetValueOrDefault(recipeId);
-        return sourceSettings?.Clone();
+        var recipe = RecipeManager.GetRecipe(recipeId);
+        if (!recipe.HasValue)
+            return sourceSettings?.Clone();
+
+        var forcePreferNQ = !recipe.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(isOriginalRecipe);
+        return CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe.Value, sourceSettings, planningList.UseAllHQ, forcePreferNQ);
     }
 
     private bool IsEffectivelyQuickSynth(Recipe recipe, uint recipeId, bool isOriginalRecipe)

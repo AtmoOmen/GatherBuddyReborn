@@ -71,7 +71,13 @@ public partial class VulcanWindow
     private static void StartCraftWithRaphaelAfterJobSwitch(Recipe recipe)
     {
         var settings = GatherBuddy.RecipeBrowserSettings.Get(recipe.RowId);
-        var qualityPolicy = CraftingQualityPolicyResolver.Resolve(recipe, settings);
+        var item = new CraftingListItem(recipe.RowId, 1)
+        {
+            IsOriginalRecipe = true,
+            CraftSettings = settings?.Clone(),
+        };
+        var executionContext = CraftingContextResolver.ResolveExecutionContext(item, recipe, null);
+        var qualityPolicy = executionContext.QualityPolicy;
         if (settings != null && settings.HasAnySettings())
         {
             GatherBuddy.Log.Debug($"[VulcanWindow] Applying recipe browser settings for {recipe.RowId}");
@@ -101,41 +107,27 @@ public partial class VulcanWindow
         {
             CraftingGameInterop.SetQualityPolicy(qualityPolicy);
         }
-        
-        var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
-        if (solverMode != VulcanSolverMode.PureRaphael)
+
+        var selectedMacroId = executionContext.SelectedMacroId;
+        CraftingGameInterop.SetSelectedMacro(selectedMacroId);
+        CraftingGameInterop.ReloadSolversForCraft(executionContext.EffectiveSolverMode, !executionContext.ForceProgressOnlyUnlockCraft);
+        if (!string.IsNullOrEmpty(selectedMacroId))
+            GatherBuddy.Log.Information($"[VulcanWindow] Using macro: {selectedMacroId}");
+
+        if (!CraftingContextResolver.UsesRaphaelSolver(executionContext))
         {
             CraftingGameInterop.StartCraft(recipe, 1);
             return;
         }
-
         var requiredJob = (uint)(recipe.CraftType.RowId + 8);
-        var baseStats = GearsetStatsReader.ReadGearsetStatsForJob(requiredJob);
-        if (baseStats == null)
+
+        if (!CraftingContextResolver.TryBuildSimulationContext(recipe, executionContext, CraftingStatsSource.AlwaysGearsetStats, out var simulationContext))
         {
             GatherBuddy.Log.Warning($"[VulcanWindow] Could not read gearset stats for job {requiredJob}, crafting without Raphael");
             CraftingGameInterop.StartCraft(recipe, 1);
             return;
         }
-        
-        var gearsetStats = baseStats;
-        var projectedConsumables = ConsumableChecker.GetProjectedCraftStatConsumables(settings);
-        if (projectedConsumables != null)
-        {
-            gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(baseStats, projectedConsumables);
-            GatherBuddy.Log.Debug($"[VulcanWindow] Stats with consumables: Craftsmanship={gearsetStats.Craftsmanship}, Control={gearsetStats.Control}, CP={gearsetStats.CP}");
-        }
-
-        var request = new RaphaelSolveRequest(
-            RecipeId: recipe.RowId,
-            Level: gearsetStats.Level,
-            Craftsmanship: gearsetStats.Craftsmanship,
-            Control: gearsetStats.Control,
-            CP: gearsetStats.CP,
-            Manipulation: gearsetStats.Manipulation,
-            Specialist: gearsetStats.Specialist,
-            InitialQuality: qualityPolicy.CalculateGuaranteedInitialQuality(recipe)
-        );
+        var request = simulationContext.RaphaelRequest;
 
         if (GatherBuddy.RaphaelSolveCoordinator.TryGetSolution(request, out var solution) && solution != null && !solution.IsFailed)
         {
@@ -145,17 +137,7 @@ public partial class VulcanWindow
         }
 
         GatherBuddy.Log.Information($"[VulcanWindow] Enqueuing Raphael solve for recipe {recipe.RowId}");
-        var queueItem = new CraftingListItem(recipe.RowId, 1)
-        {
-            CraftSettings = settings?.Clone(),
-            QualityPolicy = qualityPolicy,
-            IngredientPreferences = qualityPolicy.BuildGuaranteedHQPreferences(),
-        };
-        var recipeStats = new List<(uint RecipeId, int Craftsmanship, int Control, int CP, int Level, bool Manipulation, bool Specialist)>
-        {
-            (recipe.RowId, gearsetStats.Craftsmanship, gearsetStats.Control, gearsetStats.CP, gearsetStats.Level, gearsetStats.Manipulation, gearsetStats.Specialist)
-        };
-        GatherBuddy.RaphaelSolveCoordinator.EnqueueSolvesFromCraftStates(new[] { queueItem }, recipeStats);
+        GatherBuddy.RaphaelSolveCoordinator.EnqueueOrPromoteRequest(request, RaphaelSolvePriority.Urgent);
 
         var tm = GatherBuddy.AutoGather?.TaskManager;
         if (tm == null)

@@ -344,6 +344,13 @@ public partial class GatherBuddy : IDalamudPlugin
         RaphaelSolveCoordinator?.Save();
         if (Dalamud.Framework != null)
             Dalamud.Framework.Update -= Update;
+        if (WindowSystem != null)
+            Dalamud.PluginInterface.UiBuilder.Draw -= DrawUi;
+        if (Interface != null)
+        {
+            Dalamud.PluginInterface.UiBuilder.OpenConfigUi -= Interface.Toggle;
+            Dalamud.PluginInterface.UiBuilder.OpenMainUi -= Interface.Toggle;
+        }
         CraftingGameInterop.Dispose();
         FishRecorder?.Dispose();
         ContextMenu?.Dispose();
@@ -357,10 +364,6 @@ public partial class GatherBuddy : IDalamudPlugin
         NativeItemTooltipBridge?.Dispose();
         NativeItemTooltipBridge = null;
         //Wotsit?.Dispose();
-        if (Interface != null)
-            Dalamud.PluginInterface.UiBuilder.OpenConfigUi -= Interface.Toggle;
-        if (WindowSystem != null)
-            Dalamud.PluginInterface.UiBuilder.Draw -= DrawUi;
         Interface?.Dispose();
         WindowSystem?.RemoveAllWindows();
         DisposeCommands();

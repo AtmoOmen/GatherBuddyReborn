@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GatherBuddy.Vulcan;
 using Lumina.Excel.Sheets;
@@ -58,6 +60,96 @@ public static class CraftingContextResolver
             hasCraftedBefore,
             useQuickSynthesis,
             selectedMacroId);
+    }
+
+    public static bool UsesSelectedMacro(CraftingExecutionContext executionContext)
+        => !string.IsNullOrEmpty(executionContext.SelectedMacroId)
+            && CraftingGameInterop.UserMacroLibrary.GetMacroByStringId(executionContext.SelectedMacroId) != null;
+
+    public static bool UsesRaphaelSolver(CraftingExecutionContext executionContext)
+        => !executionContext.UseQuickSynthesis
+            && executionContext.EffectiveSolverMode == VulcanSolverMode.PureRaphael
+            && !UsesSelectedMacro(executionContext);
+
+    public static bool TryResolveListExecutionContext(
+        CraftingListDefinition list,
+        uint recipeId,
+        bool isOriginalRecipe,
+        out CraftingExecutionContext context)
+    {
+        context = null!;
+        if (!TryCreateListSourceItem(list, recipeId, isOriginalRecipe, out var sourceItem))
+        {
+            GatherBuddy.Log.Debug(
+                $"[CraftingContextResolver] Unable to resolve list execution context source for recipe {recipeId} (Original={isOriginalRecipe}) in list '{list.Name}'");
+            return false;
+        }
+
+        return TryResolveListExecutionContext(list, sourceItem, out context);
+    }
+
+    public static bool TryResolveListExecutionContext(
+        CraftingListDefinition list,
+        uint recipeId,
+        bool isOriginalRecipe,
+        RecipeCraftSettings? sourceSettingsOverride,
+        out CraftingExecutionContext context)
+    {
+        context = null!;
+        if (!TryCreateListSourceItem(list, recipeId, isOriginalRecipe, out var sourceItem))
+        {
+            GatherBuddy.Log.Debug(
+                $"[CraftingContextResolver] Unable to resolve list execution context source override for recipe {recipeId} (Original={isOriginalRecipe}) in list '{list.Name}'");
+            return false;
+        }
+
+        return TryResolveListExecutionContext(list, sourceItem, sourceSettingsOverride, out context);
+    }
+
+    public static bool TryResolveListExecutionContext(
+        CraftingListDefinition list,
+        CraftingListItem sourceItem,
+        out CraftingExecutionContext context)
+        => TryResolveListExecutionContext(list, sourceItem, null, false, out context);
+
+    public static bool TryResolveListExecutionContext(
+        CraftingListDefinition list,
+        CraftingListItem sourceItem,
+        RecipeCraftSettings? sourceSettingsOverride,
+        out CraftingExecutionContext context)
+        => TryResolveListExecutionContext(list, sourceItem, sourceSettingsOverride, true, out context);
+
+    private static bool TryResolveListExecutionContext(
+        CraftingListDefinition list,
+        CraftingListItem sourceItem,
+        RecipeCraftSettings? sourceSettingsOverride,
+        bool useSourceSettingsOverride,
+        out CraftingExecutionContext context)
+    {
+        context = null!;
+        var recipe = RecipeManager.GetRecipe(sourceItem.RecipeId);
+        if (!recipe.HasValue)
+        {
+            GatherBuddy.Log.Debug(
+                $"[CraftingContextResolver] Unable to resolve execution context for missing recipe {sourceItem.RecipeId} in list '{list.Name}'");
+            return false;
+        }
+
+        var normalizedSourceItem = new CraftingListItem(sourceItem.RecipeId, sourceItem.Quantity)
+        {
+            Options = new ListItemOptions
+            {
+                Skipping = sourceItem.Options.Skipping,
+                NQOnly = sourceItem.Options.NQOnly,
+            },
+            IngredientPreferences = new Dictionary<uint, int>(sourceItem.IngredientPreferences),
+            ConsumableOverrides = sourceItem.ConsumableOverrides.Clone(),
+            IsOriginalRecipe = sourceItem.IsOriginalRecipe,
+            CraftSettings = useSourceSettingsOverride ? sourceSettingsOverride?.Clone() : sourceItem.CraftSettings?.Clone(),
+        };
+        var effectiveItem = BuildEffectiveListExecutionItem(normalizedSourceItem, recipe.Value, list);
+        context = ResolveExecutionContext(effectiveItem, recipe.Value, list.Consumables);
+        return true;
     }
 
     public static bool TryBuildSimulationContext(
@@ -187,6 +279,76 @@ public static class CraftingContextResolver
         if (gearsetStats != null && projected != null)
             gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(gearsetStats, projected);
         return gearsetStats;
+    }
+
+    private static bool TryCreateListSourceItem(CraftingListDefinition list, uint recipeId, bool isOriginalRecipe, out CraftingListItem item)
+    {
+        item = null!;
+        if (isOriginalRecipe)
+        {
+            var originalItem = list.Recipes.FirstOrDefault(candidate => candidate.RecipeId == recipeId);
+            if (originalItem == null)
+                return false;
+
+            item = new CraftingListItem(recipeId, originalItem.Quantity)
+            {
+                Options = new ListItemOptions
+                {
+                    Skipping = originalItem.Options.Skipping,
+                    NQOnly = originalItem.Options.NQOnly,
+                },
+                IngredientPreferences = new Dictionary<uint, int>(originalItem.IngredientPreferences),
+                ConsumableOverrides = originalItem.ConsumableOverrides.Clone(),
+                IsOriginalRecipe = true,
+                CraftSettings = originalItem.CraftSettings?.Clone(),
+            };
+            return true;
+        }
+
+        list.PrecraftOptions.TryGetValue(recipeId, out var precraftOptions);
+        item = new CraftingListItem(recipeId, 1)
+        {
+            Options = new ListItemOptions
+            {
+                Skipping = precraftOptions?.Skipping ?? false,
+                NQOnly = precraftOptions?.NQOnly ?? false,
+            },
+            IsOriginalRecipe = false,
+            CraftSettings = list.PrecraftCraftSettings.GetValueOrDefault(recipeId)?.Clone(),
+        };
+        return true;
+    }
+
+    private static CraftingListItem BuildEffectiveListExecutionItem(CraftingListItem sourceItem, Recipe recipe, CraftingListDefinition list)
+    {
+        var (effectiveMacroId, effectiveSolverOverride) = CraftingListQueueBuilder.ResolveEffectiveMacroSelection(
+            sourceItem.CraftSettings,
+            !sourceItem.IsOriginalRecipe,
+            list);
+        var effectiveSettings = CraftingListQueueBuilder.BuildEffectiveQueueCraftSettings(
+            recipe,
+            sourceItem.CraftSettings,
+            effectiveMacroId,
+            effectiveSolverOverride,
+            list.UseAllHQ,
+            !recipe.CanQuickSynth && list.ShouldForcePreferNQ(sourceItem.IsOriginalRecipe));
+        var qualityPolicy = CraftingQualityPolicyResolver.Resolve(
+            recipe,
+            effectiveSettings,
+            list.GetQualityOverrideMode(recipe, sourceItem.IsOriginalRecipe));
+        return new(sourceItem.RecipeId, sourceItem.Quantity)
+        {
+            Options = new ListItemOptions
+            {
+                Skipping = sourceItem.Options.Skipping,
+                NQOnly = sourceItem.Options.NQOnly || list.ShouldForceQuickSynth(recipe, sourceItem.IsOriginalRecipe),
+            },
+            IngredientPreferences = qualityPolicy.BuildGuaranteedHQPreferences(),
+            ConsumableOverrides = sourceItem.ConsumableOverrides.Clone(),
+            IsOriginalRecipe = sourceItem.IsOriginalRecipe,
+            CraftSettings = effectiveSettings,
+            QualityPolicy = qualityPolicy,
+        };
     }
 
     private static void ApplyOverride(ConsumableOverride? overrideSetting, ref uint? itemId, ref bool hq)
