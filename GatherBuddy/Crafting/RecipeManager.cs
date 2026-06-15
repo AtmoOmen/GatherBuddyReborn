@@ -4,6 +4,7 @@ using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace GatherBuddy.Crafting;
 
@@ -30,7 +31,7 @@ public static class RecipeExtensions
 
 public static class RecipeManager
 {
-    private static Dictionary<uint, List<Recipe>>? _recipesByItemId;
+    private static readonly Lazy<Dictionary<uint, List<Recipe>>> _recipesByItemId = new(BuildRecipeIndex, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static Recipe? GetRecipe(uint recipeId)
     {
@@ -48,27 +49,32 @@ public static class RecipeManager
 
     public static IReadOnlyList<Recipe> GetRecipesForItem(uint itemId)
     {
-        if (_recipesByItemId == null)
-            BuildRecipeIndex();
-        return _recipesByItemId!.GetValueOrDefault(itemId) ?? (IReadOnlyList<Recipe>)Array.Empty<Recipe>();
+        var recipesByItemId = _recipesByItemId.Value;
+        return recipesByItemId.GetValueOrDefault(itemId) ?? (IReadOnlyList<Recipe>)Array.Empty<Recipe>();
     }
 
-    private static void BuildRecipeIndex()
+    private static Dictionary<uint, List<Recipe>> BuildRecipeIndex()
     {
+        GatherBuddy.Log.Debug("[RecipeManager] Building recipe index");
         var sheet = Dalamud.GameData.GetExcelSheet<Recipe>();
-        _recipesByItemId = new Dictionary<uint, List<Recipe>>();
-        if (sheet == null) return;
+        var recipesByItemId = new Dictionary<uint, List<Recipe>>();
+        if (sheet == null)
+        {
+            GatherBuddy.Log.Debug("[RecipeManager] Recipe sheet unavailable while building recipe index");
+            return recipesByItemId;
+        }
         foreach (var recipe in sheet)
         {
             if (recipe.ItemResult.RowId == 0) continue;
-            if (!_recipesByItemId.TryGetValue(recipe.ItemResult.RowId, out var list))
+            if (!recipesByItemId.TryGetValue(recipe.ItemResult.RowId, out var list))
             {
                 list = new List<Recipe>();
-                _recipesByItemId[recipe.ItemResult.RowId] = list;
+                recipesByItemId[recipe.ItemResult.RowId] = list;
             }
             list.Add(recipe);
         }
-        GatherBuddy.Log.Debug($"[RecipeManager] Built recipe index: {_recipesByItemId.Count} distinct result items");
+        GatherBuddy.Log.Debug($"[RecipeManager] Built recipe index: {recipesByItemId.Count} distinct result items");
+        return recipesByItemId;
     }
 
     public static List<(uint itemId, int amount)> GetIngredients(Recipe recipe)
