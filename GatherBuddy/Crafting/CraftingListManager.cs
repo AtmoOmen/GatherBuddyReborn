@@ -587,6 +587,7 @@ public class CraftingListManager
             newList.QuickSynthAll         = source.QuickSynthAll;
             newList.QuickSynthAllPreferNQ = source.QuickSynthAllPreferNQ;
             newList.QuickSynthAllPrecraftsOnly = source.QuickSynthAllPrecraftsOnly;
+            newList.UseAllHQ              = source.UseAllHQ;
             CanonicalizeOriginalItemQualitySettings(newList);
             Save();
 

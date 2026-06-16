@@ -6,9 +6,9 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using FFXIVClientStructs.FFXIV.Client.Enums;
-using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using GatherBuddy.Automation;
+using Functions = GatherBuddy.Plugin.Functions;
 
 namespace GatherBuddy.Gui;
 
@@ -20,7 +20,7 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
     private const float AnchorEpsilon = 0.5f;
 
     private AtkResNode* _anchorNode;
-    private nint _attachedHostAddonAddress;
+    private nint _anchorHostAddonAddress;
     private delegate* unmanaged[Thiscall]<AtkUnitBase*, short, short, byte, void> _itemDetailSetPositionPreservingOriginal;
     private bool _requestedThisFrame;
     private bool _tooltipVisible;
@@ -43,16 +43,43 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
     }
 
     public void BeginImGuiFrame()
-        => _requestedThisFrame = false;
+    {
+        _requestedThisFrame = false;
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
+            HideTooltip();
+            return;
+        }
+
+        if (_tooltipVisible && !IsCurrentHostAnchorValid())
+        {
+            GatherBuddy.Log.Debug("[NativeItemTooltipBridge] Host tooltip anchor is no longer valid; hiding native tooltip.");
+            HideTooltip();
+        }
+    }
 
     public void EndImGuiFrame()
     {
-        if (!_requestedThisFrame)
+        if (_requestedThisFrame)
+            return;
+
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
             HideTooltip();
+            return;
+        }
+
+        HideTooltip();
     }
 
     public void RequestItemTooltip(uint itemId, Vector2 rectMin, Vector2 rectMax, bool expandRight)
     {
+        if (!TryCheckNativeTooltipReadiness(out _))
+        {
+            HideTooltip();
+            return;
+        }
+
         _requestedThisFrame = true;
         if (itemId == 0)
         {
@@ -60,20 +87,31 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
             return;
         }
 
-        if (!TryPrepareAnchor(rectMin, rectMax, out var parentAddonId))
+        if (!TryPrepareAnchor(out var parentAddonId, out var anchorNode, out var anchorHostAddonAddress))
+        {
+            HideTooltip();
             return;
+        }
 
-        var anchorChanged = !RectsEqual(_tooltipAnchorMin, rectMin) || !RectsEqual(_tooltipAnchorMax, rectMax);
-        if (_tooltipVisible && _tooltipItemId == itemId && _tooltipParentAddonId == parentAddonId && !anchorChanged && _tooltipExpandRight == expandRight)
+        var anchorBoundsChanged = !RectsEqual(_tooltipAnchorMin, rectMin) || !RectsEqual(_tooltipAnchorMax, rectMax);
+        var anchorHostChanged = _anchorNode != anchorNode
+            || _anchorHostAddonAddress != anchorHostAddonAddress
+            || _tooltipParentAddonId != parentAddonId;
+        if (_tooltipVisible && _tooltipItemId == itemId && !anchorBoundsChanged && !anchorHostChanged && _tooltipExpandRight == expandRight)
             return;
 
         if (_tooltipVisible)
             HideTooltip();
 
+        _anchorNode = anchorNode;
+        _anchorHostAddonAddress = anchorHostAddonAddress;
+        UpdateAnchorBounds(rectMin, rectMax);
+
         var stage = AtkStage.Instance();
         if (stage == null)
         {
             GatherBuddy.Log.Debug("[NativeItemTooltipBridge] Unable to show tooltip: AtkStage unavailable.");
+            ClearTooltipState();
             return;
         }
 
@@ -86,7 +124,6 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         try
         {
             _tooltipExpandRight = expandRight;
-            SetAnchorVisibility(true);
             stage->TooltipManager.ShowTooltip(AtkTooltipType.Item, parentAddonId, _anchorNode, &tooltipArgs, &TooltipPositionCallback);
             _tooltipVisible = true;
             _tooltipParentAddonId = parentAddonId;
@@ -96,8 +133,8 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         }
         catch (Exception ex)
         {
-            SetAnchorVisibility(false);
             GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to show item tooltip for {itemId}: {ex.Message}");
+            ClearTooltipState();
         }
     }
 
@@ -107,22 +144,6 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         Dalamud.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, ItemDetailAddonName, HandleItemDetailLifecycle);
         Dalamud.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, ItemDetailAddonName, HandleItemDetailLifecycle);
         HideTooltip();
-        DetachAnchorNode();
-        if (_anchorNode != null)
-        {
-            try
-            {
-                _anchorNode->Destroy(true);
-            }
-            catch (Exception ex)
-            {
-                GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to destroy tooltip anchor node: {ex.Message}");
-            }
-            finally
-            {
-                _anchorNode = null;
-            }
-        }
     }
 
     private void HandleItemDetailLifecycle(AddonEvent type, AddonArgs args)
@@ -226,10 +247,42 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         GatherBuddy.Log.Debug($"[NativeItemTooltipBridge] {message}");
     }
 
-    private bool TryPrepareAnchor(Vector2 rectMin, Vector2 rectMax, out ushort parentAddonId)
+    private static bool TryCheckNativeTooltipReadiness(out string reason)
+    {
+        if (!Dalamud.ClientState.IsLoggedIn)
+        {
+            reason = "client is not logged in";
+            return false;
+        }
+
+        if (Dalamud.Objects.LocalPlayer == null)
+        {
+            reason = "local player is unavailable";
+            return false;
+        }
+
+        if (Functions.BetweenAreas())
+        {
+            reason = "player is transitioning between areas";
+            return false;
+        }
+
+        if (!GenericHelpers.IsScreenReady())
+        {
+            reason = "screen is not ready";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    private bool TryPrepareAnchor(out ushort parentAddonId, out AtkResNode* anchorNode, out nint anchorHostAddonAddress)
     {
         parentAddonId = 0;
-        if (!EnsureAnchorNode())
+        anchorNode = null;
+        anchorHostAddonAddress = 0;
+        if (!TryCheckNativeTooltipReadiness(out _))
             return false;
 
         if (!TryGetHostAddon(out var hostAddon))
@@ -238,42 +291,16 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
             return false;
         }
 
-        if (!EnsureAnchorAttached(hostAddon))
+        if (hostAddon->RootNode == null)
+        {
+            MaybeLogHostFailure("Host addon root node is unavailable; skipping native item tooltip.");
             return false;
+        }
 
-        UpdateAnchorBounds(hostAddon, rectMin, rectMax);
         parentAddonId = hostAddon->Id;
+        anchorNode = hostAddon->RootNode;
+        anchorHostAddonAddress = (nint)hostAddon;
         return parentAddonId != 0;
-    }
-
-    private bool EnsureAnchorNode()
-    {
-        if (_anchorNode != null)
-            return true;
-
-        try
-        {
-            _anchorNode = AtkUldManager.CreateAtkResNode();
-            if (_anchorNode == null)
-            {
-                GatherBuddy.Log.Warning("[NativeItemTooltipBridge] Failed to allocate tooltip anchor node.");
-                return false;
-            }
-
-            _anchorNode->NodeFlags = NodeFlags.Enabled;
-            _anchorNode->Width = 1;
-            _anchorNode->Height = 1;
-            _anchorNode->ScaleX = 1f;
-            _anchorNode->ScaleY = 1f;
-            _anchorNode->ToggleVisibility(false);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to create tooltip anchor node: {ex.Message}");
-            _anchorNode = null;
-            return false;
-        }
     }
 
     private static bool TryGetHostAddon(out AtkUnitBase* hostAddon)
@@ -282,74 +309,10 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
     private static bool IsUsableHost(AtkUnitBase* hostAddon)
         => hostAddon != null
          && hostAddon->Id != 0
-         && hostAddon->RootNode != null
-         && hostAddon->UldManager.Objects != null
-         && hostAddon->UldManager.Objects->NodeList != null
-         && hostAddon->UldManager.Objects->NodeCount > 0;
+         && hostAddon->RootNode != null;
 
-    private bool EnsureAnchorAttached(AtkUnitBase* hostAddon)
+    private void UpdateAnchorBounds(Vector2 rectMin, Vector2 rectMax)
     {
-        var hostAddress = (nint)hostAddon;
-        if (_anchorNode->ParentNode == hostAddon->RootNode && _attachedHostAddonAddress == hostAddress)
-            return true;
-
-        if (_attachedHostAddonAddress != 0 && _attachedHostAddonAddress != hostAddress)
-        {
-            ResetAnchorLinks();
-            _attachedHostAddonAddress = 0;
-        }
-        else if (_anchorNode->ParentNode != null)
-        {
-            DetachAnchorNode();
-        }
-
-        try
-        {
-            _anchorNode->NodeId = GetNextNodeId(hostAddon);
-            AttachAsLastChild(_anchorNode, hostAddon->RootNode);
-            AddNodeToObjectList(hostAddon, _anchorNode);
-            hostAddon->UldManager.UpdateDrawNodeList();
-            _attachedHostAddonAddress = hostAddress;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to attach tooltip anchor node: {ex.Message}");
-            return false;
-        }
-    }
-
-    private void DetachAnchorNode()
-    {
-        if (_anchorNode == null || _anchorNode->ParentNode == null || _attachedHostAddonAddress == 0)
-            return;
-
-        if (!TryGetHostAddon(out var hostAddon) || (nint)hostAddon != _attachedHostAddonAddress)
-        {
-            ResetAnchorLinks();
-            _attachedHostAddonAddress = 0;
-            return;
-        }
-
-        try
-        {
-            DetachFromParent(_anchorNode);
-            RemoveNodeFromObjectList(hostAddon, _anchorNode);
-            hostAddon->UldManager.UpdateDrawNodeList();
-        }
-        catch (Exception ex)
-        {
-            GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to detach tooltip anchor node: {ex.Message}");
-        }
-        finally
-        {
-            _attachedHostAddonAddress = 0;
-        }
-    }
-
-    private void UpdateAnchorBounds(AtkUnitBase* hostAddon, Vector2 rectMin, Vector2 rectMax)
-    {
-        var hostRoot = hostAddon->RootNode;
         var nativeMin = ToNativeUi(rectMin);
         var nativeMax = ToNativeUi(rectMax);
         var size = nativeMax - nativeMin;
@@ -357,37 +320,39 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
             size.X = 1f;
         if (size.Y < 1f)
             size.Y = 1f;
+
         _tooltipNativeAnchorMin = nativeMin;
         _tooltipNativeAnchorMax = nativeMin + size;
-
-        var relativeX = nativeMin.X - hostRoot->ScreenX;
-        var relativeY = nativeMin.Y - hostRoot->ScreenY;
-        _anchorNode->SetPositionFloat(relativeX, relativeY);
-        _anchorNode->SetWidth((ushort)Math.Clamp((int)MathF.Ceiling(size.X), 1, ushort.MaxValue));
-        _anchorNode->SetHeight((ushort)Math.Clamp((int)MathF.Ceiling(size.Y), 1, ushort.MaxValue));
-        _anchorNode->IsDirty = true;
     }
 
     private void HideTooltip()
     {
-        if (!_tooltipVisible && (_anchorNode == null || !_anchorNode->IsVisible()))
-            return;
-
-        var stage = AtkStage.Instance();
-        if (stage != null && _tooltipVisible)
-            try
+        if (_tooltipVisible)
+        {
+            var stage = AtkStage.Instance();
+            if (stage != null)
             {
-                stage->TooltipManager.HideTooltip(_tooltipParentAddonId);
+                try
+                {
+                    stage->TooltipManager.HideTooltip(_tooltipParentAddonId);
+                }
+                catch (Exception ex)
+                {
+                    GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to hide tooltip: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                GatherBuddy.Log.Warning($"[NativeItemTooltipBridge] Failed to hide tooltip: {ex.Message}");
-            }
+        }
 
-        SetAnchorVisibility(false);
+        ClearTooltipState();
+    }
+
+    private void ClearTooltipState()
+    {
         _tooltipVisible = false;
         _tooltipParentAddonId = 0;
         _tooltipItemId = 0;
+        _anchorNode = null;
+        _anchorHostAddonAddress = 0;
         _tooltipAnchorMin = new Vector2(float.NaN);
         _tooltipAnchorMax = new Vector2(float.NaN);
         _tooltipNativeAnchorMin = new Vector2(float.NaN);
@@ -395,117 +360,28 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         _tooltipExpandRight = false;
     }
 
-    private void MaybeLogHostFailure()
+    private void MaybeLogHostFailure(string? message = null)
     {
         var now = DateTime.UtcNow;
         if ((now - _lastHostFailureLog).TotalSeconds < 5)
             return;
 
         _lastHostFailureLog = now;
-        GatherBuddy.Log.Debug($"[NativeItemTooltipBridge] Host addon {HostAddonName} is unavailable; skipping native item tooltip.");
+        message ??= $"Host addon {HostAddonName} is unavailable; skipping native item tooltip.";
+        GatherBuddy.Log.Debug($"[NativeItemTooltipBridge] {message}");
     }
 
-    private static uint GetNextNodeId(AtkUnitBase* hostAddon)
+    private bool IsCurrentHostAnchorValid()
     {
-        uint maxNodeId = 1;
-        foreach (var node in hostAddon->UldManager.Nodes)
-        {
-            if (node.Value == null)
-                continue;
-
-            if (node.Value->NodeId > maxNodeId)
-                maxNodeId = node.Value->NodeId;
-        }
-
-        return maxNodeId + 1;
-    }
-
-    private static void AddNodeToObjectList(AtkUnitBase* hostAddon, AtkResNode* node)
-    {
-        var objects = hostAddon->UldManager.Objects;
-        if (objects == null || ContainsNode(objects, node))
-            return;
-
-        var oldCount = Math.Max(objects->NodeCount, 0);
-        var newList = (AtkResNode**)IMemorySpace.GetUISpace()->Malloc((ulong)((oldCount + 1) * IntPtr.Size), 8);
-        if (newList == null)
-            throw new InvalidOperationException("Unable to allocate tooltip anchor object list.");
-
-        for (var i = 0; i < oldCount; ++i)
-            newList[i] = objects->NodeList[i];
-
-        newList[oldCount] = node;
-        if (objects->NodeList != null && oldCount > 0)
-            IMemorySpace.Free((void*)objects->NodeList, (ulong)(oldCount * IntPtr.Size));
-
-        objects->NodeList = newList;
-        objects->NodeCount = oldCount + 1;
-    }
-
-    private static void RemoveNodeFromObjectList(AtkUnitBase* hostAddon, AtkResNode* node)
-    {
-        var objects = hostAddon->UldManager.Objects;
-        if (objects == null || objects->NodeList == null || objects->NodeCount <= 0 || !ContainsNode(objects, node))
-            return;
-
-        var oldCount = objects->NodeCount;
-        var newCount = oldCount - 1;
-        AtkResNode** newList = null;
-        if (newCount > 0)
-        {
-            newList = (AtkResNode**)IMemorySpace.GetUISpace()->Malloc((ulong)(newCount * IntPtr.Size), 8);
-            if (newList == null)
-                throw new InvalidOperationException("Unable to shrink tooltip anchor object list.");
-        }
-
-        var destIndex = 0;
-        for (var i = 0; i < oldCount; ++i)
-        {
-            if (objects->NodeList[i] == node)
-                continue;
-
-            if (newList != null)
-                newList[destIndex++] = objects->NodeList[i];
-        }
-
-        IMemorySpace.Free((void*)objects->NodeList, (ulong)(oldCount * IntPtr.Size));
-        objects->NodeList = newList;
-        objects->NodeCount = newCount;
-    }
-
-    private static bool ContainsNode(AtkUldObjectInfo* objects, AtkResNode* node)
-    {
-        if (objects == null || objects->NodeList == null || objects->NodeCount <= 0)
+        if (_anchorNode == null || _anchorHostAddonAddress == 0 || _tooltipParentAddonId == 0)
             return false;
 
-        for (var i = 0; i < objects->NodeCount; ++i)
-        {
-            if (objects->NodeList[i] == node)
-                return true;
-        }
+        if (!TryGetHostAddon(out var hostAddon))
+            return false;
 
-        return false;
-    }
-
-    private void SetAnchorVisibility(bool visible)
-    {
-        if (_anchorNode == null || _anchorNode->IsVisible() == visible)
-            return;
-
-        _anchorNode->ToggleVisibility(visible);
-        _anchorNode->IsDirty = true;
-        if (TryGetHostAddon(out var hostAddon) && (nint)hostAddon == _attachedHostAddonAddress)
-            hostAddon->UldManager.UpdateDrawNodeList();
-    }
-
-    private void ResetAnchorLinks()
-    {
-        if (_anchorNode == null)
-            return;
-
-        _anchorNode->ParentNode = null;
-        _anchorNode->PrevSiblingNode = null;
-        _anchorNode->NextSiblingNode = null;
+        return (nint)hostAddon == _anchorHostAddonAddress
+            && hostAddon->Id == _tooltipParentAddonId
+            && hostAddon->RootNode == _anchorNode;
     }
 
     private static Vector2 ToNativeUi(Vector2 position)
@@ -544,50 +420,5 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
 
         *screenX = bridge._tooltipExpandRight ? bridge._tooltipNativeAnchorMin.X : bridge._tooltipNativeAnchorMax.X;
         *screenY = bridge._tooltipNativeAnchorMin.Y;
-    }
-
-    private static void AttachAsLastChild(AtkResNode* node, AtkResNode* parent)
-    {
-        node->ParentNode = parent;
-        node->PrevSiblingNode = null;
-        node->NextSiblingNode = null;
-
-        if (parent->ChildNode == null)
-        {
-            parent->ChildNode = node;
-            parent->ChildCount++;
-            return;
-        }
-
-        var current = parent->ChildNode;
-        while (current->PrevSiblingNode != null)
-            current = current->PrevSiblingNode;
-
-        current->PrevSiblingNode = node;
-        node->NextSiblingNode = current;
-        parent->ChildCount++;
-    }
-
-    private static void DetachFromParent(AtkResNode* node)
-    {
-        var parent = node->ParentNode;
-        if (parent == null)
-            return;
-
-        if (parent->ChildNode == node)
-            parent->ChildNode = node->PrevSiblingNode != null ? node->PrevSiblingNode : node->NextSiblingNode;
-
-        if (node->PrevSiblingNode != null)
-            node->PrevSiblingNode->NextSiblingNode = node->NextSiblingNode;
-
-        if (node->NextSiblingNode != null)
-            node->NextSiblingNode->PrevSiblingNode = node->PrevSiblingNode;
-
-        if (parent->ChildCount > 0)
-            parent->ChildCount--;
-
-        node->ParentNode = null;
-        node->PrevSiblingNode = null;
-        node->NextSiblingNode = null;
     }
 }

@@ -2,6 +2,7 @@ namespace GatherBuddy.Vulcan;
 
 public static class SolverUtils
 {
+    private const int MaxEstimatedActions = 200;
     public enum CraftStatus
     {
         InProgress,
@@ -19,38 +20,7 @@ public static class SolverUtils
     }
 
     public static StepState CreateInitial(CraftState craft, int startingQuality = 0)
-    {
-        return new StepState
-        {
-            Index = 1,
-            Progress = 0,
-            Quality = startingQuality,
-            Durability = craft.CraftDurability,
-            RemainingCP = craft.StatCP,
-            Condition = Condition.Normal,
-            IQStacks = 0,
-            WasteNotLeft = 0,
-            ManipulationLeft = 0,
-            GreatStridesLeft = 0,
-            InnovationLeft = 0,
-            VenerationLeft = 0,
-            MuscleMemoryLeft = 0,
-            FinalAppraisalLeft = 0,
-            CarefulObservationLeft = craft.Specialist ? 2 : 0,
-            HeartAndSoulActive = false,
-            HeartAndSoulAvailable = craft.Specialist,
-            PrevActionFailed = false,
-            PrevComboAction = VulcanSkill.None,
-            ExpedienceLeft = 0,
-            QuickInnoLeft = 0,
-            QuickInnoAvailable = false,
-            TrainedPerfectionAvailable = false,
-            TrainedPerfectionActive = false,
-            MaterialMiracleCharges = craft.MissionHasMaterialMiracle ? 1u : 0u,
-            MaterialMiracleActive = false,
-            ObserveCounter = 0
-        };
-    }
+        => GameStateBuilder.BuildInitialStepState(craft, startingQuality);
 
     public static StepState? SimulateSolverExecution(Solver csolver, CraftState craft, int startingQuality)
     {
@@ -70,6 +40,32 @@ public static class SolverUtils
             step = next;
         }
         return step;
+    }
+
+    public static bool TryEstimateActionCount(Solver csolver, CraftState craft, int startingQuality, out int actionCount)
+    {
+        actionCount = 0;
+
+        var solver = csolver.Clone();
+        var step = CreateInitial(craft, startingQuality);
+        while (Status(craft, step) == CraftStatus.InProgress)
+        {
+            if (actionCount >= MaxEstimatedActions)
+                return false;
+
+            var action = solver.Solve(craft, step).Action;
+            if (action == VulcanSkill.None)
+                return false;
+
+            var (res, next) = Simulator.Execute(craft, step, action, 0, 1);
+            if (res == Simulator.ExecuteResult.CantUse)
+                return false;
+
+            actionCount++;
+            step = next;
+        }
+
+        return Status(craft, step) == CraftStatus.Complete;
     }
 
     public static double EstimateQualityPercent(Solver solver, CraftState craft, int startingQuality)

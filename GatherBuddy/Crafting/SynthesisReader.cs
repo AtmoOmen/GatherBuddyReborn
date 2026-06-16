@@ -103,7 +103,7 @@ public static unsafe class SynthesisReader
                 case 252:
                     step.WasteNotLeft = status.Param;
                     break;
-                case 2009:
+                case 257:
                     step.WasteNotLeft = status.Param;
                     break;
                 case 1164:
@@ -127,10 +127,10 @@ public static unsafe class SynthesisReader
                 case 2665:
                     step.HeartAndSoulActive = true;
                     break;
-                case 3858:
+                case 3813:
                     step.TrainedPerfectionActive = true;
                     break;
-                case 3857:
+                case 3812:
                     step.ExpedienceLeft = status.Param;
                     break;
             }

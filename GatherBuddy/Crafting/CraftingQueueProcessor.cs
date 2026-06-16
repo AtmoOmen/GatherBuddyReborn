@@ -71,6 +71,7 @@ public class CraftingQueueProcessor
     public uint CurrentProcessedRecipeId => _currentProcessedRecipeId;
     public int CurrentProcessedRecipeCount => _currentProcessedRecipeCount;
     public int CurrentProcessedRecipeTotal => _currentProcessedRecipeTotal;
+    public CraftingListConsumableSettings? ListConsumables => _listConsumables;
     public bool HasPendingTasks() => _tasks.Count > 0;
 
     public delegate void StateChangedHandler(QueueState state);
@@ -126,20 +127,10 @@ public class CraftingQueueProcessor
         GatherBuddy.Log.Information($"[CraftingQueueProcessor] Starting queue with {QueueItems.Count} recipes");
         StateChanged?.Invoke(_currentState);
         
-        var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
-        if (_raphaelCoordinator != null && solverMode == RaphaelSolverMode.PureRaphael)
+        if (_raphaelCoordinator != null)
         {
-            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Building CraftStates to extract accurate stats for Raphael");
+            GatherBuddy.Log.Debug("[CraftingQueueProcessor] Evaluating queue for upfront Raphael solves using effective execution context");
             EnqueueRaphaelSolvesFromCraftStates(QueueItems);
-        }
-        else if (solverMode == RaphaelSolverMode.StandardSolver)
-        {
-            var raphaelOverrideItems = QueueItems.Where(r => r.CraftSettings?.SolverOverride == SolverOverrideMode.RaphaelSolver).ToList();
-            if (raphaelOverrideItems.Count > 0 && _raphaelCoordinator != null)
-            {
-                GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Enqueuing Raphael solves for {raphaelOverrideItems.Count} override item(s)");
-                EnqueueRaphaelSolvesFromCraftStates(raphaelOverrideItems);
-            }
         }
     }
 
@@ -363,20 +354,6 @@ public class CraftingQueueProcessor
             return;
         }
 
-        var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
-        var itemSolverOverride = _currentQueueIndex < QueueItems.Count
-            ? (QueueItems[_currentQueueIndex].CraftSettings?.SolverOverride ?? SolverOverrideMode.Default)
-            : SolverOverrideMode.Default;
-        var useRaphael = itemSolverOverride == SolverOverrideMode.RaphaelSolver
-            || (itemSolverOverride == SolverOverrideMode.Default && solverMode == RaphaelSolverMode.PureRaphael);
-
-        if (_raphaelCoordinator == null || !useRaphael)
-        {
-            GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Not using Raphael solver, proceeding to craft");
-            _currentState = QueueState.ReadyForCraft;
-            StateChanged?.Invoke(_currentState);
-            return;
-        }
 
         if (_currentQueueIndex < QueueItems.Count)
         {
@@ -384,17 +361,29 @@ public class CraftingQueueProcessor
             var currentRecipe = RecipeManager.GetRecipe(currentItem.RecipeId);
             if (currentRecipe != null)
             {
+                var executionContext = CraftingContextResolver.ResolveExecutionContext(currentItem, currentRecipe.Value, _listConsumables);
+                if (_raphaelCoordinator == null || !CraftingContextResolver.UsesRaphaelSolver(executionContext))
+                {
+                    _currentState = QueueState.ReadyForCraft;
+                    StateChanged?.Invoke(_currentState);
+                    return;
+                }
                 var r = currentRecipe.Value;
                 var isNQOnly = !r.CanHq && !r.IsExpert && !r.ItemResult.Value.AlwaysCollectable && r.RequiredQuality == 0;
-                var willQuickSynth = currentItem.Options.NQOnly && r.CanQuickSynth && HasRecipeCraftedBefore(r);
-                if (isNQOnly || willQuickSynth)
+                if (isNQOnly || executionContext.UseQuickSynthesis)
                 {
-                    GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Bypassing Raphael wait for recipe {currentItem.RecipeId} (NQOnly={isNQOnly}, WillQuickSynth={willQuickSynth})");
                     _currentState = QueueState.ReadyForCraft;
                     StateChanged?.Invoke(_currentState);
                     return;
                 }
             }
+        }
+
+        if (_raphaelCoordinator == null)
+        {
+            _currentState = QueueState.ReadyForCraft;
+            StateChanged?.Invoke(_currentState);
+            return;
         }
 
         if (_currentQueueIndex >= QueueItems.Count)
@@ -485,6 +474,45 @@ public class CraftingQueueProcessor
         return request != null && _raphaelCoordinator.HasFailedSolution(request, out _);
     }
 
+    private bool EnsureRaphaelSolutionReadyForCurrentCraft(CraftingListItem recipeItem, Recipe recipe, CraftingExecutionContext executionContext)
+    {
+        if (_raphaelCoordinator == null || !CraftingContextResolver.UsesRaphaelSolver(executionContext))
+            return true;
+
+        var isNQOnly = !recipe.CanHq && !recipe.IsExpert && !recipe.ItemResult.Value.AlwaysCollectable && recipe.RequiredQuality == 0;
+        if (isNQOnly)
+            return true;
+
+        var currentRequest = BuildRaphaelRequestForItem(recipeItem);
+        if (currentRequest == null)
+            return true;
+
+        if (!_enqueuedRaphaelRequests.ContainsKey(currentRequest.GetKey()))
+        {
+            if (_enqueuedRaphaelRequests.Values.Any(r => r.RecipeId == currentRequest.RecipeId))
+                GatherBuddy.Log.Debug($@"[CraftingQueueProcessor] Raphael request changed before craft start for recipe {currentRequest.RecipeId}, enqueueing key {currentRequest.GetKey()}");
+
+            _enqueuedRaphaelRequests[currentRequest.GetKey()] = currentRequest;
+            _raphaelCoordinator.EnqueueSolvesFromRequests(new[] { currentRequest });
+            _currentState = QueueState.WaitingForRaphaelSolution;
+            StateChanged?.Invoke(_currentState);
+            return false;
+        }
+
+        if (_raphaelCoordinator.TryGetSolution(currentRequest, out var solution) && solution != null && !solution.IsFailed)
+            return true;
+
+        if (_raphaelCoordinator.HasFailedSolution(currentRequest, out _))
+        {
+            SkipFailedRaphaelItem(recipeItem);
+            return false;
+        }
+        _raphaelCoordinator.ReenqueueIfMissing(currentRequest);
+        _currentState = QueueState.WaitingForRaphaelSolution;
+        StateChanged?.Invoke(_currentState);
+        return false;
+    }
+
     private unsafe void StartNextCraft()
     {
         if (_currentQueueIndex >= QueueItems.Count)
@@ -538,7 +566,8 @@ public class CraftingQueueProcessor
             return;
         }
 
-        var consumableSettings = BuildConsumableSettings(recipeItem);
+        var executionContext = CraftingContextResolver.ResolveExecutionContext(recipeItem, recipe.Value, _listConsumables);
+        var consumableSettings = executionContext.ConsumableSettings;
         if (consumableSettings != null)
         {
             var allApplied = ConsumableChecker.ApplyConsumables(consumableSettings);
@@ -559,11 +588,10 @@ public class CraftingQueueProcessor
             }
         }
 
-        var hasCraftedBefore = HasRecipeCraftedBefore(recipe.Value);
-        var useQuickSynthesis = recipeItem.Options.NQOnly && recipe.Value.CanQuickSynth && hasCraftedBefore;
-        if (recipeItem.Options.NQOnly && recipe.Value.CanQuickSynth && !hasCraftedBefore)
+        if (recipeItem.Options.NQOnly && recipe.Value.CanQuickSynth && !executionContext.HasCraftedBefore)
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Recipe not yet crafted — using normal craft first: {recipe.Value.ItemResult.Value.Name.ExtractText()}");
-        var qualityPolicy = GetQualityPolicy(recipeItem, recipe.Value);
+        var useQuickSynthesis = executionContext.UseQuickSynthesis;
+        var qualityPolicy = executionContext.QualityPolicy;
         uint craftQuantity = (uint)recipeItem.Quantity;
         
         if (useQuickSynthesis)
@@ -587,10 +615,7 @@ public class CraftingQueueProcessor
 
         CraftingGameInterop.SetQualityPolicy(qualityPolicy);
 
-        var forceProgressOnlyUnlockCraft = recipeItem.Options.NQOnly
-            && recipe.Value.CanQuickSynth
-            && !hasCraftedBefore
-            && qualityPolicy.OverrideMode == CraftingQualityOverrideMode.RequireNQOnly;
+        var forceProgressOnlyUnlockCraft = executionContext.ForceProgressOnlyUnlockCraft;
 
         if (forceProgressOnlyUnlockCraft)
         {
@@ -598,24 +623,15 @@ public class CraftingQueueProcessor
                 $"[CraftingQueueProcessor] Forcing ProgressOnly solver for unlock craft of {recipe.Value.ItemResult.Value.Name.ExtractText()} to preserve NQ output");
         }
 
-        var selectedMacroId = forceProgressOnlyUnlockCraft
-            ? null
-            : recipeItem.CraftSettings?.SelectedMacroId;
+        var selectedMacroId = executionContext.SelectedMacroId;
         CraftingGameInterop.SetSelectedMacro(selectedMacroId);
         if (!string.IsNullOrEmpty(selectedMacroId))
         {
             GatherBuddy.Log.Information($"[CraftingQueueProcessor] Using macro: {selectedMacroId}");
         }
-        var craftSolverOverride = forceProgressOnlyUnlockCraft
-            ? SolverOverrideMode.ProgressOnlySolver
-            : recipeItem.CraftSettings?.SolverOverride ?? SolverOverrideMode.Default;
-        var effectiveSolverMode = craftSolverOverride switch
-        {
-            SolverOverrideMode.StandardSolver     => RaphaelSolverMode.StandardSolver,
-            SolverOverrideMode.RaphaelSolver      => RaphaelSolverMode.PureRaphael,
-            SolverOverrideMode.ProgressOnlySolver => RaphaelSolverMode.ProgressOnly,
-            _                                      => GatherBuddy.Config.RaphaelSolverConfig.SolverMode,
-        };
+        var effectiveSolverMode = executionContext.EffectiveSolverMode;
+        if (!EnsureRaphaelSolutionReadyForCurrentCraft(recipeItem, recipe.Value, executionContext))
+            return;
         CraftingGameInterop.ReloadSolversForCraft(effectiveSolverMode, !forceProgressOnlyUnlockCraft);
         GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Effective solver mode for this craft: {effectiveSolverMode}");
 
@@ -636,15 +652,14 @@ public class CraftingQueueProcessor
         if (nextItem.Options.Skipping || nextItem.RecipeId != currentItem.RecipeId)
             return false;
 
-        if (!nextItem.Options.NQOnly || !recipe.CanQuickSynth || !HasRecipeCraftedBefore(recipe))
+        var nextExecutionContext = CraftingContextResolver.ResolveExecutionContext(nextItem, recipe, _listConsumables);
+        if (!nextExecutionContext.UseQuickSynthesis)
             return false;
 
-        var nextConsumableSettings = BuildConsumableSettings(nextItem);
-        if (!AreConsumableSettingsEquivalent(currentConsumableSettings, nextConsumableSettings))
+        if (!AreConsumableSettingsEquivalent(currentConsumableSettings, nextExecutionContext.ConsumableSettings))
             return false;
 
-        var nextQualityPolicy = GetQualityPolicy(nextItem, recipe);
-        return AreQualityPoliciesEquivalent(currentQualityPolicy, nextQualityPolicy);
+        return AreQualityPoliciesEquivalent(currentQualityPolicy, nextExecutionContext.QualityPolicy);
     }
 
     private static bool AreConsumableSettingsEquivalent(RecipeCraftSettings? left, RecipeCraftSettings? right)
@@ -677,90 +692,6 @@ public class CraftingQueueProcessor
         return true;
     }
 
-    private RecipeCraftSettings? BuildConsumableSettings(CraftingListItem? recipeItem)
-    {
-        if (_listConsumables == null && recipeItem?.ConsumableOverrides?.HasAnyOverrides() != true && recipeItem?.CraftSettings == null)
-            return null;
-
-        var foodItemId = _listConsumables?.FoodItemId;
-        var foodHq = _listConsumables?.FoodHQ ?? false;
-        var medicineItemId = _listConsumables?.MedicineItemId;
-        var medicineHq = _listConsumables?.MedicineHQ ?? false;
-        var manualItemId = _listConsumables?.ManualItemId;
-        var squadronManualItemId = _listConsumables?.SquadronManualItemId;
-
-        if (recipeItem?.CraftSettings != null && recipeItem.CraftSettings.HasAnySettings())
-        {
-            var cs = recipeItem.CraftSettings;
-            var effectiveFoodMode = cs.FoodMode == ConsumableOverrideMode.Inherit && cs.FoodItemId.HasValue ? ConsumableOverrideMode.Specific : cs.FoodMode;
-            var effectiveMedicineMode = cs.MedicineMode == ConsumableOverrideMode.Inherit && cs.MedicineItemId.HasValue ? ConsumableOverrideMode.Specific : cs.MedicineMode;
-            var effectiveManualMode = cs.ManualMode == ConsumableOverrideMode.Inherit && cs.ManualItemId.HasValue ? ConsumableOverrideMode.Specific : cs.ManualMode;
-            var effectiveSquadronMode = cs.SquadronManualMode == ConsumableOverrideMode.Inherit && cs.SquadronManualItemId.HasValue ? ConsumableOverrideMode.Specific : cs.SquadronManualMode;
-
-            ApplyOverride(new ConsumableOverride { Mode = effectiveFoodMode, ItemId = cs.FoodItemId, HQ = cs.FoodHQ }, ref foodItemId, ref foodHq);
-            ApplyOverride(new ConsumableOverride { Mode = effectiveMedicineMode, ItemId = cs.MedicineItemId, HQ = cs.MedicineHQ }, ref medicineItemId, ref medicineHq);
-            ApplyOverride(new ConsumableOverride { Mode = effectiveManualMode, ItemId = cs.ManualItemId }, ref manualItemId);
-            ApplyOverride(new ConsumableOverride { Mode = effectiveSquadronMode, ItemId = cs.SquadronManualItemId }, ref squadronManualItemId);
-        }
-        else if (recipeItem?.ConsumableOverrides != null)
-        {
-            ApplyOverride(recipeItem.ConsumableOverrides.Food, ref foodItemId, ref foodHq);
-            ApplyOverride(recipeItem.ConsumableOverrides.Medicine, ref medicineItemId, ref medicineHq);
-            ApplyOverride(recipeItem.ConsumableOverrides.Manual, ref manualItemId);
-            ApplyOverride(recipeItem.ConsumableOverrides.SquadronManual, ref squadronManualItemId);
-        }
-
-        if (!foodItemId.HasValue && !medicineItemId.HasValue && !manualItemId.HasValue && !squadronManualItemId.HasValue)
-            return null;
-
-        return new RecipeCraftSettings
-        {
-            FoodItemId = foodItemId,
-            FoodHQ = foodHq,
-            MedicineItemId = medicineItemId,
-            MedicineHQ = medicineHq,
-            ManualItemId = manualItemId,
-            SquadronManualItemId = squadronManualItemId,
-        };
-    }
-
-    private static void ApplyOverride(ConsumableOverride? overrideSetting, ref uint? itemId, ref bool hq)
-    {
-        if (overrideSetting == null)
-            return;
-
-        switch (overrideSetting.Mode)
-        {
-            case ConsumableOverrideMode.Inherit:
-                return;
-            case ConsumableOverrideMode.None:
-                itemId = null;
-                hq = false;
-                return;
-            case ConsumableOverrideMode.Specific:
-                itemId = overrideSetting.ItemId;
-                hq = overrideSetting.HQ;
-                return;
-        }
-    }
-
-    private static void ApplyOverride(ConsumableOverride? overrideSetting, ref uint? itemId)
-    {
-        if (overrideSetting == null)
-            return;
-
-        switch (overrideSetting.Mode)
-        {
-            case ConsumableOverrideMode.Inherit:
-                return;
-            case ConsumableOverrideMode.None:
-                itemId = null;
-                return;
-            case ConsumableOverrideMode.Specific:
-                itemId = overrideSetting.ItemId;
-                return;
-        }
-    }
 
     private void OnQuickSynthProgress(int current, int max)
     {
@@ -909,51 +840,19 @@ public class CraftingQueueProcessor
     {
         var recipeId = recipeItem.RecipeId;
         var recipe = RecipeManager.GetRecipe(recipeId);
-        if (recipe == null) return null;
+        if (recipe == null)
+            return null;
+        var isNQOnly = !recipe.Value.CanHq && !recipe.Value.IsExpert && !recipe.Value.ItemResult.Value.AlwaysCollectable && recipe.Value.RequiredQuality == 0;
+        if (isNQOnly)
+            return null;
 
-        var requiredJob = (uint)(recipe.Value.CraftType.RowId + 8);
-        var currentJob = Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
-        var consumableSettings = BuildConsumableSettings(recipeItem);
+        var executionContext = CraftingContextResolver.ResolveExecutionContext(recipeItem, recipe.Value, _listConsumables);
+        if (!CraftingContextResolver.UsesRaphaelSolver(executionContext))
+            return null;
 
-        GameStateBuilder.PlayerStats? stats;
-        if (currentJob == requiredJob)
-        {
-            stats = CraftingStateBuilder.GetCurrentPlayerStats();
-            if (stats != null && consumableSettings != null)
-            {
-                var unapplied = new RecipeCraftSettings
-                {
-                    FoodItemId     = consumableSettings.FoodItemId.HasValue     && !ConsumableChecker.HasFoodBuff(consumableSettings.FoodItemId.Value)         ? consumableSettings.FoodItemId     : null,
-                    FoodHQ         = consumableSettings.FoodHQ,
-                    MedicineItemId = consumableSettings.MedicineItemId.HasValue && !ConsumableChecker.HasMedicineBuff(consumableSettings.MedicineItemId.Value) ? consumableSettings.MedicineItemId : null,
-                    MedicineHQ     = consumableSettings.MedicineHQ,
-                };
-                stats = GearsetStatsReader.ApplyConsumablesToStats(stats, unapplied);
-            }
-        }
-        else
-        {
-            stats = GearsetStatsReader.ReadGearsetStatsForJob(requiredJob);
-            if (stats != null && consumableSettings != null)
-                stats = GearsetStatsReader.ApplyConsumablesToStats(stats, consumableSettings);
-        }
-
-        if (stats == null) return null;
-
-        var qualityPolicy = GetQualityPolicy(recipeItem, recipe.Value);
-        var initialQuality = qualityPolicy.CalculateGuaranteedInitialQuality(recipe.Value);
-
-        var specialist = GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions && stats.Specialist;
-        return new RaphaelSolveRequest(
-            RecipeId: recipeId,
-            Level: stats.Level,
-            Craftsmanship: stats.Craftsmanship,
-            Control: stats.Control,
-            CP: stats.CP,
-            Manipulation: stats.Manipulation,
-            Specialist: specialist,
-            InitialQuality: initialQuality
-        );
+        return CraftingContextResolver.TryBuildSimulationContext(recipe.Value, executionContext, CraftingStatsSource.PreferCurrentJobStats, out var simulationContext)
+            ? simulationContext.RaphaelRequest
+            : null;
     }
 
     private void SkipToNextRecipe()
@@ -1059,41 +958,22 @@ public class CraftingQueueProcessor
                 if (!recipeSheet.TryGetRow(item.RecipeId, out var recipe))
                     continue;
 
+                var executionContext = CraftingContextResolver.ResolveExecutionContext(item, recipe, _listConsumables);
+                if (!CraftingContextResolver.UsesRaphaelSolver(executionContext))
+                    continue;
                 var isNQOnly = !recipe.CanHq && !recipe.IsExpert && !recipe.ItemResult.Value.AlwaysCollectable && recipe.RequiredQuality == 0;
-                var willQuickSynth = item.Options.NQOnly && recipe.CanQuickSynth && HasRecipeCraftedBefore(recipe);
-                if (isNQOnly || willQuickSynth)
+                if (isNQOnly || executionContext.UseQuickSynthesis)
                     continue;
 
-                var requiredJob = (uint)(recipe.CraftType.RowId + 8);
-                var gearsetStats = GearsetStatsReader.ReadGearsetStatsForJob(requiredJob);
-
-                if (gearsetStats == null)
+                if (!CraftingContextResolver.TryBuildSimulationContext(recipe, executionContext, CraftingStatsSource.AlwaysGearsetStats, out var simulationContext))
                 {
+                    var requiredJob = (uint)(recipe.CraftType.RowId + 8);
                     GatherBuddy.Log.Warning($"[CraftingQueueProcessor] Could not read gearset stats for job {requiredJob}, no gearset found");
                     continue;
                 }
 
-                var consumableSettings = BuildConsumableSettings(item);
-                if (consumableSettings != null)
-                    gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(gearsetStats, consumableSettings);
-
-                var qualityPolicy = GetQualityPolicy(item, recipe);
-                var initialQuality = qualityPolicy.CalculateGuaranteedInitialQuality(recipe);
-
-                var specialist = GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions && gearsetStats.Specialist;
-                var request = new RaphaelSolveRequest(
-                    RecipeId: recipe.RowId,
-                    Level: gearsetStats.Level,
-                    Craftsmanship: gearsetStats.Craftsmanship,
-                    Control: gearsetStats.Control,
-                    CP: gearsetStats.CP,
-                    Manipulation: gearsetStats.Manipulation,
-                    Specialist: specialist,
-                    InitialQuality: initialQuality
-                );
-
-                requests.Add(request);
-                _enqueuedRaphaelRequests.TryAdd(request.GetKey(), request);
+                requests.Add(simulationContext.RaphaelRequest);
+                _enqueuedRaphaelRequests.TryAdd(simulationContext.RaphaelRequest.GetKey(), simulationContext.RaphaelRequest);
             }
             catch (Exception ex)
             {
@@ -1105,24 +985,10 @@ public class CraftingQueueProcessor
         {
             GatherBuddy.Log.Debug($"[CraftingQueueProcessor] Enqueuing {requests.Count} requests with effective consumables");
             _raphaelCoordinator.ClearIfAutoEnabled();
-            _raphaelCoordinator.EnqueueSolvesFromRequests(requests);
+            _raphaelCoordinator.EnqueueSolvesFromRequests(requests, RaphaelSolvePriority.Background);
         }
     }
 
-    private static bool HasRecipeCraftedBefore(Lumina.Excel.Sheets.Recipe recipe)
-    {
-        if (recipe.SecretRecipeBook.RowId > 0)
-            return true;
-        return QuestManager.IsRecipeComplete(recipe.RowId);
-    }
-
-    private static CraftingQualityPolicy GetQualityPolicy(CraftingListItem recipeItem, Lumina.Excel.Sheets.Recipe recipe)
-    {
-        recipeItem.QualityPolicy ??= CraftingQualityPolicyResolver.Resolve(recipe, recipeItem.CraftSettings);
-        if (recipeItem.IngredientPreferences.Count == 0)
-            recipeItem.IngredientPreferences = recipeItem.QualityPolicy.BuildGuaranteedHQPreferences();
-        return recipeItem.QualityPolicy;
-    }
 
     private bool NeedsRepair()
     {

@@ -19,10 +19,23 @@ public class RaphaelSolveCoordinator
     private readonly RaphaelSolveCoordinatorConfig _config;
     private readonly ConcurrentDictionary<string, CachedRaphaelSolution> _cachedSolutions = new();
     private readonly ConcurrentDictionary<string, SolveTask> _inProgressTasks = new();
-    private readonly Queue<RaphaelSolveRequest> _pendingQueue = new();
+    private readonly object _queueLock = new();
+    private Queue<RaphaelSolveRequest> _urgentQueue = new();
+    private Queue<RaphaelSolveRequest> _backgroundQueue = new();
     private int _activeSolveCount = 0;
 
-    private record SolveTask(CancellationTokenSource CTS, Task Task);
+    private sealed class SolveTask
+    {
+        public CancellationTokenSource CTS { get; }
+        public Task Task { get; }
+        public bool UserCancelled { get; set; }
+
+        public SolveTask(CancellationTokenSource cts, Task task)
+        {
+            CTS = cts;
+            Task = task;
+        }
+    }
 
     private const string CacheFileName = "raphael_solution_cache.json";
 
@@ -30,6 +43,51 @@ public class RaphaelSolveCoordinator
     {
         _config = config ?? new RaphaelSolveCoordinatorConfig();
         Load();
+    }
+
+    private static async Task DrainProcessOutputAsync(Task<string>? outputTask, Task<string>? errorTask)
+    {
+        if (outputTask != null)
+        {
+            try
+            {
+                await outputTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        if (errorTask != null)
+        {
+            try
+            {
+                await errorTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private static void TryKillRaphaelProcess(Process? process, uint recipeId, string reason)
+    {
+        if (process == null)
+            return;
+
+        try
+        {
+            if (process.HasExited)
+                return;
+
+            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Killing Raphael process for recipe {recipeId} due to {reason}");
+            process.Kill();
+            process.WaitForExit(2000);
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Failed to kill Raphael process for recipe {recipeId}: {ex.Message}");
+        }
     }
 
     public void Save()
@@ -82,11 +140,23 @@ public class RaphaelSolveCoordinator
         }
     }
 
-    public int PendingSolves => _inProgressTasks.Count + _pendingQueue.Count;
+    public int PendingSolves => _inProgressTasks.Count + GetQueuedSolveCount();
     public int ActiveSolves => _activeSolveCount;
     public int CachedSolutionCount => _cachedSolutions.Count;
 
-    public void EnqueueSolvesFromRequests(IEnumerable<RaphaelSolveRequest> requests)
+    public bool EnqueueOrPromoteRequest(RaphaelSolveRequest request, RaphaelSolvePriority priority = RaphaelSolvePriority.Urgent)
+    {
+        if (!_config.RaphaelEnabled)
+            return false;
+        var (enqueued, promoted) = EnqueuePreparedRequests(new[] { request }, priority);
+        if (enqueued + promoted <= 0)
+            return false;
+
+        ProcessPendingQueue();
+        return true;
+    }
+
+    public void EnqueueSolvesFromRequests(IEnumerable<RaphaelSolveRequest> requests, RaphaelSolvePriority priority = RaphaelSolvePriority.Urgent)
     {
         if (!_config.RaphaelEnabled)
         {
@@ -111,31 +181,14 @@ public class RaphaelSolveCoordinator
         }
 
         GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Extracted {uniqueCrafts.Count} unique crafts from {requestList.Count} requests");
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
-
-        foreach (var craft in uniqueCrafts.Values)
-        {
-            var key = craft.GetKey();
-            if (_cachedSolutions.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already cached");
-            }
-            else if (_inProgressTasks.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already in progress");
-            }
-            else
-            {
-                _pendingQueue.Enqueue(craft);
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queued recipe {craft.RecipeId} for solving (key: {key})");
-            }
-        }
-
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {_pendingQueue.Count} pending, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached");
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving at {priority} priority (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
+        var (enqueued, promoted) = EnqueuePreparedRequests(uniqueCrafts.Values, priority);
+        var (urgentQueued, backgroundQueued) = GetQueuedCounts();
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {urgentQueued} urgent, {backgroundQueued} background, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached, {enqueued} enqueued, {promoted} promoted");
         ProcessPendingQueue();
     }
 
-    public void EnqueueSolvesForJobs(IEnumerable<CraftingListItem> queue, Dictionary<uint, GameStateBuilder.PlayerStats> jobStatsMap)
+    public void EnqueueSolvesForJobs(IEnumerable<CraftingListItem> queue, Dictionary<uint, GameStateBuilder.PlayerStats> jobStatsMap, RaphaelSolvePriority priority = RaphaelSolvePriority.Urgent)
     {
         if (!_config.RaphaelEnabled)
         {
@@ -185,31 +238,14 @@ public class RaphaelSolveCoordinator
         }
 
         GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Extracted {uniqueCrafts.Count} unique crafts from queue of {queueList.Count} items");
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
-
-        foreach (var craft in uniqueCrafts.Values)
-        {
-            var key = craft.GetKey();
-            if (_cachedSolutions.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already cached");
-            }
-            else if (_inProgressTasks.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already in progress");
-            }
-            else
-            {
-                _pendingQueue.Enqueue(craft);
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queued recipe {craft.RecipeId} for solving (key: {key})");
-            }
-        }
-
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {_pendingQueue.Count} pending, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached");
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving at {priority} priority (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
+        var (enqueued, promoted) = EnqueuePreparedRequests(uniqueCrafts.Values, priority);
+        var (urgentQueued, backgroundQueued) = GetQueuedCounts();
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {urgentQueued} urgent, {backgroundQueued} background, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached, {enqueued} enqueued, {promoted} promoted");
         ProcessPendingQueue();
     }
 
-    public void EnqueueSolvesFromCraftStates(IEnumerable<CraftingListItem> queue, List<(uint RecipeId, int Craftsmanship, int Control, int CP, int Level, bool Manipulation, bool Specialist)> recipeStats)
+    public void EnqueueSolvesFromCraftStates(IEnumerable<CraftingListItem> queue, List<(uint RecipeId, int Craftsmanship, int Control, int CP, int Level, bool Manipulation, bool Specialist)> recipeStats, RaphaelSolvePriority priority = RaphaelSolvePriority.Urgent)
     {
         if (!_config.RaphaelEnabled)
         {
@@ -248,31 +284,14 @@ public class RaphaelSolveCoordinator
         }
 
         GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Extracted {uniqueCrafts.Count} unique crafts from queue of {queue.Count()} items");
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
-
-        foreach (var craft in uniqueCrafts.Values)
-        {
-            var key = craft.GetKey();
-            if (_cachedSolutions.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already cached");
-            }
-            else if (_inProgressTasks.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already in progress");
-            }
-            else
-            {
-                _pendingQueue.Enqueue(craft);
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queued recipe {craft.RecipeId} for solving (key: {key})");
-            }
-        }
-
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {_pendingQueue.Count} pending, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached");
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving at {priority} priority (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
+        var (enqueued, promoted) = EnqueuePreparedRequests(uniqueCrafts.Values, priority);
+        var (urgentQueued, backgroundQueued) = GetQueuedCounts();
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {urgentQueued} urgent, {backgroundQueued} background, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached, {enqueued} enqueued, {promoted} promoted");
         ProcessPendingQueue();
     }
 
-    public void EnqueueSolves(IEnumerable<CraftingListItem> queue, int playerCraftsmanship, int playerControl, int playerCP, int playerLevel, bool manipulationUnlocked, bool isSpecialist)
+    public void EnqueueSolves(IEnumerable<CraftingListItem> queue, int playerCraftsmanship, int playerControl, int playerCP, int playerLevel, bool manipulationUnlocked, bool isSpecialist, RaphaelSolvePriority priority = RaphaelSolvePriority.Urgent)
     {
         if (!_config.RaphaelEnabled)
         {
@@ -285,27 +304,10 @@ public class RaphaelSolveCoordinator
         var uniqueCrafts = ExtractUniqueCrafts(queue, playerCraftsmanship, playerControl, playerCP, playerLevel, manipulationUnlocked, isSpecialist);
         GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Extracted {uniqueCrafts.Count} unique crafts from queue of {queue.Count()} items");
 
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
-
-        foreach (var craft in uniqueCrafts)
-        {
-            var key = craft.GetKey();
-            if (_cachedSolutions.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already cached");
-            }
-            else if (_inProgressTasks.ContainsKey(key))
-            {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {craft.RecipeId} already in progress");
-            }
-            else
-            {
-                _pendingQueue.Enqueue(craft);
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queued recipe {craft.RecipeId} for solving (key: {key})");
-            }
-        }
-
-        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {_pendingQueue.Count} pending, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached");
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Enqueuing {uniqueCrafts.Count} unique crafts for Raphael solving at {priority} priority (max concurrent: {_config.MaxConcurrentRaphaelProcesses})");
+        var (enqueued, promoted) = EnqueuePreparedRequests(uniqueCrafts, priority);
+        var (urgentQueued, backgroundQueued) = GetQueuedCounts();
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Queue prepared: {urgentQueued} urgent, {backgroundQueued} background, {_inProgressTasks.Count} in progress, {_cachedSolutions.Count} cached, {enqueued} enqueued, {promoted} promoted");
         ProcessPendingQueue();
     }
 
@@ -354,9 +356,12 @@ public class RaphaelSolveCoordinator
     public bool IsKnown(RaphaelSolveRequest request)
     {
         var key = request.GetKey();
-        return _cachedSolutions.ContainsKey(key)
-            || _inProgressTasks.ContainsKey(key)
-            || _pendingQueue.Any(r => r.GetKey() == key);
+        lock (_queueLock)
+        {
+            return _cachedSolutions.ContainsKey(key)
+                || _inProgressTasks.ContainsKey(key)
+                || ContainsQueuedRequestLocked(key);
+        }
     }
 
     public void ClearIfAutoEnabled()
@@ -372,21 +377,40 @@ public class RaphaelSolveCoordinator
         if (!_config.RaphaelEnabled || IsKnown(request))
             return;
         GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Re-enqueueing missing solution for recipe {request.RecipeId}");
-        _pendingQueue.Enqueue(request);
-        ProcessPendingQueue();
+        EnqueueOrPromoteRequest(request, RaphaelSolvePriority.Urgent);
     }
 
     public void Clear()
     {
+        CancelAllPendingSolves();
         _cachedSolutions.Clear();
-        _pendingQueue.Clear();
+        Save();
+    }
+
+    public void CancelAllPendingSolves()
+    {
+        Queue<RaphaelSolveRequest> cancelledUrgent;
+        Queue<RaphaelSolveRequest> cancelledBackground;
+        lock (_queueLock)
+        {
+            cancelledUrgent = _urgentQueue;
+            cancelledBackground = _backgroundQueue;
+            _urgentQueue = new();
+            _backgroundQueue = new();
+        }
+
+        var cancelledQueuedCount = cancelledUrgent.Count + cancelledBackground.Count;
+        var cancelledActiveCount = 0;
         foreach (var task in _inProgressTasks.Values)
         {
+            task.UserCancelled = true;
             task.CTS.Cancel();
+            cancelledActiveCount++;
         }
-        _inProgressTasks.Clear();
-        _activeSolveCount = 0;
-        Save();
+
+        GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Cancelled Raphael queue: {cancelledQueuedCount} queued, {cancelledActiveCount} active");
+        if (cancelledQueuedCount > 0 || cancelledActiveCount > 0)
+            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queue stop requested while {_cachedSolutions.Count} cached solutions remain available");
     }
 
     public bool RemoveCachedSolution(RaphaelSolveRequest request)
@@ -398,6 +422,94 @@ public class RaphaelSolveCoordinator
             return true;
         }
         return false;
+    }
+
+    private int GetQueuedSolveCount()
+    {
+        lock (_queueLock)
+            return _urgentQueue.Count + _backgroundQueue.Count;
+    }
+
+    private (int Urgent, int Background) GetQueuedCounts()
+    {
+        lock (_queueLock)
+            return (_urgentQueue.Count, _backgroundQueue.Count);
+    }
+
+    private (int Enqueued, int Promoted) EnqueuePreparedRequests(IEnumerable<RaphaelSolveRequest> requests, RaphaelSolvePriority priority)
+    {
+        var enqueued = 0;
+        var promoted = 0;
+        lock (_queueLock)
+        {
+            foreach (var request in requests)
+            {
+                var key = request.GetKey();
+                if (_cachedSolutions.ContainsKey(key))
+                {
+                    GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {request.RecipeId} already cached");
+                    continue;
+                }
+
+                if (_inProgressTasks.ContainsKey(key))
+                {
+                    GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {request.RecipeId} already in progress");
+                    continue;
+                }
+
+                if (priority == RaphaelSolvePriority.Urgent && TryRemoveQueuedRequestLocked(ref _backgroundQueue, key))
+                {
+                    _urgentQueue.Enqueue(request);
+                    promoted++;
+                    GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Promoted recipe {request.RecipeId} to urgent priority (key: {key})");
+                    continue;
+                }
+
+                if (ContainsQueuedRequestLocked(key))
+                {
+                    GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Recipe {request.RecipeId} already queued");
+                    continue;
+                }
+
+                GetQueueForPriorityLocked(priority).Enqueue(request);
+                enqueued++;
+                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queued recipe {request.RecipeId} for solving at {priority} priority (key: {key})");
+            }
+        }
+
+        return (enqueued, promoted);
+    }
+
+    private Queue<RaphaelSolveRequest> GetQueueForPriorityLocked(RaphaelSolvePriority priority)
+        => priority == RaphaelSolvePriority.Urgent
+            ? _urgentQueue
+            : _backgroundQueue;
+
+    private bool ContainsQueuedRequestLocked(string key)
+        => _urgentQueue.Any(request => request.GetKey() == key)
+            || _backgroundQueue.Any(request => request.GetKey() == key);
+
+    private static bool TryRemoveQueuedRequestLocked(ref Queue<RaphaelSolveRequest> queue, string key)
+    {
+        if (queue.Count == 0)
+            return false;
+
+        var removed = false;
+        var retained = new Queue<RaphaelSolveRequest>(queue.Count);
+        while (queue.Count > 0)
+        {
+            var queuedRequest = queue.Dequeue();
+            if (!removed && queuedRequest.GetKey() == key)
+            {
+                removed = true;
+                continue;
+            }
+
+            retained.Enqueue(queuedRequest);
+        }
+
+        queue = retained;
+        return removed;
     }
 
     private List<RaphaelSolveRequest> ExtractUniqueCrafts(
@@ -448,17 +560,36 @@ public class RaphaelSolveCoordinator
 
     private void ProcessPendingQueue()
     {
-        while (_pendingQueue.Count > 0 && _activeSolveCount < _config.MaxConcurrentRaphaelProcesses)
+        while (_activeSolveCount < _config.MaxConcurrentRaphaelProcesses)
         {
-            if (_pendingQueue.TryDequeue(out var request))
+            RaphaelSolveRequest? request = null;
+            RaphaelSolvePriority? priority = null;
+            lock (_queueLock)
             {
-                GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Processing pending queue: {_pendingQueue.Count} remaining, {_activeSolveCount}/{_config.MaxConcurrentRaphaelProcesses} active");
-                _ = SpawnRaphaelSolveAsync(request);
+                if (_urgentQueue.Count > 0)
+                {
+                    request = _urgentQueue.Dequeue();
+                    priority = RaphaelSolvePriority.Urgent;
+                }
+                else if (_backgroundQueue.Count > 0)
+                {
+                    request = _backgroundQueue.Dequeue();
+                    priority = RaphaelSolvePriority.Background;
+                }
             }
+
+            if (request == null || priority == null)
+                break;
+
+            var (urgentQueued, backgroundQueued) = GetQueuedCounts();
+            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Processing {priority} queue: {urgentQueued} urgent, {backgroundQueued} background remaining, {_activeSolveCount}/{_config.MaxConcurrentRaphaelProcesses} active");
+            _ = SpawnRaphaelSolveAsync(request);
         }
-        if (_pendingQueue.Count > 0)
+
+        var (remainingUrgent, remainingBackground) = GetQueuedCounts();
+        if (remainingUrgent + remainingBackground > 0)
         {
-            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queue processing paused: {_pendingQueue.Count} pending, {_activeSolveCount}/{_config.MaxConcurrentRaphaelProcesses} active");
+            GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Queue processing paused: {remainingUrgent} urgent, {remainingBackground} background, {_activeSolveCount}/{_config.MaxConcurrentRaphaelProcesses} active");
         }
     }
 
@@ -475,7 +606,7 @@ public class RaphaelSolveCoordinator
         var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMinutes(_config.RaphaelTimeoutMinutes));
 
-        _activeSolveCount++;
+        Interlocked.Increment(ref _activeSolveCount);
         var task = Task.Run(async () =>
         {
             try
@@ -484,7 +615,7 @@ public class RaphaelSolveCoordinator
             }
             finally
             {
-                _activeSolveCount--;
+                Interlocked.Decrement(ref _activeSolveCount);
                 _inProgressTasks.TryRemove(key, out _);
                 ProcessPendingQueue();
             }
@@ -501,6 +632,9 @@ public class RaphaelSolveCoordinator
     {
         var key = request.GetKey();
         var cacheEntry = new CachedRaphaelSolution(key, request);
+        Process? process = null;
+        Task<string>? outputTask = null;
+        Task<string>? errorTask = null;
         GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Executing Raphael solve for recipe {request.RecipeId} (key: {key})");
 
         try
@@ -529,7 +663,7 @@ public class RaphaelSolveCoordinator
             var args = BuildRaphaelArguments(request);
             GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Raphael arguments: {args}");
             
-            var process = new Process
+            process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -546,13 +680,12 @@ public class RaphaelSolveCoordinator
 
             GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Starting Raphael process...");
             process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
-            var error = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+            outputTask = process.StandardOutput.ReadToEndAsync();
+            errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            var output = await outputTask.ConfigureAwait(false);
+            var error = await errorTask.ConfigureAwait(false);
             GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Raphael process output received ({output.Length} bytes stdout, {error.Length} bytes stderr)");
-
-            ct.ThrowIfCancellationRequested();
-
-            process.WaitForExit();
             GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Raphael process exited with code {process.ExitCode}");
 
             if (process.ExitCode != 0)
@@ -584,8 +717,16 @@ public class RaphaelSolveCoordinator
             GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] SUCCESS: Raphael solved recipe {request.RecipeId} with {actionIds.Count} actions");
             Save();
         }
+        catch (OperationCanceledException) when (_inProgressTasks.TryGetValue(key, out var solveTask) && solveTask.UserCancelled)
+        {
+            TryKillRaphaelProcess(process, request.RecipeId, "user cancellation");
+            await DrainProcessOutputAsync(outputTask, errorTask).ConfigureAwait(false);
+            GatherBuddy.Log.Information($"[RaphaelSolveCoordinator] Cancelled Raphael solve for recipe {request.RecipeId}");
+        }
         catch (OperationCanceledException)
         {
+            TryKillRaphaelProcess(process, request.RecipeId, "timeout");
+            await DrainProcessOutputAsync(outputTask, errorTask).ConfigureAwait(false);
             cacheEntry.IsFailed = true;
             cacheEntry.FailureReason = "Solve timeout";
             _cachedSolutions[key] = cacheEntry;
@@ -598,6 +739,10 @@ public class RaphaelSolveCoordinator
             _cachedSolutions[key] = cacheEntry;
             GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Raphael solve exception for recipe {request.RecipeId}: {ex.Message}");
             GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Exception details: {ex}");
+        }
+        finally
+        {
+            process?.Dispose();
         }
     }
 

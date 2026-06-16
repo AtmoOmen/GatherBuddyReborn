@@ -99,10 +99,10 @@ public static class CraftingGameInterop
         var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
         switch (solverMode)
         {
-            case RaphaelSolverMode.PureRaphael:
+            case VulcanSolverMode.PureRaphael:
                 CraftingProcessor.RegisterSolver(new Vulcan.RaphaelSolverDefinition(GatherBuddy.RaphaelSolveCoordinator));
                 break;
-            case RaphaelSolverMode.StandardSolver:
+            case VulcanSolverMode.StandardSolver:
                 CraftingProcessor.RegisterSolver(new Vulcan.StandardSolverDefinition());
                 GatherBuddy.Log.Debug($"[CraftingGameInterop] Registered StandardSolver");
                 break;
@@ -122,17 +122,17 @@ public static class CraftingGameInterop
         var solverMode = GatherBuddy.Config.RaphaelSolverConfig.SolverMode;
         switch (solverMode)
         {
-            case RaphaelSolverMode.PureRaphael:
+            case VulcanSolverMode.PureRaphael:
                 CraftingProcessor.RegisterSolver(new Vulcan.RaphaelSolverDefinition(GatherBuddy.RaphaelSolveCoordinator));
                 break;
-            case RaphaelSolverMode.StandardSolver:
+            case VulcanSolverMode.StandardSolver:
                 CraftingProcessor.RegisterSolver(new Vulcan.StandardSolverDefinition());
                 GatherBuddy.Log.Debug($"[CraftingGameInterop] Reloaded: Registered StandardSolver");
                 break;
         }
     }
 
-    public static void ReloadSolversForCraft(RaphaelSolverMode mode, bool registerUserMacroSolver = true)
+    public static void ReloadSolversForCraft(VulcanSolverMode mode, bool registerUserMacroSolver = true)
     {
         GatherBuddy.Log.Debug($"[CraftingGameInterop] ReloadSolversForCraft: {mode}");
         CraftingProcessor.Setup();
@@ -146,10 +146,10 @@ public static class CraftingGameInterop
 
         switch (mode)
         {
-            case RaphaelSolverMode.PureRaphael:
+            case VulcanSolverMode.PureRaphael:
                 CraftingProcessor.RegisterSolver(new Vulcan.RaphaelSolverDefinition(GatherBuddy.RaphaelSolveCoordinator));
                 break;
-            case RaphaelSolverMode.StandardSolver:
+            case VulcanSolverMode.StandardSolver:
                 CraftingProcessor.RegisterSolver(new Vulcan.StandardSolverDefinition());
                 GatherBuddy.Log.Debug($"[CraftingGameInterop] Registered StandardSolver");
                 break;
@@ -1306,6 +1306,11 @@ public static class CraftingGameInterop
                 GatherBuddy.Log.Debug($"[Crafting] Setting guaranteed InitialQuality={iq} from quality policy for Raphael key");
                 _vulcanCraftState = _vulcanCraftState with { InitialQuality = iq };
             }
+        }
+        if (_vulcanCraftState != null && CraftingProcessor.SolverDefinitions.Any(definition => definition is RaphaelSolverDefinition))
+        {
+            var liveRaphaelRequest = RaphaelSolveRequest.FromCraftState(_vulcanCraftState, GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions);
+            GatherBuddy.Log.Debug($@"[Crafting] Live Raphael request at craft start: {liveRaphaelRequest.GetKey()}");
         }
         _vulcanStepState = CraftingStateBuilder.BuildInitialStepState(_vulcanCraftState);
         if (_vulcanCraftState != null && _vulcanStepState != null)

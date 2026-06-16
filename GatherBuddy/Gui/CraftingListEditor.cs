@@ -21,6 +21,24 @@ namespace GatherBuddy.Gui;
 
 public class CraftingListEditor
 {
+    private sealed class QueueCacheSnapshot
+    {
+        public string Hash { get; init; } = string.Empty;
+        public List<CraftingListItem> SortedQueue { get; init; } = [];
+    }
+
+    private sealed class MaterialCacheSnapshot
+    {
+        public string Hash { get; init; } = string.Empty;
+        public Dictionary<uint, int> Materials { get; init; } = [];
+        public Dictionary<uint, int> PrecraftMaterials { get; init; } = [];
+        public Dictionary<uint, IngredientQualityDemand> IngredientDemands { get; init; } = [];
+        public Dictionary<uint, IngredientQualityDemand> CraftMaterialDemands { get; init; } = [];
+        public Dictionary<uint, int> DisplayMaterials { get; init; } = [];
+        public Dictionary<uint, int> DisplayPrecraftMaterials { get; init; } = [];
+        public Dictionary<uint, IngredientQualityDemand> DisplayIngredientDemands { get; init; } = [];
+        public Dictionary<uint, IngredientQualityDemand> DisplayCraftMaterialDemands { get; init; } = [];
+    }
     private CraftingListDefinition _list;
     private int _searchQuantity = 1;
     private Recipe? _selectedRecipe = null;
@@ -31,24 +49,22 @@ public class CraftingListEditor
     private List<Recipe> _keywordFilteredRecipes = new();
     private string _lastComboFilter = string.Empty;
     
-    private List<CraftingListItem>? _cachedSortedQueue = null;
+    private QueueCacheSnapshot? _queueCache = null;
     private int _cachedRecipeCount = -1;
-    private bool _cachedQueueValid = false;
-    private string _cachedListHash = string.Empty;
+    private int _queueGenerationVersion = 0;
     private int _selectedQueueIndex = -1;
     private bool _showPrecrafts = true;
     
-    private Dictionary<uint, int>? _cachedMaterials = null;
-    private string _cachedMaterialsHash = string.Empty;
-    private bool _cachedMaterialsValid = false;
+    private MaterialCacheSnapshot? _materialCache = null;
     
     private Task? _queueGenerationTask = null;
     private CancellationTokenSource? _queueCancellationSource = null;
-    private bool _isGeneratingQueue = false;
+    private volatile bool _isGeneratingQueue = false;
     
     private Task? _materialsGenerationTask = null;
     private CancellationTokenSource? _materialsCancellationSource = null;
-    private bool _isGeneratingMaterials = false;
+    private volatile bool _isGeneratingMaterials = false;
+    private int _materialGenerationVersion = 0;
     
     private Dictionary<uint, (int NQ, int HQ)> _cachedInventorySplitCounts = new();
     private Dictionary<uint, DateTime> _inventoryRefreshTimes = new();
@@ -72,15 +88,9 @@ public class CraftingListEditor
     
     private readonly HashSet<int> _selectedRecipeIndices = new();
     private int _lastClickedRecipeIndex = -1;
-    private Dictionary<uint, int>? _cachedPrecraftMaterials = null;
-    private Dictionary<uint, IngredientQualityDemand>? _cachedIngredientDemands = null;
-    private Dictionary<uint, IngredientQualityDemand>? _cachedCraftMaterialDemands = null;
-    private string _cachedPrecraftMaterialsHash = string.Empty;
-    private Dictionary<uint, int>? _cachedDisplayMaterials = null;
-    private Dictionary<uint, int>? _cachedDisplayPrecraftMaterials = null;
-    private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayIngredientDemands = null;
-    private Dictionary<uint, IngredientQualityDemand>? _cachedDisplayCraftMaterialDemands = null;
-    private string _cachedDisplayMaterialsHash = string.Empty;
+    private int _lastRaphaelActiveSolves = -1;
+    private int _lastRaphaelPendingSolves = -1;
+    private int _lastRaphaelCachedSolutions = -1;
     private sealed class QueueDisplayRow
     {
         public int QueueIndex { get; init; }
@@ -93,6 +103,7 @@ public class CraftingListEditor
         public bool EffectiveQuickSynth { get; init; }
         public bool ForceQuickSynth { get; init; }
         public MacroValidationResult? Validation { get; init; }
+        public RaphaelAssessment? RaphaelAssessment { get; init; }
     }
 
     private sealed class RecipeDisplayRow
@@ -103,6 +114,7 @@ public class CraftingListEditor
         public string Label { get; init; } = string.Empty;
         public Vector4 TextColor { get; init; }
         public MacroValidationResult? Validation { get; init; }
+        public RaphaelAssessment? RaphaelAssessment { get; init; }
     }
 
     private List<QueueDisplayRow>? _cachedQueueDisplayRows = null;
@@ -122,8 +134,8 @@ public class CraftingListEditor
     private bool   _focusDescNext      = false;
     private long _materialCacheVersion;
     
-    internal bool HasCachedMaterials    => _cachedMaterials != null;
-    internal bool HasCachedDisplayMaterials => _cachedDisplayMaterials != null;
+    internal bool HasCachedMaterials    => GetMaterialCache() != null;
+    internal bool HasCachedDisplayMaterials => GetMaterialCache() != null;
     internal bool IsGeneratingMaterials => _isGeneratingMaterials;
     internal string ListName            => GetPlanningList().Name;
     internal bool SkipIfEnoughEnabled   => GetPlanningList().SkipIfEnough;
@@ -151,39 +163,64 @@ public class CraftingListEditor
     private CraftingListDefinition GetPlanningList()
         => GetActiveExecutionPlan()?.PlanningSnapshot ?? _list;
 
+    private CraftingListDefinition CreatePlanningSnapshot()
+        => GetPlanningList().CreateRetainerPlanningSnapshot();
+
+    private QueueCacheSnapshot? GetQueueCache()
+        => Volatile.Read(ref _queueCache);
+
+    private MaterialCacheSnapshot? GetMaterialCache()
+        => Volatile.Read(ref _materialCache);
+
+    private void PublishQueueCache(QueueCacheSnapshot snapshot)
+        => Volatile.Write(ref _queueCache, snapshot);
+
+    private bool TryPublishQueueCache(QueueCacheSnapshot snapshot, int generation, CancellationToken token)
+    {
+        if (token.IsCancellationRequested || generation != Volatile.Read(ref _queueGenerationVersion))
+        {
+            GatherBuddy.Log.Debug($"[CraftingListEditor] Discarded stale queue cache for list '{_list.Name}'");
+            return false;
+        }
+
+        PublishQueueCache(snapshot);
+        return true;
+    }
+
+    private void InvalidateQueueCache()
+    {
+        Volatile.Write(ref _queueCache, null);
+        Interlocked.Increment(ref _queueGenerationVersion);
+    }
+
+    private void PublishMaterialCache(MaterialCacheSnapshot snapshot)
+        => Volatile.Write(ref _materialCache, snapshot);
+
+    private bool TryPublishMaterialCache(MaterialCacheSnapshot snapshot, int generation, CancellationToken token)
+    {
+        if (token.IsCancellationRequested || generation != Volatile.Read(ref _materialGenerationVersion))
+        {
+            GatherBuddy.Log.Debug($"[CraftingListEditor] Discarded stale material cache for list '{_list.Name}'");
+            return false;
+        }
+
+        PublishMaterialCache(snapshot);
+        return true;
+    }
+
     private bool TryCacheActiveExecutionPlan(string hash)
     {
         var activeExecutionPlan = GetActiveExecutionPlan();
         if (activeExecutionPlan == null)
             return false;
 
-        if (!_cachedQueueValid || _cachedSortedQueue == null || _cachedListHash != hash)
-        {
-            _cachedSortedQueue = BuildDisplayQueue(activeExecutionPlan.ResolvedPlan);
-            _cachedListHash = hash;
-            _cachedQueueValid = true;
-        }
+        var queueCache = GetQueueCache();
+        if (queueCache == null || queueCache.Hash != hash)
+            PublishQueueCache(BuildQueueCacheSnapshot(activeExecutionPlan.ResolvedPlan, hash));
 
-        if (!_cachedMaterialsValid || _cachedMaterials == null || _cachedMaterialsHash != hash
-         || _cachedPrecraftMaterials == null || _cachedPrecraftMaterialsHash != hash
-         || _cachedIngredientDemands == null || _cachedCraftMaterialDemands == null)
-        {
-            _cachedMaterials = activeExecutionPlan.Materials;
-            _cachedIngredientDemands = activeExecutionPlan.IngredientDemands;
-            _cachedPrecraftMaterials = BuildCraftPanelMaterials(activeExecutionPlan.ResolvedPlan);
-            _cachedCraftMaterialDemands = BuildCraftPanelDemands(activeExecutionPlan.ResolvedPlan, _cachedPrecraftMaterials);
-            _cachedMaterialsHash = hash;
-            _cachedPrecraftMaterialsHash = hash;
-            _cachedMaterialsValid = true;
-        }
-
-        if (_cachedDisplayMaterials == null || _cachedDisplayMaterialsHash != hash
-         || _cachedDisplayPrecraftMaterials == null
-         || _cachedDisplayIngredientDemands == null
-         || _cachedDisplayCraftMaterialDemands == null)
-        {
-            CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), hash);
-        }
+        var materialCache = GetMaterialCache();
+        if (materialCache == null || materialCache.Hash != hash)
+            PublishMaterialCache(BuildMaterialCacheSnapshot(activeExecutionPlan.ResolvedPlan, activeExecutionPlan.PlanningSnapshot, hash));
         return true;
     }
     
@@ -208,7 +245,7 @@ public class CraftingListEditor
         GatherBuddy.Log.Debug($"[CraftingListEditor] Refreshing cached queue/materials for externally modified list '{_list.Name}'");
         _selectedRecipeIndices.Clear();
         _lastClickedRecipeIndex = -1;
-        _cachedQueueValid = false;
+        InvalidateQueueCache();
         InvalidateMaterialCaches();
         InvalidatePresentationCaches();
         TriggerQueueRegeneration();
@@ -221,7 +258,7 @@ public class CraftingListEditor
     {
         GatherBuddy.Log.Debug($"[CraftingListEditor] Refreshing presentation caches after settings change for list '{_list.Name}'");
         InvalidatePresentationCaches();
-        _cachedQueueValid = false;
+        InvalidateQueueCache();
         InvalidateMaterialCaches();
         TriggerQueueRegeneration();
         TriggerMaterialsRegeneration();
@@ -246,6 +283,7 @@ public class CraftingListEditor
     public void Draw()
     {
         ProcessPendingInventoryChanges();
+        RefreshRaphaelAssessmentCaches();
         var availableWidth = ImGui.GetContentRegionAvail().X;
         var availableHeight = ImGui.GetContentRegionAvail().Y;
         
@@ -271,6 +309,22 @@ public class CraftingListEditor
         
         _craftSettingsPopup.Draw();
         _consumablesPopup.Draw();
+    }
+
+    private void RefreshRaphaelAssessmentCaches()
+    {
+        var activeSolves = GatherBuddy.RaphaelSolveCoordinator.ActiveSolves;
+        var pendingSolves = GatherBuddy.RaphaelSolveCoordinator.PendingSolves;
+        var cachedSolutions = GatherBuddy.RaphaelSolveCoordinator.CachedSolutionCount;
+        if (activeSolves == _lastRaphaelActiveSolves
+         && pendingSolves == _lastRaphaelPendingSolves
+         && cachedSolutions == _lastRaphaelCachedSolutions)
+            return;
+
+        _lastRaphaelActiveSolves = activeSolves;
+        _lastRaphaelPendingSolves = pendingSolves;
+        _lastRaphaelCachedSolutions = cachedSolutions;
+        InvalidatePresentationCaches();
     }
 
     private void OnInventoryChanged(IReadOnlyCollection<InventoryEventArgs> events)
@@ -399,7 +453,7 @@ public class CraftingListEditor
 
         if (refreshQueue)
         {
-            _cachedQueueValid = false;
+            InvalidateQueueCache();
             InvalidateQueuePresentationCaches();
             TriggerQueueRegeneration();
         }
@@ -534,7 +588,7 @@ public class CraftingListEditor
         if (ImGui.Checkbox("Skip if Already Have Enough##sie", ref skipIfEnough))
         {
             _list.SkipIfEnough    = skipIfEnough;
-            _cachedQueueValid     = false;
+            InvalidateQueueCache();
             InvalidateMaterialCaches();
             InvalidatePresentationCaches();
             GatherBuddy.CraftingListManager.SaveList(_list);
@@ -549,7 +603,7 @@ public class CraftingListEditor
             if (ImGui.Checkbox("Include Final Crafts##sife", ref skipFinalIfEnough))
             {
                 _list.SkipFinalIfEnough = skipFinalIfEnough;
-                _cachedQueueValid       = false;
+                InvalidateQueueCache();
                 InvalidatePresentationCaches();
                 GatherBuddy.CraftingListManager.SaveList(_list);
                 TriggerQueueRegeneration();
@@ -564,7 +618,7 @@ public class CraftingListEditor
         {
             _list.QuickSynthAll = quickSynthAll;
             GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid     = false;
+            InvalidateQueueCache();
             InvalidateMaterialCaches();
             InvalidatePresentationCaches();
             TriggerQueueRegeneration();
@@ -582,21 +636,21 @@ public class CraftingListEditor
             {
                 _list.QuickSynthAllPreferNQ = quickSynthAllPreferNQ;
                 GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid     = false;
+                InvalidateQueueCache();
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
                 TriggerMaterialsRegeneration();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Override ingredient quality preferences for affected crafts and prefer NQ materials unless HQ is required as fallback.");
+                ImGui.SetTooltip("Enable the Quick Synthesis 'Synthesize NQ items only' toggle for affected crafts.");
 
             var quickSynthAllPrecraftsOnly = _list.QuickSynthAllPrecraftsOnly;
             if (ImGui.Checkbox("Precrafts Only##qsapo", ref quickSynthAllPrecraftsOnly))
             {
                 _list.QuickSynthAllPrecraftsOnly = quickSynthAllPrecraftsOnly;
                 GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid     = false;
+                InvalidateQueueCache();
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
@@ -616,7 +670,7 @@ public class CraftingListEditor
             {
                 _list.RetainerRestock = retainerRestock;
                 GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid = false;
+                InvalidateQueueCache();
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
@@ -866,6 +920,13 @@ public class CraftingListEditor
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false));
             hasAny = true;
         }
+        if (_list.UseAllHQ)
+        {
+            ImGui.TextColored(labelColor, "HQ Mats:");
+            ImGui.SameLine(valueX);
+            ImGui.TextColored(labelColor, "All HQ");
+            hasAny = true;
+        }
         if (!hasAny)
             ImGui.TextColored(ImGuiColors.DalamudGrey, "None set.");
 
@@ -896,7 +957,8 @@ public class CraftingListEditor
             {
                 _list.AddRecipe(_selectedRecipe.Value.RowId, _searchQuantity);
                 GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid     = false;
+                RaphaelAssessmentService.QueueWarmupForAddedListRecipe(_selectedRecipe.Value.RowId, _list);
+                InvalidateQueueCache();
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
@@ -1034,7 +1096,7 @@ public class CraftingListEditor
             _selectedRecipeIndices.Clear();
             _lastClickedRecipeIndex = -1;
             GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid = false;
+            InvalidateQueueCache();
             InvalidateMaterialCaches();
             InvalidatePresentationCaches();
             TriggerQueueRegeneration();
@@ -1051,7 +1113,8 @@ public class CraftingListEditor
 
     private void EnsureQueueDisplayRows(CraftingListDefinition planningList, CraftingExecutionPlan? activeExecutionPlan)
     {
-        if (!_cachedQueueValid || _cachedSortedQueue == null)
+        var queueCache = GetQueueCache();
+        if (queueCache == null)
             return;
 
         var currentHash = ComputeListHash();
@@ -1061,7 +1124,7 @@ public class CraftingListEditor
 
         try
         {
-            var sortedQueue = GetSortedQueue();
+            var sortedQueue = queueCache.SortedQueue;
             _cachedQueueDisplayRows = BuildQueueDisplayRows(sortedQueue, planningList);
             IReadOnlyList<CraftingListItem> originalQueue = activeExecutionPlan != null
                 ? activeExecutionPlan.OriginalRecipesView
@@ -1107,12 +1170,27 @@ public class CraftingListEditor
             var forceQuickSynth = planningList.ShouldForceQuickSynth(recipeData.Value, queueItem.IsOriginalRecipe);
             var forcePreferNQNoQuickSynth = !recipeData.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(queueItem.IsOriginalRecipe);
             var queueItemCraftSettings = GetEffectiveCraftSettings(queueItem.RecipeId, queueItem.IsOriginalRecipe);
-            var validation = WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe)
+            var hasExecutionContext = CraftingContextResolver.TryResolveListExecutionContext(
+                planningList,
+                queueItem.RecipeId,
+                queueItem.IsOriginalRecipe,
+                out var executionContext);
+            var usesQuickSynth = hasExecutionContext
+                ? executionContext.UseQuickSynthesis
+                : WillUseQuickSynth(recipeData.Value, queueItem.RecipeId, queueItem.IsOriginalRecipe);
+            var validation = usesQuickSynth
                 ? null
                 : MacroValidator.GetOrCompute(queueItem.RecipeId,
                     ResolveEffectiveMacroId(queueItemCraftSettings, !queueItem.IsOriginalRecipe),
                     queueItemCraftSettings,
                     planningList.Consumables);
+            RaphaelAssessment? raphaelAssessment = null;
+            if (hasExecutionContext
+             && CraftingContextResolver.UsesRaphaelSolver(executionContext))
+            {
+                RaphaelAssessmentService.TryAssessListQueueItem(queueItem.RecipeId, queueItem.IsOriginalRecipe, planningList, out var resolvedAssessment);
+                raphaelAssessment = resolvedAssessment;
+            }
             rows.Add(new QueueDisplayRow
             {
                 QueueIndex = i,
@@ -1129,6 +1207,7 @@ public class CraftingListEditor
                 EffectiveQuickSynth = effectiveQuickSynth,
                 ForceQuickSynth = forceQuickSynth,
                 Validation = validation,
+                RaphaelAssessment = raphaelAssessment,
             });
         }
 
@@ -1144,9 +1223,17 @@ public class CraftingListEditor
         var textColor = willBeSkipped
             ? new Vector4(1f, 0.3f, 0.3f, 1f)
             : row.BaseTextColor;
+        if (row.RaphaelAssessment != null)
+        {
+            ImGui.AlignTextToFramePadding();
+            DrawRaphaelAssessmentMarker(row.RaphaelAssessment);
+        }
 
         if (row.Validation != null)
+        {
+            ImGui.AlignTextToFramePadding();
             DrawValidationMarker(row.Validation);
+        }
 
         var crafterIcon     = CraftingRowIcons.GetCrafterIcon(row.Recipe);
         var innerSpacing    = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -1200,7 +1287,7 @@ public class CraftingListEditor
                         {
                             listItem.RecipeId = alt.RowId;
                             GatherBuddy.CraftingListManager.SaveList(_list);
-                            _cachedQueueValid = false;
+                            InvalidateQueueCache();
                             InvalidateMaterialCaches();
                             InvalidatePresentationCaches();
                             TriggerQueueRegeneration();
@@ -1222,7 +1309,7 @@ public class CraftingListEditor
                     {
                         _list.PrecraftRecipeOverrides[resultItemId] = alt.RowId;
                         GatherBuddy.CraftingListManager.SaveList(_list);
-                        _cachedQueueValid = false;
+                        InvalidateQueueCache();
                         InvalidateMaterialCaches();
                         InvalidatePresentationCaches();
                         TriggerQueueRegeneration();
@@ -1236,7 +1323,7 @@ public class CraftingListEditor
                     {
                         _list.PrecraftRecipeOverrides.Remove(resultItemId);
                         GatherBuddy.CraftingListManager.SaveList(_list);
-                        _cachedQueueValid = false;
+                        InvalidateQueueCache();
                         InvalidateMaterialCaches();
                         InvalidatePresentationCaches();
                         TriggerQueueRegeneration();
@@ -1258,7 +1345,7 @@ public class CraftingListEditor
                 {
                     _list.SetRecipeQuickSynth(row.Recipe.RowId, !recipeOptions.NQOnly, row.IsOriginalRecipe);
                     GatherBuddy.CraftingListManager.SaveList(_list);
-                    _cachedQueueValid = false;
+                    InvalidateQueueCache();
                     InvalidateMaterialCaches();
                     InvalidatePresentationCaches();
                     TriggerQueueRegeneration();
@@ -1305,6 +1392,7 @@ public class CraftingListEditor
 
     private List<RecipeDisplayRow> BuildRecipeDisplayRows()
     {
+        var planningList = GetPlanningList();
         var rows = new List<RecipeDisplayRow>(_list.Recipes.Count);
         for (var i = 0; i < _list.Recipes.Count; i++)
         {
@@ -1317,13 +1405,25 @@ public class CraftingListEditor
             var jobName = GetCraftingJobName(recipe.Value.CraftType.RowId);
             var effectiveCraftSettings = GetEffectiveCraftSettings(item.RecipeId, true);
             var effectiveQuickSynth = IsEffectivelyQuickSynth(recipe.Value, item.RecipeId, true);
-            var forcePreferNQNoQuickSynth = !recipe.Value.CanQuickSynth && _list.ShouldForcePreferNQ(true);
-            var validation = WillUseQuickSynth(recipe.Value, item.RecipeId, true)
+            var forcePreferNQNoQuickSynth = !recipe.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(true);
+            var hasExecutionContext = CraftingContextResolver.TryResolveListExecutionContext(
+                planningList,
+                item,
+                out var executionContext);
+            var usesQuickSynth = hasExecutionContext
+                ? executionContext.UseQuickSynthesis
+                : WillUseQuickSynth(recipe.Value, item.RecipeId, true);
+            var validation = usesQuickSynth
                 ? null
                 : MacroValidator.GetOrCompute(item.RecipeId,
                     ResolveEffectiveMacroId(effectiveCraftSettings, false),
                     effectiveCraftSettings,
-                    _list.Consumables);
+                    planningList.Consumables);
+            RaphaelAssessment? raphaelAssessment = null;
+            if (hasExecutionContext
+             && CraftingContextResolver.UsesRaphaelSolver(executionContext)
+             && RaphaelAssessmentService.TryAssessListRecipe(item.RecipeId, planningList, effectiveCraftSettings, out var resolvedAssessment))
+                raphaelAssessment = resolvedAssessment;
             rows.Add(new RecipeDisplayRow
             {
                 ListIndex = i,
@@ -1336,6 +1436,7 @@ public class CraftingListEditor
                         ? new Vector4(0.3f, 0.9f, 0.9f, 1f)
                         : new Vector4(1f, 1f, 1f, 1f),
                 Validation = validation,
+                RaphaelAssessment = raphaelAssessment,
             });
         }
 
@@ -1348,6 +1449,11 @@ public class CraftingListEditor
             return;
 
         var item = _list.Recipes[row.ListIndex];
+        if (row.RaphaelAssessment != null)
+        {
+            ImGui.AlignTextToFramePadding();
+            DrawRaphaelAssessmentMarker(row.RaphaelAssessment);
+        }
         if (row.Validation != null)
         {
             ImGui.AlignTextToFramePadding();
@@ -1410,7 +1516,7 @@ public class CraftingListEditor
             {
                 _list.UpdateRecipeQuantity(item.RecipeId, qty);
                 GatherBuddy.CraftingListManager.SaveList(_list);
-                _cachedQueueValid = false;
+                InvalidateQueueCache();
                 InvalidateMaterialCaches();
                 InvalidatePresentationCaches();
                 TriggerQueueRegeneration();
@@ -1426,7 +1532,7 @@ public class CraftingListEditor
         {
             item.Options.Skipping = !item.Options.Skipping;
             GatherBuddy.CraftingListManager.SaveList(_list);
-            _cachedQueueValid = false;
+            InvalidateQueueCache();
             InvalidateMaterialCaches();
             InvalidatePresentationCaches();
             TriggerQueueRegeneration();
@@ -1457,7 +1563,7 @@ public class CraftingListEditor
                     {
                         item.RecipeId = alt.RowId;
                         GatherBuddy.CraftingListManager.SaveList(_list);
-                        _cachedQueueValid = false;
+                        InvalidateQueueCache();
                         InvalidateMaterialCaches();
                         InvalidatePresentationCaches();
                         TriggerQueueRegeneration();
@@ -1487,7 +1593,7 @@ public class CraftingListEditor
         if (!changed)
             return;
         GatherBuddy.CraftingListManager.SaveList(_list);
-        _cachedQueueValid = false;
+        InvalidateQueueCache();
         InvalidateMaterialCaches();
         InvalidatePresentationCaches();
         TriggerQueueRegeneration();
@@ -1505,6 +1611,27 @@ public class CraftingListEditor
             ImGui.SetTooltip(validation.IsValid
                 ? $"Macro: PASS\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}\nQuality: {validation.FinalQuality}\nDurability: {validation.FinalDurability}"
                 : $"Macro: {validation.Failure} at step {validation.FailedAtStep}\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}");
+        ImGui.SameLine();
+    }
+
+    private static void DrawRaphaelAssessmentMarker(RaphaelAssessment assessment)
+    {
+        var dotColor = assessment.State switch
+        {
+            RaphaelAssessmentState.Ready when assessment.Outcome is RaphaelAssessmentOutcome.FullQuality
+                or RaphaelAssessmentOutcome.CollectibleTier3
+                or RaphaelAssessmentOutcome.MinimumQualityMet
+                or RaphaelAssessmentOutcome.NoQualityRequired
+                => new Vector4(0.30f, 0.70f, 0.30f, 1f),
+            RaphaelAssessmentState.Ready => new Vector4(0.78f, 0.62f, 0.15f, 1f),
+            RaphaelAssessmentState.Generating => new Vector4(0.35f, 0.65f, 0.90f, 1f),
+            RaphaelAssessmentState.Failed => new Vector4(0.78f, 0.25f, 0.25f, 1f),
+            RaphaelAssessmentState.Unavailable => new Vector4(0.78f, 0.62f, 0.15f, 1f),
+            _ => new Vector4(0.55f, 0.55f, 0.55f, 1f),
+        };
+        ImGui.TextColored(dotColor, "\u25cf");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip($"Raphael: {assessment.Summary}\n{assessment.Details}");
         ImGui.SameLine();
     }
 
@@ -1527,49 +1654,65 @@ public class CraftingListEditor
 
     private void InvalidateMaterialCaches()
     {
-        _cachedMaterialsValid = false;
-        _cachedMaterials = null;
-        _cachedMaterialsHash = string.Empty;
-        _cachedPrecraftMaterials = null;
-        _cachedPrecraftMaterialsHash = string.Empty;
-        _cachedIngredientDemands = null;
-        _cachedCraftMaterialDemands = null;
-        _cachedDisplayMaterials = null;
-        _cachedDisplayPrecraftMaterials = null;
-        _cachedDisplayIngredientDemands = null;
-        _cachedDisplayCraftMaterialDemands = null;
-        _cachedDisplayMaterialsHash = string.Empty;
+        Volatile.Write(ref _materialCache, null);
+        Interlocked.Increment(ref _materialGenerationVersion);
         Interlocked.Increment(ref _materialCacheVersion);
     }
+    private QueueCacheSnapshot BuildQueueCacheSnapshot(CraftingListPlan plan, string hash)
+        => new()
+        {
+            Hash = hash,
+            SortedQueue = BuildDisplayQueue(plan),
+        };
 
-    private void CacheMaterialPlan(CraftingListPlan plan, string hash)
+    private MaterialCacheSnapshot BuildMaterialCacheSnapshot(CraftingListDefinition planningList, string hash)
+        => BuildMaterialCacheSnapshot(
+            planningList.CreatePlan(ShouldUseRetainerCraftablePlanning(planningList)),
+            planningList,
+            hash);
+
+    private MaterialCacheSnapshot BuildMaterialCacheSnapshot(CraftingListPlan plan, CraftingListDefinition planningList, string hash)
     {
-        _cachedMaterials = plan.Materials;
-        _cachedPrecraftMaterials = BuildCraftPanelMaterials(plan);
-        _cachedIngredientDemands = plan.IngredientDemands;
-        _cachedCraftMaterialDemands = BuildCraftPanelDemands(plan, _cachedPrecraftMaterials);
-        _cachedMaterialsHash = hash;
-        _cachedPrecraftMaterialsHash = hash;
-        _cachedMaterialsValid = true;
+        var precraftMaterials = BuildCraftPanelMaterials(plan);
+        var displayPlan = BuildDisplayMaterialPlan(planningList);
+        var displayPrecraftMaterials = BuildCraftPanelMaterials(displayPlan, planningList.Recipes);
+        return new MaterialCacheSnapshot
+        {
+            Hash = hash,
+            Materials = new Dictionary<uint, int>(plan.Materials),
+            PrecraftMaterials = precraftMaterials,
+            IngredientDemands = new Dictionary<uint, IngredientQualityDemand>(plan.IngredientDemands),
+            CraftMaterialDemands = BuildCraftPanelDemands(plan, precraftMaterials),
+            DisplayMaterials = new Dictionary<uint, int>(displayPlan.Materials),
+            DisplayPrecraftMaterials = displayPrecraftMaterials,
+            DisplayIngredientDemands = new Dictionary<uint, IngredientQualityDemand>(displayPlan.IngredientDemands),
+            DisplayCraftMaterialDemands = BuildCraftPanelDemands(displayPlan, displayPrecraftMaterials, planningList.Recipes),
+        };
     }
 
-    private void CacheDisplayMaterialPlan(CraftingListPlan plan, string hash)
-    {
-        _cachedDisplayMaterials = plan.Materials;
-        _cachedDisplayPrecraftMaterials = BuildCraftPanelMaterials(plan, GetPlanningList().Recipes);
-        _cachedDisplayIngredientDemands = plan.IngredientDemands;
-        _cachedDisplayCraftMaterialDemands = BuildCraftPanelDemands(plan, _cachedDisplayPrecraftMaterials, GetPlanningList().Recipes);
-        _cachedDisplayMaterialsHash = hash;
-    }
 
-    private CraftingListPlan CreateDisplayMaterialPlan()
-    {
-        var displayList = GetPlanningList().CreateRetainerPlanningSnapshot();
-        var useRetainers = displayList.SkipIfEnough && displayList.RetainerRestock && AllaganTools.Enabled;
-        return CraftingListPlanner.Build(displayList, new CraftingListPlannerOptions(
-            UseRetainerCraftableAvailability: useRetainers,
+    private static CraftingListPlan BuildDisplayMaterialPlan(CraftingListDefinition planningList)
+        => CraftingListPlanner.Build(planningList, new CraftingListPlannerOptions(
+            UseRetainerCraftableAvailability: ShouldUseRetainerCraftablePlanning(planningList),
             ConsumeIntermediateAvailability: true,
             ConsumeFinalAvailability: true));
+
+    private static bool ShouldUseRetainerCraftablePlanning(CraftingListDefinition planningList)
+        => planningList.SkipIfEnough && planningList.RetainerRestock && AllaganTools.Enabled;
+
+    private MaterialCacheSnapshot EnsureMaterialCache(string hash)
+    {
+        if (TryCacheActiveExecutionPlan(hash))
+            return GetMaterialCache()!;
+
+        var materialCache = GetMaterialCache();
+        if (materialCache != null && materialCache.Hash == hash)
+            return materialCache;
+
+        var planningSnapshot = CreatePlanningSnapshot();
+        materialCache = BuildMaterialCacheSnapshot(planningSnapshot, hash);
+        PublishMaterialCache(materialCache);
+        return materialCache;
     }
 
     private Dictionary<uint, int> BuildCraftPanelMaterials(CraftingListPlan plan, IEnumerable<CraftingListItem>? finalSourceRecipes = null)
@@ -1644,10 +1787,11 @@ public class CraftingListEditor
     private void TriggerQueueRegeneration()
     {
         var currentHash = ComputeListHash();
-        if (_cachedQueueValid && _cachedSortedQueue != null && currentHash == _cachedListHash)
-        {
+        var queueCache = GetQueueCache();
+        if (queueCache != null && queueCache.Hash == currentHash)
             return;
-        }
+
+        var generation = Interlocked.Increment(ref _queueGenerationVersion);
 
         if (TryCacheActiveExecutionPlan(currentHash))
         {
@@ -1658,6 +1802,8 @@ public class CraftingListEditor
             _isGeneratingQueue = false;
             return;
         }
+
+        var planningSnapshot = CreatePlanningSnapshot();
         
         _queueCancellationSource?.Cancel();
         _queueCancellationSource?.Dispose();
@@ -1672,15 +1818,11 @@ public class CraftingListEditor
             try
             {
                 if (token.IsCancellationRequested) return;
-                
-                var queue = GenerateSortedQueueSync();
-                
-                if (!token.IsCancellationRequested)
-                {
-                    _cachedSortedQueue = queue;
-                    _cachedListHash = hash;
-                    _cachedQueueValid = true;
-                }
+
+                var queueCacheSnapshot = BuildQueueCacheSnapshot(
+                    planningSnapshot.CreatePlan(ShouldUseRetainerCraftablePlanning(planningSnapshot)),
+                    hash);
+                TryPublishQueueCache(queueCacheSnapshot, generation, token);
             }
             catch (Exception ex)
             {
@@ -1688,25 +1830,21 @@ public class CraftingListEditor
             }
             finally
             {
-                _isGeneratingQueue = false;
+                if (generation == Volatile.Read(ref _queueGenerationVersion))
+                    _isGeneratingQueue = false;
             }
         }, token);
-    }
-    
-    private bool ShouldUseRetainerCraftablePlanning()
-    {
-        var planningList = GetPlanningList();
-        return planningList.SkipIfEnough && planningList.RetainerRestock && AllaganTools.Enabled;
     }
 
     internal void TriggerMaterialsRegeneration()
     {
         ProcessPendingInventoryChanges();
         var currentHash = ComputeListHash();
-        if (_cachedMaterialsValid && _cachedMaterials != null && currentHash == _cachedMaterialsHash)
-        {
+        var materialCache = GetMaterialCache();
+        if (materialCache != null && materialCache.Hash == currentHash)
             return;
-        }
+
+        var generation = Interlocked.Increment(ref _materialGenerationVersion);
 
         if (TryCacheActiveExecutionPlan(currentHash))
         {
@@ -1717,6 +1855,8 @@ public class CraftingListEditor
             _isGeneratingMaterials = false;
             return;
         }
+
+        var planningSnapshot = CreatePlanningSnapshot();
         
         _materialsCancellationSource?.Cancel();
         _materialsCancellationSource?.Dispose();
@@ -1731,14 +1871,8 @@ public class CraftingListEditor
             try
             {
                 if (token.IsCancellationRequested) return;
-                var plan = GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning());
-                var displayPlan = CreateDisplayMaterialPlan();
-                
-                if (!token.IsCancellationRequested)
-                {
-                    CacheMaterialPlan(plan, hash);
-                    CacheDisplayMaterialPlan(displayPlan, hash);
-                }
+                var materialCacheSnapshot = BuildMaterialCacheSnapshot(planningSnapshot, hash);
+                TryPublishMaterialCache(materialCacheSnapshot, generation, token);
             }
             catch (Exception ex)
             {
@@ -1746,7 +1880,8 @@ public class CraftingListEditor
             }
             finally
             {
-                _isGeneratingMaterials = false;
+                if (generation == Volatile.Read(ref _materialGenerationVersion))
+                    _isGeneratingMaterials = false;
             }
         }, token);
     }
@@ -1754,22 +1889,12 @@ public class CraftingListEditor
     private List<CraftingListItem> GetSortedQueue()
     {
         ProcessPendingInventoryChanges();
-        if (_cachedSortedQueue != null && _cachedQueueValid)
-        {
-            return _cachedSortedQueue;
-        }
+        var queueCache = GetQueueCache();
+        if (queueCache != null)
+            return queueCache.SortedQueue;
         return new List<CraftingListItem>();
     }
     
-    private List<CraftingListItem> GenerateSortedQueueSync()
-    {
-        var activeExecutionPlan = GetActiveExecutionPlan();
-        if (activeExecutionPlan != null)
-            return BuildDisplayQueue(activeExecutionPlan.ResolvedPlan);
-
-        var plan = GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning());
-        return BuildDisplayQueue(plan);
-    }
 
     private List<CraftingListItem> BuildDisplayQueue(CraftingListPlan plan)
         => CraftingListQueueBuilder.CreateGroupedQueue(plan);
@@ -1780,7 +1905,12 @@ public class CraftingListEditor
         var sourceSettings = isOriginalRecipe
             ? planningList.Recipes.FirstOrDefault(r => r.RecipeId == recipeId)?.CraftSettings
             : planningList.PrecraftCraftSettings.GetValueOrDefault(recipeId);
-        return sourceSettings?.Clone();
+        var recipe = RecipeManager.GetRecipe(recipeId);
+        if (!recipe.HasValue)
+            return sourceSettings?.Clone();
+
+        var forcePreferNQ = !recipe.Value.CanQuickSynth && planningList.ShouldForcePreferNQ(isOriginalRecipe);
+        return CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe.Value, sourceSettings, planningList.UseAllHQ, forcePreferNQ);
     }
 
     private bool IsEffectivelyQuickSynth(Recipe recipe, uint recipeId, bool isOriginalRecipe)
@@ -1804,77 +1934,43 @@ public class CraftingListEditor
     internal Dictionary<uint, int> GetCachedMaterials()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedMaterials!;
-        if (_cachedMaterialsValid && _cachedMaterials != null && currentHash == _cachedMaterialsHash)
-        {
-            return _cachedMaterials;
-        }
-        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
-
-        return _cachedMaterials!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.Materials;
     }
 
     internal Dictionary<uint, int> GetCachedPrecraftMaterials()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedPrecraftMaterials!;
-        if (_cachedPrecraftMaterials != null && currentHash == _cachedPrecraftMaterialsHash)
-            return _cachedPrecraftMaterials;
-        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
-        _cachedPrecraftMaterialsHash = currentHash;
-        return _cachedPrecraftMaterials!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.PrecraftMaterials;
     }
 
     internal Dictionary<uint, int> GetDisplayMaterials()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedDisplayMaterials!;
-        if (_cachedDisplayMaterials != null && currentHash == _cachedDisplayMaterialsHash)
-            return _cachedDisplayMaterials;
-        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
-        return _cachedDisplayMaterials!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.DisplayMaterials;
     }
 
     internal Dictionary<uint, int> GetDisplayPrecraftMaterials()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedDisplayPrecraftMaterials!;
-        if (_cachedDisplayPrecraftMaterials != null && currentHash == _cachedDisplayMaterialsHash)
-            return _cachedDisplayPrecraftMaterials;
-        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
-        return _cachedDisplayPrecraftMaterials!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.DisplayPrecraftMaterials;
     }
 
     internal IReadOnlyDictionary<uint, IngredientQualityDemand> GetCachedIngredientDemands()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedIngredientDemands!;
-        if (_cachedIngredientDemands != null && currentHash == _cachedMaterialsHash)
-            return _cachedIngredientDemands;
-        CacheMaterialPlan(GetPlanningList().CreatePlan(ShouldUseRetainerCraftablePlanning()), currentHash);
-        return _cachedIngredientDemands!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.IngredientDemands;
     }
 
     internal IReadOnlyDictionary<uint, IngredientQualityDemand> GetDisplayIngredientDemands()
     {
         ProcessPendingInventoryChanges();
-        var currentHash = ComputeListHash();
-        if (TryCacheActiveExecutionPlan(currentHash))
-            return _cachedDisplayIngredientDemands!;
-        if (_cachedDisplayIngredientDemands != null && currentHash == _cachedDisplayMaterialsHash)
-            return _cachedDisplayIngredientDemands;
-        CacheDisplayMaterialPlan(CreateDisplayMaterialPlan(), currentHash);
-        return _cachedDisplayIngredientDemands!;
+        var materialCache = EnsureMaterialCache(ComputeListHash());
+        return materialCache.DisplayIngredientDemands;
     }
 
     private static string GetConsumableSummary(CraftingListConsumableSettings settings)
@@ -1981,7 +2077,8 @@ public class CraftingListEditor
 
     internal int GetCraftMaterialAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
     {
-        var demand = _cachedCraftMaterialDemands != null && _cachedCraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
+        var materialCache = GetMaterialCache();
+        var demand = materialCache != null && materialCache.CraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
             ? craftDemand
             : GetIngredientDemand(itemId);
         return GetQualityAwareAvailableCount(itemId, demand, retNQ, retHQ, countRetainersTowardNeed);
@@ -1992,7 +2089,8 @@ public class CraftingListEditor
 
     internal int GetDisplayCraftMaterialAvailableCount(uint itemId, int retNQ, int retHQ, bool countRetainersTowardNeed)
     {
-        var demand = _cachedDisplayCraftMaterialDemands != null && _cachedDisplayCraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
+        var materialCache = GetMaterialCache();
+        var demand = materialCache != null && materialCache.DisplayCraftMaterialDemands.TryGetValue(itemId, out var craftDemand)
             ? craftDemand
             : GetDisplayIngredientDemand(itemId);
         return GetQualityAwareAvailableCount(itemId, demand, retNQ, retHQ, countRetainersTowardNeed);
@@ -2092,8 +2190,7 @@ public class CraftingListEditor
 
         foreach (var row in GetRecipeDisplayRows())
             AccumulateValidationIssue(row.Validation, ref hardFails, ref warnings);
-
-        if (_cachedQueueValid && _cachedSortedQueue != null)
+        if (GetQueueCache() != null)
         {
             EnsureQueueDisplayRows(GetPlanningList(), GetActiveExecutionPlan());
             if (_cachedQueueDisplayRows != null)

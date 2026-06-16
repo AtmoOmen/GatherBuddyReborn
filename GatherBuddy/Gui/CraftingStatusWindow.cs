@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using GatherBuddy.Crafting;
@@ -11,6 +12,11 @@ public class CraftingStatusWindow : Window
     private bool? _pendingCollapseState = null;
     private bool _requestFocus = false;
     private bool _wasFocusedLastFrame = false;
+    private IReadOnlyList<CraftingListItem>? _cachedEstimateQueue = null;
+    private CraftingListConsumableSettings? _cachedEstimateConsumables = null;
+    private long[] _cachedRemainingEstimatesByIndex = [];
+    private int _cachedEstimateQueueCount = -1;
+    private int _cachedEstimateActionDelayMs = -1;
 
     public CraftingStatusWindow() 
         : base("Crafting Status###GatherBuddyCraftingStatus", ImGuiWindowFlags.AlwaysAutoResize)
@@ -24,6 +30,7 @@ public class CraftingStatusWindow : Window
     public void SetQueueProcessor(CraftingQueueProcessor? processor)
     {
         _queueProcessor = processor;
+        ResetRemainingEstimateCache();
         if (processor == null)
         {
             IsOpen = false;
@@ -117,13 +124,16 @@ public class CraftingStatusWindow : Window
             }
         }
 
-        if (currentState != CraftingQueueProcessor.QueueState.Idle
-            && currentState != CraftingQueueProcessor.QueueState.Complete && currentState != CraftingQueueProcessor.QueueState.WaitingForGather)
+        if (ShouldShowRemainingEstimate(currentState))
         {
-            var remainingMs = CraftingTimeEstimator.EstimateRemainingMs(_queueProcessor.Queue, currentIndex);
+            var remainingMs = GetRemainingEstimate(currentIndex);
             ImGui.Text($"Estimated Time Remaining: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Estimate based on action count per craft (macro length when set, otherwise the Raphael solver's action count once available) and the configured action delay. Excludes time spent gathering, repairing, or switching jobs.");
+                ImGui.SetTooltip("Estimate based on the active craft path for each queue item. Macros, Standard Solver, and Progress Only are simulated, while Raphael uses cached solution length when available and falls back to a provisional default until ready. Excludes time spent gathering, repairing, or switching jobs.");
+        }
+        else if (!ShouldRetainRemainingEstimateCache(currentState))
+        {
+            ResetRemainingEstimateCache();
         }
 
         ImGui.Spacing();
@@ -194,6 +204,77 @@ public class CraftingStatusWindow : Window
                 }
             }
         }
+    }
+
+    private void ResetRemainingEstimateCache()
+    {
+        _cachedEstimateQueue = null;
+        _cachedEstimateConsumables = null;
+        _cachedRemainingEstimatesByIndex = [];
+        _cachedEstimateQueueCount = -1;
+        _cachedEstimateActionDelayMs = -1;
+    }
+
+    private long GetRemainingEstimate(int currentIndex)
+    {
+        if (_queueProcessor == null)
+            return 0;
+
+        var queue = _queueProcessor.Queue;
+        var consumables = _queueProcessor.ListConsumables;
+        var actionDelayMs = GatherBuddy.Config.VulcanExecutionDelayMs;
+        if (ReferenceEquals(_cachedEstimateQueue, queue)
+         && ReferenceEquals(_cachedEstimateConsumables, consumables)
+         && _cachedEstimateQueueCount == queue.Count
+         && _cachedEstimateActionDelayMs == actionDelayMs)
+            return GetCachedRemainingEstimateAtIndex(currentIndex);
+
+        _cachedEstimateQueue = queue;
+        _cachedEstimateConsumables = consumables;
+        _cachedEstimateQueueCount = queue.Count;
+        _cachedEstimateActionDelayMs = actionDelayMs;
+        _cachedRemainingEstimatesByIndex = BuildRemainingEstimates(queue, actionDelayMs, consumables);
+        return GetCachedRemainingEstimateAtIndex(currentIndex);
+    }
+
+    private long GetCachedRemainingEstimateAtIndex(int currentIndex)
+    {
+        if (_cachedRemainingEstimatesByIndex.Length == 0)
+            return 0;
+
+        var safeIndex = Math.Clamp(currentIndex, 0, _cachedRemainingEstimatesByIndex.Length - 1);
+        return _cachedRemainingEstimatesByIndex[safeIndex];
+    }
+
+    private static long[] BuildRemainingEstimates(IReadOnlyList<CraftingListItem> queue, int actionDelayMs, CraftingListConsumableSettings? consumables)
+    {
+        if (queue.Count == 0)
+            return [];
+
+        var remainingByIndex = new long[queue.Count];
+        long remainingMs = 0;
+        for (var i = queue.Count - 1; i >= 0; i--)
+        {
+            remainingMs += CraftingTimeEstimator.EstimateItemMs(queue[i], actionDelayMs, consumables);
+            remainingByIndex[i] = remainingMs;
+        }
+
+        return remainingByIndex;
+    }
+
+    private static bool ShouldShowRemainingEstimate(CraftingQueueProcessor.QueueState state)
+    {
+        return state == CraftingQueueProcessor.QueueState.ReadyForCraft
+            || state == CraftingQueueProcessor.QueueState.Crafting;
+    }
+
+    private static bool ShouldRetainRemainingEstimateCache(CraftingQueueProcessor.QueueState state)
+    {
+        return state == CraftingQueueProcessor.QueueState.ReadyForCraft
+            || state == CraftingQueueProcessor.QueueState.Crafting
+            || state == CraftingQueueProcessor.QueueState.WaitingForJobSwitch
+            || state == CraftingQueueProcessor.QueueState.Repairing
+            || state == CraftingQueueProcessor.QueueState.ExtractingMateria;
     }
 
     private static string GetStateDisplayName(CraftingQueueProcessor.QueueState state)
