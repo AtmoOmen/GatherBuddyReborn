@@ -30,9 +30,7 @@ internal unsafe class RetainerTaskExecutor
         WaitInventory,
         WithdrawNextItem,
         FindItemSlot,
-        OpenContextMenu,
-        WaitContextMenu,
-        SelectRetrieveOption,
+        DispatchRetrieveCommand,
         WaitNumericInput,
         InputNumericValue,
         WaitWithdrawComplete,
@@ -65,6 +63,9 @@ internal unsafe class RetainerTaskExecutor
     private int _currentItemIndex = 0;
     private bool _lookingForHQ = false;
     private int _foundSlotQty = 0;
+    private InventoryType _foundSlotInventory = InventoryType.Invalid;
+    private uint _foundSlotIndex = uint.MaxValue;
+    private bool _foundSlotRequiresQuantityInput = false;
 
     private int _addonRetryCount = 0;
     private const int MaxAddonRetries = 40;
@@ -217,9 +218,7 @@ internal unsafe class RetainerTaskExecutor
             Phase.WaitInventory          => TickWaitInventory(),
             Phase.WithdrawNextItem       => TickWithdrawNextItem(),
             Phase.FindItemSlot           => TickFindItemSlot(),
-            Phase.OpenContextMenu        => TickOpenContextMenu(),
-            Phase.WaitContextMenu        => TickWaitContextMenu(),
-            Phase.SelectRetrieveOption   => TickSelectRetrieveOption(),
+            Phase.DispatchRetrieveCommand => TickDispatchRetrieveCommand(),
             Phase.WaitNumericInput       => TickWaitNumericInput(),
             Phase.InputNumericValue      => TickInputNumericValue(),
             Phase.WaitWithdrawComplete   => TickWaitWithdrawComplete(),
@@ -431,6 +430,7 @@ internal unsafe class RetainerTaskExecutor
 
     private CraftingTasks.TaskResult TickWithdrawNextItem()
     {
+        ClearFoundSlot();
         while (_currentItemIndex < _currentRetainerItems.Count)
         {
             var target = _currentRetainerItems[_currentItemIndex];
@@ -470,37 +470,41 @@ internal unsafe class RetainerTaskExecutor
             InventoryType.RetainerPage4, InventoryType.RetainerPage5, InventoryType.RetainerPage6,
             InventoryType.RetainerPage7, InventoryType.RetainerCrystals
         };
+        var inventoryManager = InventoryManager.Instance();
+        if (inventoryManager == null)
+        {
+            GatherBuddy.Log.Warning("[RetainerTaskExecutor] InventoryManager was unavailable while searching retainer slots");
+            _phase = Phase.CloseRetainerInventory;
+            return CraftingTasks.TaskResult.Retry;
+        }
 
         foreach (var inv in inventories)
         {
-            var container = InventoryManager.Instance()->GetInventoryContainer(inv);
+            var container = inventoryManager->GetInventoryContainer(inv);
             if (container == null) continue;
 
             for (int i = 0; i < container->Size; i++)
             {
                 var slot = container->GetInventorySlot(i);
                 if (slot == null || slot->ItemId != itemId) continue;
-
-                bool slotIsHQ = slot->Flags == InventoryItem.ItemFlags.HighQuality;
+                bool slotIsHQ = slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
                 if (slotIsHQ != _lookingForHQ) continue;
+                int wantQty = _lookingForHQ ? target.RemainingHQ : target.RemainingNQ;
 
                 _foundSlotQty = (int)slot->Quantity;
-                GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Found item {itemId} (HQ={slotIsHQ}) in {inv} slot {i}, qty={_foundSlotQty}");
-
-                var agentModule = AgentModule.Instance();
-                if (agentModule == null) { _phase = Phase.Aborted; return CraftingTasks.TaskResult.Done; }
-
-                var retainerAgentAddonId = agentModule->GetAgentByInternalId(AgentId.Retainer)->GetAddonId();
-                AgentInventoryContext.Instance()->OpenForItemSlot(inv, i, 0, retainerAgentAddonId);
+                _foundSlotInventory = inv;
+                _foundSlotIndex = (uint)i;
+                _foundSlotRequiresQuantityInput = itemId <= 19 || wantQty < _foundSlotQty;
+                GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Found item {itemId} (HQ={slotIsHQ}) in {inv} slot {i}, qty={_foundSlotQty}, mode={(_foundSlotRequiresQuantityInput ? "quantity" : "all")}");
 
                 _addonRetryCount = 0;
-                _phase = Phase.WaitContextMenu;
-                Delay(300);
+                _phase = Phase.DispatchRetrieveCommand;
                 return CraftingTasks.TaskResult.Retry;
             }
         }
 
         GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Item {itemId} (HQ={_lookingForHQ}) not found in retainer inventory, skipping quality pass");
+        ClearFoundSlot();
 
         var t = _currentRetainerItems[_currentItemIndex];
         if (_lookingForHQ && t.RemainingNQ > 0)
@@ -517,109 +521,40 @@ internal unsafe class RetainerTaskExecutor
         return CraftingTasks.TaskResult.Retry;
     }
 
-    private CraftingTasks.TaskResult TickWaitContextMenu()
+    private CraftingTasks.TaskResult TickDispatchRetrieveCommand()
     {
-        if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var menu) && menu->IsVisible)
+        if (_foundSlotInventory == InventoryType.Invalid || _foundSlotIndex == uint.MaxValue)
         {
-            _phase = Phase.SelectRetrieveOption;
+            GatherBuddy.Log.Warning("[RetainerTaskExecutor] Lost tracked retainer slot before dispatching retrieve command");
+            _phase = Phase.FindItemSlot;
             return CraftingTasks.TaskResult.Retry;
-        }
-
-        _addonRetryCount++;
-        if (_addonRetryCount > 20)
-        {
-            GatherBuddy.Log.Warning("[RetainerTaskExecutor] ContextMenu did not appear, skipping item");
-            _currentItemIndex++;
-            _phase = Phase.WithdrawNextItem;
-            return CraftingTasks.TaskResult.Retry;
-        }
-
-        Delay(100);
-        return CraftingTasks.TaskResult.Retry;
-    }
-
-    private CraftingTasks.TaskResult TickOpenContextMenu()
-    {
-        _phase = Phase.WaitContextMenu;
-        return CraftingTasks.TaskResult.Retry;
-    }
-
-    private CraftingTasks.TaskResult TickSelectRetrieveOption()
-    {
-        if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var menu) || !menu->IsVisible)
-        {
-            _currentItemIndex++;
-            _phase = Phase.WithdrawNextItem;
-            return CraftingTasks.TaskResult.Retry;
-        }
-
-        var contextAgent  = AgentInventoryContext.Instance();
-        var retrieveAll   = GetAddonText(98);
-        var retrieveQty   = GetAddonText(773);
-        int idxAll = -1, idxQty = -1, looper = 0;
-
-        foreach (var param in contextAgent->EventParams)
-        {
-            if (param.Type == FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.String)
-            {
-                var label = MemoryHelper.ReadSeStringNullTerminated(new IntPtr(param.String)).TextValue;
-                if (label == retrieveAll) idxAll = looper;
-                if (label == retrieveQty) idxQty = looper;
-                looper++;
-            }
         }
 
         var target = _currentRetainerItems[_currentItemIndex];
         int wantQty = _lookingForHQ ? target.RemainingHQ : target.RemainingNQ;
-        bool isCrystal = target.ItemId <= 19;
 
-        if (isCrystal)
+        if (_foundSlotRequiresQuantityInput)
         {
-            int crystalIdx = idxQty != -1 ? idxQty : idxAll != -1 ? idxAll : 0;
-            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Crystal retrieve (numeric dialog): index {crystalIdx}");
-            Callback.Fire(menu, true, 0, crystalIdx, 0, 0, 0);
+            GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Dispatching RetrieveQuantity for item {target.ItemId} from {_foundSlotInventory} slot {_foundSlotIndex} (want={wantQty}, slot={_foundSlotQty})");
+            if (!RetainerItemCommandDispatcher.TryRetrieveQuantity(_foundSlotInventory, _foundSlotIndex))
+                return HandleRetrieveDispatchFailure("RetrieveQuantity");
+
             _addonRetryCount = 0;
             _phase = Phase.WaitNumericInput;
             Delay(200);
             return CraftingTasks.TaskResult.Retry;
         }
 
-        if (wantQty >= _foundSlotQty)
-        {
-            if (idxAll == -1)
-            {
-                GatherBuddy.Log.Warning("[RetainerTaskExecutor] 'Retrieve All' option not found in context menu");
-                Callback.Fire(menu, true, 0, -1, 0, 0, 0);
-                _currentItemIndex++;
-                _phase = Phase.WithdrawNextItem;
-                return CraftingTasks.TaskResult.Retry;
-            }
+        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Dispatching Retrieve for item {target.ItemId} from {_foundSlotInventory} slot {_foundSlotIndex} (want={wantQty}, slot={_foundSlotQty})");
+        if (!RetainerItemCommandDispatcher.TryRetrieve(_foundSlotInventory, _foundSlotIndex))
+            return HandleRetrieveDispatchFailure("Retrieve");
 
-            Callback.Fire(menu, true, 0, idxAll, 0, 0, 0);
-
-            if (_lookingForHQ) target.RemainingHQ -= _foundSlotQty;
-            else               target.RemainingNQ -= _foundSlotQty;
-            _currentRetainerItems[_currentItemIndex] = target;
-
-            _phase = Phase.WaitWithdrawComplete;
-            Delay(300);
-            return CraftingTasks.TaskResult.Retry;
-        }
-
-        if (idxQty == -1)
-        {
-            GatherBuddy.Log.Warning("[RetainerTaskExecutor] 'Retrieve (Quantity)' option not found in context menu");
-            Callback.Fire(menu, true, 0, -1, 0, 0, 0);
-            _currentItemIndex++;
-            _phase = Phase.WithdrawNextItem;
-            return CraftingTasks.TaskResult.Retry;
-        }
-
-        GatherBuddy.Log.Debug($"[RetainerTaskExecutor] Retrieve quantity: index {idxQty}");
-        Callback.Fire(menu, true, 0, idxQty, 0, 0, 0);
+        if (_lookingForHQ) target.RemainingHQ -= _foundSlotQty;
+        else               target.RemainingNQ -= _foundSlotQty;
+        _currentRetainerItems[_currentItemIndex] = target;
         _addonRetryCount = 0;
-        _phase = Phase.WaitNumericInput;
-        Delay(200);
+        _phase = Phase.WaitWithdrawComplete;
+        Delay(300);
         return CraftingTasks.TaskResult.Retry;
     }
 
@@ -634,7 +569,8 @@ internal unsafe class RetainerTaskExecutor
         _addonRetryCount++;
         if (_addonRetryCount > 20)
         {
-            GatherBuddy.Log.Warning("[RetainerTaskExecutor] InputNumeric did not appear");
+            var target = _currentRetainerItems[_currentItemIndex];
+            GatherBuddy.Log.Warning($"[RetainerTaskExecutor] InputNumeric did not appear after RetrieveQuantity for item {target.ItemId} from {_foundSlotInventory} slot {_foundSlotIndex}");
             _currentItemIndex++;
             _phase = Phase.WithdrawNextItem;
             return CraftingTasks.TaskResult.Retry;
@@ -648,6 +584,8 @@ internal unsafe class RetainerTaskExecutor
     {
         if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>("InputNumeric", out var input) || !input->IsVisible)
         {
+            var failedTarget = _currentRetainerItems[_currentItemIndex];
+            GatherBuddy.Log.Warning($"[RetainerTaskExecutor] InputNumeric closed before quantity entry for item {failedTarget.ItemId}");
             _currentItemIndex++;
             _phase = Phase.WithdrawNextItem;
             return CraftingTasks.TaskResult.Retry;
@@ -677,17 +615,12 @@ internal unsafe class RetainerTaskExecutor
             return CraftingTasks.TaskResult.Retry;
         }
 
-        if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var ctx) && ctx->IsVisible)
-        {
-            Delay(100);
-            return CraftingTasks.TaskResult.Retry;
-        }
-
         var target = _currentRetainerItems[_currentItemIndex];
 
         if (_lookingForHQ && target.RemainingHQ > 0)
         {
             GatherBuddy.Log.Debug($"[RetainerTaskExecutor] More HQ needed ({target.RemainingHQ}), re-entering FindItemSlot");
+            ClearFoundSlot();
             _phase = Phase.FindItemSlot;
             Delay(500);
             return CraftingTasks.TaskResult.Retry;
@@ -696,6 +629,7 @@ internal unsafe class RetainerTaskExecutor
         if (!_lookingForHQ && target.RemainingNQ > 0)
         {
             GatherBuddy.Log.Debug($"[RetainerTaskExecutor] More NQ needed ({target.RemainingNQ}), re-entering FindItemSlot");
+            ClearFoundSlot();
             _phase = Phase.FindItemSlot;
             Delay(500);
             return CraftingTasks.TaskResult.Retry;
@@ -705,15 +639,37 @@ internal unsafe class RetainerTaskExecutor
         {
             GatherBuddy.Log.Debug($"[RetainerTaskExecutor] HQ pass done, switching to NQ pass for item {target.ItemId}");
             _lookingForHQ = false;
+            ClearFoundSlot();
             _phase = Phase.FindItemSlot;
             Delay(500);
             return CraftingTasks.TaskResult.Retry;
         }
+        ClearFoundSlot();
 
         _currentItemIndex++;
         _phase = Phase.WithdrawNextItem;
         Delay(200);
         return CraftingTasks.TaskResult.Retry;
+    }
+
+    private CraftingTasks.TaskResult HandleRetrieveDispatchFailure(string commandName)
+    {
+        var target = _currentItemIndex < _currentRetainerItems.Count
+            ? _currentRetainerItems[_currentItemIndex]
+            : default;
+        GatherBuddy.Log.Warning($"[RetainerTaskExecutor] Failed to dispatch {commandName} for item {target.ItemId} from {_foundSlotInventory} slot {_foundSlotIndex}; closing current retainer inventory");
+        ClearFoundSlot();
+        _phase = Phase.CloseRetainerInventory;
+        Delay(150);
+        return CraftingTasks.TaskResult.Retry;
+    }
+
+    private void ClearFoundSlot()
+    {
+        _foundSlotInventory = InventoryType.Invalid;
+        _foundSlotIndex = uint.MaxValue;
+        _foundSlotQty = 0;
+        _foundSlotRequiresQuantityInput = false;
     }
 
     private CraftingTasks.TaskResult TickCloseRetainerInventory()
