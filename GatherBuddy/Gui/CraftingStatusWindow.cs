@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using GatherBuddy.Crafting;
@@ -11,6 +12,11 @@ public class CraftingStatusWindow : Window
     private bool? _pendingCollapseState = null;
     private bool _requestFocus = false;
     private bool _wasFocusedLastFrame = false;
+    private IReadOnlyList<CraftingListItem>? _cachedEstimateQueue = null;
+    private CraftingListConsumableSettings? _cachedEstimateConsumables = null;
+    private long[] _cachedRemainingEstimatesByIndex = [];
+    private int _cachedEstimateQueueCount = -1;
+    private int _cachedEstimateActionDelayMs = -1;
 
     public CraftingStatusWindow() 
         : base("制作状态###GatherBuddyCraftingStatus", ImGuiWindowFlags.AlwaysAutoResize)
@@ -24,6 +30,7 @@ public class CraftingStatusWindow : Window
     public void SetQueueProcessor(CraftingQueueProcessor? processor)
     {
         _queueProcessor = processor;
+        ResetRemainingEstimateCache();
         if (processor == null)
         {
             IsOpen = false;
@@ -117,13 +124,16 @@ public class CraftingStatusWindow : Window
             }
         }
 
-        if (currentState != CraftingQueueProcessor.QueueState.Idle
-            && currentState != CraftingQueueProcessor.QueueState.Complete && currentState != CraftingQueueProcessor.QueueState.WaitingForGather)
+        if (ShouldShowRemainingEstimate(currentState))
         {
-            var remainingMs = CraftingTimeEstimator.EstimateRemainingMs(_queueProcessor.Queue, currentIndex);
+            var remainingMs = GetRemainingEstimate(currentIndex);
             ImGui.Text($"预计剩余时间: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("根据每次制作的操作数估算, 优先使用宏长度, 否则使用默认值\n包含已配置的操作延迟, 不含采集、修理和切换职业的耗时");
+                ImGui.SetTooltip("根据队列各项制作路径估算。宏、标准求解器和仅推进度通过模拟计算，Raphael 在有缓存方案时使用方案长度，否则暂用默认值。不含采集、修理和切换职业的耗时。");
+        }
+        else if (!ShouldRetainRemainingEstimateCache(currentState))
+        {
+            ResetRemainingEstimateCache();
         }
 
         ImGui.Spacing();
@@ -194,6 +204,77 @@ public class CraftingStatusWindow : Window
                 }
             }
         }
+    }
+
+    private void ResetRemainingEstimateCache()
+    {
+        _cachedEstimateQueue = null;
+        _cachedEstimateConsumables = null;
+        _cachedRemainingEstimatesByIndex = [];
+        _cachedEstimateQueueCount = -1;
+        _cachedEstimateActionDelayMs = -1;
+    }
+
+    private long GetRemainingEstimate(int currentIndex)
+    {
+        if (_queueProcessor == null)
+            return 0;
+
+        var queue = _queueProcessor.Queue;
+        var consumables = _queueProcessor.ListConsumables;
+        var actionDelayMs = GatherBuddy.Config.VulcanExecutionDelayMs;
+        if (ReferenceEquals(_cachedEstimateQueue, queue)
+         && ReferenceEquals(_cachedEstimateConsumables, consumables)
+         && _cachedEstimateQueueCount == queue.Count
+         && _cachedEstimateActionDelayMs == actionDelayMs)
+            return GetCachedRemainingEstimateAtIndex(currentIndex);
+
+        _cachedEstimateQueue = queue;
+        _cachedEstimateConsumables = consumables;
+        _cachedEstimateQueueCount = queue.Count;
+        _cachedEstimateActionDelayMs = actionDelayMs;
+        _cachedRemainingEstimatesByIndex = BuildRemainingEstimates(queue, actionDelayMs, consumables);
+        return GetCachedRemainingEstimateAtIndex(currentIndex);
+    }
+
+    private long GetCachedRemainingEstimateAtIndex(int currentIndex)
+    {
+        if (_cachedRemainingEstimatesByIndex.Length == 0)
+            return 0;
+
+        var safeIndex = Math.Clamp(currentIndex, 0, _cachedRemainingEstimatesByIndex.Length - 1);
+        return _cachedRemainingEstimatesByIndex[safeIndex];
+    }
+
+    private static long[] BuildRemainingEstimates(IReadOnlyList<CraftingListItem> queue, int actionDelayMs, CraftingListConsumableSettings? consumables)
+    {
+        if (queue.Count == 0)
+            return [];
+
+        var remainingByIndex = new long[queue.Count];
+        long remainingMs = 0;
+        for (var i = queue.Count - 1; i >= 0; i--)
+        {
+            remainingMs += CraftingTimeEstimator.EstimateItemMs(queue[i], actionDelayMs, consumables);
+            remainingByIndex[i] = remainingMs;
+        }
+
+        return remainingByIndex;
+    }
+
+    private static bool ShouldShowRemainingEstimate(CraftingQueueProcessor.QueueState state)
+    {
+        return state == CraftingQueueProcessor.QueueState.ReadyForCraft
+            || state == CraftingQueueProcessor.QueueState.Crafting;
+    }
+
+    private static bool ShouldRetainRemainingEstimateCache(CraftingQueueProcessor.QueueState state)
+    {
+        return state == CraftingQueueProcessor.QueueState.ReadyForCraft
+            || state == CraftingQueueProcessor.QueueState.Crafting
+            || state == CraftingQueueProcessor.QueueState.WaitingForJobSwitch
+            || state == CraftingQueueProcessor.QueueState.Repairing
+            || state == CraftingQueueProcessor.QueueState.ExtractingMateria;
     }
 
     private static string GetStateDisplayName(CraftingQueueProcessor.QueueState state)

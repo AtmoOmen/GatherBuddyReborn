@@ -485,6 +485,7 @@ public partial class VulcanWindow
                     var newList = GatherBuddy.CraftingListManager.CreateNewList(_contextMenuNewListName.Trim(), _contextMenuNewListEphemeral);
                     newList.Recipes.Add(new CraftingListItem(recipe.Recipe.RowId, _contextMenuAddQuantity));
                     GatherBuddy.CraftingListManager.SaveList(newList);
+                    RaphaelAssessmentService.QueueWarmupForAddedListRecipe(recipe.Recipe.RowId, newList);
                     RefreshOpenCraftingList(newList.ID);
                     GatherBuddy.Log.Information($"[VulcanWindow] Created list '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}");
                     Communicator.Print($"Created '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}.");
@@ -523,6 +524,7 @@ public partial class VulcanWindow
                         {
                             list.Recipes.Add(new CraftingListItem(recipe.Recipe.RowId, _contextMenuAddQuantity));
                             GatherBuddy.CraftingListManager.SaveList(list);
+                            RaphaelAssessmentService.QueueWarmupForAddedListRecipe(recipe.Recipe.RowId, list);
                             RefreshOpenCraftingList(list.ID);
                             GatherBuddy.Log.Information($"Added {recipe.Name} x{_contextMenuAddQuantity} to crafting list '{list.Name}'");
                             Communicator.Print($"Added {recipe.Name} x{_contextMenuAddQuantity} to '{list.Name}'.");
@@ -782,6 +784,40 @@ public partial class VulcanWindow
             ImGui.Spacing();
         }
 
+        if (UsesRaphaelSolverForRecipeBrowser(recipe.Recipe, settings))
+        {
+            if (!RaphaelAssessmentService.TryAssessRecipe(recipe.Recipe.RowId, settings, out var raphaelAssessment))
+            {
+                raphaelAssessment = new RaphaelAssessment(
+                    RaphaelAssessmentState.Unavailable,
+                    RaphaelAssessmentOutcome.None,
+                    "Raphael validation is unavailable.",
+                    "No usable stats are available for this recipe.");
+            }
+
+            ImGui.Separator();
+            ImGui.Spacing();
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
+            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "Raphael Validation:");
+            ImGui.Spacing();
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
+            ImGui.TextColored(GetRaphaelAssessmentColor(raphaelAssessment), raphaelAssessment.Summary);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(raphaelAssessment.Details);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
+            ImGui.PushTextWrapPos(0f);
+            ImGui.TextColored(new Vector4(0.65f, 0.65f, 0.65f, 1.0f), raphaelAssessment.Details);
+            ImGui.PopTextWrapPos();
+            if (raphaelAssessment.State == RaphaelAssessmentState.NotGenerated)
+            {
+                ImGui.Spacing();
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
+                if (ImGui.Button("Queue Raphael Validation", new Vector2(0f, footerButtonHeight)))
+                    RaphaelAssessmentService.TryQueueWarmupForRecipe(recipe.Recipe.RowId, settings);
+            }
+            ImGui.Spacing();
+        }
+
         var avail = ImGui.GetContentRegionAvail();
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + Math.Max(0f, avail.Y - VulcanUiScaling.Scaled(96f)));
 
@@ -831,6 +867,32 @@ public partial class VulcanWindow
             StartBrowserQuickSynth(recipe.Recipe, _browserCraftQuantity);
             MinimizeWindow();
         }
+    }
+
+    private static Vector4 GetRaphaelAssessmentColor(RaphaelAssessment assessment)
+        => assessment.State switch
+        {
+            RaphaelAssessmentState.Ready when assessment.Outcome is RaphaelAssessmentOutcome.FullQuality
+                or RaphaelAssessmentOutcome.CollectibleTier3
+                or RaphaelAssessmentOutcome.MinimumQualityMet
+                or RaphaelAssessmentOutcome.NoQualityRequired
+                => new Vector4(0.30f, 0.70f, 0.30f, 1f),
+            RaphaelAssessmentState.Ready => new Vector4(0.90f, 0.75f, 0.20f, 1f),
+            RaphaelAssessmentState.Generating => new Vector4(0.35f, 0.65f, 0.90f, 1f),
+            RaphaelAssessmentState.Failed => new Vector4(0.90f, 0.35f, 0.35f, 1f),
+            RaphaelAssessmentState.Unavailable => new Vector4(0.90f, 0.75f, 0.20f, 1f),
+            _ => new Vector4(0.65f, 0.65f, 0.65f, 1f),
+        };
+
+    private static bool UsesRaphaelSolverForRecipeBrowser(Recipe recipe, RecipeCraftSettings? settings)
+    {
+        var item = new CraftingListItem(recipe.RowId, 1)
+        {
+            IsOriginalRecipe = true,
+            CraftSettings = settings?.Clone(),
+        };
+        var executionContext = CraftingContextResolver.ResolveExecutionContext(item, recipe, null);
+        return CraftingContextResolver.UsesRaphaelSolver(executionContext);
     }
 
     private static void DrawIngredientSectionHeader(string title, bool showRetainer)

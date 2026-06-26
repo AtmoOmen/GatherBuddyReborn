@@ -192,6 +192,67 @@ public sealed class CraftingQualityPolicy
 
 public static class CraftingQualityPolicyResolver
 {
+    public static bool HasExplicitQualitySettings(RecipeCraftSettings? settings)
+        => settings?.UseAllNQ == true || (settings?.IngredientPreferences.Count ?? 0) > 0;
+
+    public static Dictionary<uint, int> BuildAllHQPreferences(Recipe recipe)
+    {
+        var preferences = new Dictionary<uint, int>();
+        var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
+        if (itemSheet == null)
+            return preferences;
+
+        foreach (var (itemId, amount) in RecipeManager.GetIngredients(recipe))
+        {
+            if (itemSheet.TryGetRow(itemId, out var item) && item.CanBeHq)
+                preferences[itemId] = amount;
+        }
+
+        return preferences;
+    }
+
+    public static bool MatchesAllHQPreferences(Recipe recipe, IReadOnlyDictionary<uint, int> preferences)
+    {
+        var expected = BuildAllHQPreferences(recipe);
+        if (preferences.Count != expected.Count)
+            return false;
+
+        foreach (var (itemId, amount) in expected)
+        {
+            if (!preferences.TryGetValue(itemId, out var preferredAmount) || preferredAmount != amount)
+                return false;
+        }
+
+        return true;
+    }
+
+    public static RecipeCraftSettings? BuildEffectiveSettings(
+        Recipe recipe,
+        RecipeCraftSettings? sourceSettings,
+        bool useAllHQByDefault,
+        bool forcePreferNQ = false)
+    {
+        var settings = sourceSettings?.Clone();
+        if (forcePreferNQ)
+        {
+            settings ??= new RecipeCraftSettings();
+            settings.UseAllNQ = true;
+            settings.IngredientPreferences.Clear();
+            return settings;
+        }
+
+        if (!useAllHQByDefault || HasExplicitQualitySettings(sourceSettings))
+            return settings;
+
+        var allHQPreferences = BuildAllHQPreferences(recipe);
+        if (allHQPreferences.Count == 0 && settings == null)
+            return null;
+
+        settings ??= new RecipeCraftSettings();
+        settings.UseAllNQ = false;
+        settings.IngredientPreferences = allHQPreferences;
+        return settings;
+    }
     public static CraftingQualityPolicy Resolve(
         Recipe recipe,
         RecipeCraftSettings? settings,

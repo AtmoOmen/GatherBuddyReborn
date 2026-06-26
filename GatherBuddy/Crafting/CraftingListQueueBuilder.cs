@@ -51,7 +51,13 @@ public static class CraftingListQueueBuilder
                     ? originalItem?.CraftSettings
                     : list.PrecraftCraftSettings.GetValueOrDefault(recipeItem.RecipeId);
                 var (effectiveMacroId, effectiveSolverOverride) = ResolveEffectiveMacroSelection(craftSettings, !isOriginal, list);
-                queueItem.CraftSettings = BuildEffectiveQueueCraftSettings(craftSettings, effectiveMacroId, effectiveSolverOverride, forcePreferNQNoQuickSynth);
+                queueItem.CraftSettings = BuildEffectiveQueueCraftSettings(
+                    recipeData.Value,
+                    craftSettings,
+                    effectiveMacroId,
+                    effectiveSolverOverride,
+                    list.UseAllHQ,
+                    forcePreferNQNoQuickSynth);
                 queueItem.QualityPolicy = CraftingQualityPolicyResolver.Resolve(recipeData.Value, queueItem.CraftSettings, qualityOverrideMode);
                 queueItem.IngredientPreferences = queueItem.QualityPolicy.BuildGuaranteedHQPreferences();
 
@@ -62,14 +68,16 @@ public static class CraftingListQueueBuilder
         return expandedQueue;
     }
 
-    private static RecipeCraftSettings? BuildEffectiveQueueCraftSettings(
+    internal static RecipeCraftSettings? BuildEffectiveQueueCraftSettings(
+        Recipe recipe,
         RecipeCraftSettings? sourceSettings,
         string? effectiveMacroId,
         SolverOverrideMode effectiveSolverOverride,
+        bool useAllHQByDefault,
         bool forcePreferNQ)
     {
-        RecipeCraftSettings? settings = sourceSettings?.Clone();
-        if (settings == null && (effectiveMacroId != null || effectiveSolverOverride != SolverOverrideMode.Default || forcePreferNQ))
+        var settings = CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe, sourceSettings, useAllHQByDefault, forcePreferNQ);
+        if (settings == null && (effectiveMacroId != null || effectiveSolverOverride != SolverOverrideMode.Default))
             settings = new RecipeCraftSettings();
 
         if (settings == null)
@@ -77,16 +85,11 @@ public static class CraftingListQueueBuilder
 
         settings.SelectedMacroId = effectiveMacroId;
         settings.SolverOverride = effectiveSolverOverride;
-        if (forcePreferNQ)
-        {
-            settings.UseAllNQ = true;
-            settings.IngredientPreferences.Clear();
-        }
 
         return settings;
     }
 
-    private static (string? MacroId, SolverOverrideMode SolverOverride) ResolveEffectiveMacroSelection(RecipeCraftSettings? settings, bool isPrecraft, CraftingListDefinition list)
+    internal static (string? MacroId, SolverOverrideMode SolverOverride) ResolveEffectiveMacroSelection(RecipeCraftSettings? settings, bool isPrecraft, CraftingListDefinition list)
     {
         var isSpecific = settings != null
             && (settings.MacroMode == MacroOverrideMode.Specific

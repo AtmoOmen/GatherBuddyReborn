@@ -40,3 +40,12 @@ No Plugins will be installed, you have just made them available. You can now sel
 ## Links
 
 [vnavmesh](https://github.com/awgil/ffxiv_navmesh) Required for automated navigation
+
+## Attribution and Acknowledgements
+
+GatherBuddyReborn and its various functions relies heavily on the original foundations of various individuals whom without their prior works GatherBuddyReborn would not be the utility it is today and in the future. These attributions are NOT implied as endorsements of GatherBuddyReborn. In alphabetical order:
+
+    - All of the contributors to Dalamud and FFXIVLauncher
+    - [Artisan](https://github.com/PunishXIV/Artisan): Taurenkey, pksage, Limiana, et al.
+    - [GatherBuddy](https://github.com/Ottermandias/GatherBuddy): Ottermandias, et al.
+    - [vnavmesh](https://github.com/awgil/ffxiv_navmesh): awgil, xanderscore, et al.

@@ -147,7 +147,10 @@ public partial class VulcanWindow
                 if (!GatherBuddy.CraftingListManager.SaveList(newList))
                     GatherBuddy.Log.Warning($"[VulcanWindow] Failed to save list '{newList.Name}' after adding {_newListRecipeName}");
                 else
+                {
+                    RaphaelAssessmentService.QueueWarmupForAddedListRecipe(_newListRecipeId.Value, newList);
                     GatherBuddy.Log.Information($"[VulcanWindow] Created list '{newList.Name}' and added {_newListRecipeName}");
+                }
             }
 
             OpenCraftingList(newList);

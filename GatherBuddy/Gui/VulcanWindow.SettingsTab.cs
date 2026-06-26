@@ -47,9 +47,9 @@ public partial class VulcanWindow
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
             if (ImGui.BeginCombo("求解器模式###SolverMode", modeNames[safeModeIndex]))
             {
-                if (ImGui.Selectable("纯 Raphael", currentMode == RaphaelSolverMode.PureRaphael))
+                if (ImGui.Selectable("纯 Raphael", currentMode == VulcanSolverMode.PureRaphael))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.PureRaphael;
+                    raphaelConfig.SolverMode = VulcanSolverMode.PureRaphael;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }
@@ -61,9 +61,9 @@ public partial class VulcanWindow
                     ImGui.EndTooltip();
                 }
 
-                if (ImGui.Selectable("标准求解器", currentMode == RaphaelSolverMode.StandardSolver))
+                if (ImGui.Selectable("标准求解器", currentMode == VulcanSolverMode.StandardSolver))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.StandardSolver;
+                    raphaelConfig.SolverMode = VulcanSolverMode.StandardSolver;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }
@@ -75,9 +75,9 @@ public partial class VulcanWindow
                     ImGui.EndTooltip();
                 }
 
-                if (ImGui.Selectable("仅推进度", currentMode == RaphaelSolverMode.ProgressOnly))
+                if (ImGui.Selectable("仅推进度", currentMode == VulcanSolverMode.ProgressOnly))
                 {
-                    raphaelConfig.SolverMode = RaphaelSolverMode.ProgressOnly;
+                    raphaelConfig.SolverMode = VulcanSolverMode.ProgressOnly;
                     GatherBuddy.Config.Save();
                     CraftingGameInterop.ReloadSolvers();
                 }

@@ -213,7 +213,8 @@ public static class CraftingListPlanner
                 ? _originalRecipeLookup.GetValueOrDefault(recipe.RowId)?.CraftSettings
                 : _list.PrecraftCraftSettings.GetValueOrDefault(recipe.RowId);
             var overrideMode = _list.GetQualityOverrideMode(recipe, isOriginalRecipe);
-            return CraftingQualityPolicyResolver.Resolve(recipe, settings, overrideMode);
+            var effectiveSettings = CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe, settings, _list.UseAllHQ);
+            return CraftingQualityPolicyResolver.Resolve(recipe, effectiveSettings, overrideMode);
         }
 
         private static void AddRecipe(List<CraftingListItem> target, uint recipeId, int craftCount, bool isOriginalRecipe)

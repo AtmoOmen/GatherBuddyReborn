@@ -214,13 +214,14 @@ public class RecipeCraftSettingsPopup
         
         if (!_isOpen) return;
         
-        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 0f), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 450f), ImGuiCond.Appearing);
         
-        if (ImGui.Begin($"制作设置 - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.Begin($"制作设置 - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen))
         {
             RefreshValidationIfNeeded();
             DrawMacroSelector();
             DrawMacroValidationStatus();
+            DrawRaphaelValidationStatus();
             DrawFoodSelector();
             DrawMedicineSelector();
             DrawManualSelector();
@@ -235,70 +236,25 @@ public class RecipeCraftSettingsPopup
                 if (!string.IsNullOrEmpty(_resolvedMacroId))
                     MacroValidator.Invalidate(_recipeId, _resolvedMacroId);
                 SaveIngredientPreferences();
-                
                 if (_editingListItem != null && _editingList != null)
                 {
-                    if (_editingSettings.HasAnySettings())
-                    {
-                        _editingListItem.CraftSettings = new RecipeCraftSettings
-                        {
-                            FoodMode = _editingSettings.FoodMode,
-                            FoodItemId = _editingSettings.FoodMode == ConsumableOverrideMode.Specific ? _editingSettings.FoodItemId : null,
-                            FoodHQ = _editingSettings.FoodMode == ConsumableOverrideMode.Specific ? _editingSettings.FoodHQ : false,
-                            MedicineMode = _editingSettings.MedicineMode,
-                            MedicineItemId = _editingSettings.MedicineMode == ConsumableOverrideMode.Specific ? _editingSettings.MedicineItemId : null,
-                            MedicineHQ = _editingSettings.MedicineMode == ConsumableOverrideMode.Specific ? _editingSettings.MedicineHQ : false,
-                            ManualMode = _editingSettings.ManualMode,
-                            ManualItemId = _editingSettings.ManualMode == ConsumableOverrideMode.Specific ? _editingSettings.ManualItemId : null,
-                            SquadronManualMode = _editingSettings.SquadronManualMode,
-                            SquadronManualItemId = _editingSettings.SquadronManualMode == ConsumableOverrideMode.Specific ? _editingSettings.SquadronManualItemId : null,
-                            IngredientPreferences = new Dictionary<uint, int>(_editingSettings.IngredientPreferences),
-                            UseAllNQ = _editingSettings.UseAllNQ,
-                            MacroMode = _editingSettings.MacroMode,
-                            SelectedMacroId = _editingSettings.MacroMode == MacroOverrideMode.Specific ? _editingSettings.SelectedMacroId : null,
-                            SolverOverride = _editingSettings.MacroMode == MacroOverrideMode.Specific ? _editingSettings.SolverOverride : SolverOverrideMode.Default,
-                        };
-                    }
-                    else
-                    {
-                        _editingListItem.CraftSettings = null;
-                    }
+                    _editingListItem.CraftSettings = BuildPersistedSettings();
                     _editingListItem.IngredientPreferences.Clear();
                     GatherBuddy.CraftingListManager.SaveList(_editingList);
                 }
                 else if (_isPrecraftMode && _editingList != null)
                 {
-                    _editingList.SetPrecraftCraftSettings(_recipeId, _editingSettings.HasAnySettings() ? new RecipeCraftSettings
-                    {
-                        FoodMode = _editingSettings.FoodMode,
-                        FoodItemId = _editingSettings.FoodMode == ConsumableOverrideMode.Specific ? _editingSettings.FoodItemId : null,
-                        FoodHQ = _editingSettings.FoodMode == ConsumableOverrideMode.Specific ? _editingSettings.FoodHQ : false,
-                        MedicineMode = _editingSettings.MedicineMode,
-                        MedicineItemId = _editingSettings.MedicineMode == ConsumableOverrideMode.Specific ? _editingSettings.MedicineItemId : null,
-                        MedicineHQ = _editingSettings.MedicineMode == ConsumableOverrideMode.Specific ? _editingSettings.MedicineHQ : false,
-                        ManualMode = _editingSettings.ManualMode,
-                        ManualItemId = _editingSettings.ManualMode == ConsumableOverrideMode.Specific ? _editingSettings.ManualItemId : null,
-                        SquadronManualMode = _editingSettings.SquadronManualMode,
-                        SquadronManualItemId = _editingSettings.SquadronManualMode == ConsumableOverrideMode.Specific ? _editingSettings.SquadronManualItemId : null,
-                        IngredientPreferences = new Dictionary<uint, int>(_editingSettings.IngredientPreferences),
-                        UseAllNQ = _editingSettings.UseAllNQ,
-                        MacroMode = _editingSettings.MacroMode,
-                        SelectedMacroId = _editingSettings.MacroMode == MacroOverrideMode.Specific ? _editingSettings.SelectedMacroId : null,
-                        SolverOverride = _editingSettings.MacroMode == MacroOverrideMode.Specific ? _editingSettings.SolverOverride : SolverOverrideMode.Default,
-                    } : null);
+                    _editingList.SetPrecraftCraftSettings(_recipeId, BuildPersistedSettings());
                     GatherBuddy.CraftingListManager.SaveList(_editingList);
                 }
                 else
                 {
-                    _editingSettings.FoodMode = _editingSettings.FoodItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
-                    _editingSettings.MedicineMode = _editingSettings.MedicineItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
-                    _editingSettings.ManualMode = _editingSettings.ManualItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
-                    _editingSettings.SquadronManualMode = _editingSettings.SquadronManualItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
+                    _editingSettings = BuildPersistedSettings() ?? new RecipeCraftSettings();
                     GatherBuddy.RecipeBrowserSettings.Set(_recipeId, _editingSettings);
                     GatherBuddy.RecipeBrowserSettings.Save();
                 }
+                QueueCurrentRaphaelWarmup();
                 OnSaved?.Invoke();
-                _isOpen = false;
             }
 
             ImGui.SameLine();
@@ -322,8 +278,8 @@ public class RecipeCraftSettingsPopup
                     GatherBuddy.RecipeBrowserSettings.Remove(_recipeId);
                     GatherBuddy.RecipeBrowserSettings.Save();
                 }
+                QueueCurrentRaphaelWarmup();
                 OnSaved?.Invoke();
-                _isOpen = false;
             }
 
             ImGui.SameLine();
@@ -352,6 +308,159 @@ public class RecipeCraftSettingsPopup
         _macroSearch                  = string.Empty;
     }
 
+    private RecipeCraftSettings BuildCurrentSettings()
+    {
+        var settings = _editingSettings.Clone();
+        if (_editingListItem == null && !_isPrecraftMode)
+        {
+            settings.FoodMode = settings.FoodItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
+            settings.MedicineMode = settings.MedicineItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
+            settings.ManualMode = settings.ManualItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
+            settings.SquadronManualMode = settings.SquadronManualItemId.HasValue ? ConsumableOverrideMode.Specific : ConsumableOverrideMode.Inherit;
+        }
+
+        return settings;
+    }
+
+    private RecipeCraftSettings GetSettingsForEvaluation()
+    {
+        var settings = BuildCurrentSettings();
+        var recipe = RecipeManager.GetRecipe(_recipeId);
+        if (_editingList == null || !recipe.HasValue)
+            return settings;
+
+        return CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe.Value, settings, _editingList.UseAllHQ) ?? settings;
+    }
+
+    private RecipeCraftSettings? BuildPersistedSettings()
+    {
+        var settings = BuildCurrentSettings();
+        if (_editingListItem == null && !_isPrecraftMode)
+            settings.MacroMode = MacroOverrideMode.Specific;
+
+        if (!settings.HasAnySettings())
+            return null;
+
+        return new RecipeCraftSettings
+        {
+            FoodMode = settings.FoodMode,
+            FoodItemId = settings.FoodMode == ConsumableOverrideMode.Specific ? settings.FoodItemId : null,
+            FoodHQ = settings.FoodMode == ConsumableOverrideMode.Specific && settings.FoodItemId.HasValue && settings.FoodHQ,
+            MedicineMode = settings.MedicineMode,
+            MedicineItemId = settings.MedicineMode == ConsumableOverrideMode.Specific ? settings.MedicineItemId : null,
+            MedicineHQ = settings.MedicineMode == ConsumableOverrideMode.Specific && settings.MedicineItemId.HasValue && settings.MedicineHQ,
+            ManualMode = settings.ManualMode,
+            ManualItemId = settings.ManualMode == ConsumableOverrideMode.Specific ? settings.ManualItemId : null,
+            SquadronManualMode = settings.SquadronManualMode,
+            SquadronManualItemId = settings.SquadronManualMode == ConsumableOverrideMode.Specific ? settings.SquadronManualItemId : null,
+            IngredientPreferences = new Dictionary<uint, int>(settings.IngredientPreferences),
+            UseAllNQ = settings.UseAllNQ,
+            MacroMode = settings.MacroMode,
+            SelectedMacroId = settings.MacroMode == MacroOverrideMode.Specific ? settings.SelectedMacroId : null,
+            SolverOverride = settings.MacroMode == MacroOverrideMode.Specific ? settings.SolverOverride : SolverOverrideMode.Default,
+        };
+    }
+
+    private RaphaelAssessment GetRaphaelAssessment()
+    {
+        var evaluationSettings = GetSettingsForEvaluation();
+        if (_isPrecraftMode && _editingList != null)
+        {
+            if (RaphaelAssessmentService.TryAssessListPrecraft(_recipeId, _editingList, evaluationSettings, out var precraftAssessment))
+                return precraftAssessment;
+        }
+        else if (_editingList != null)
+        {
+            if (RaphaelAssessmentService.TryAssessListRecipe(_recipeId, _editingList, evaluationSettings, out var listAssessment))
+                return listAssessment;
+        }
+        else if (RaphaelAssessmentService.TryAssessRecipe(_recipeId, evaluationSettings, out var recipeAssessment))
+        {
+            return recipeAssessment;
+        }
+
+        return new RaphaelAssessment(
+            RaphaelAssessmentState.Unavailable,
+            RaphaelAssessmentOutcome.None,
+            "Raphael validation is unavailable.",
+            "No usable stats are available for this recipe.");
+    }
+
+    private bool UsesRaphaelSolverForEdit()
+    {
+        if (_editingList == null)
+        {
+            var recipe = RecipeManager.GetRecipe(_recipeId);
+            if (!recipe.HasValue)
+                return true;
+
+            var item = new CraftingListItem(_recipeId, 1)
+            {
+                IsOriginalRecipe = true,
+                CraftSettings = GetSettingsForEvaluation(),
+            };
+            var recipeExecutionContext = CraftingContextResolver.ResolveExecutionContext(item, recipe.Value, null);
+            return CraftingContextResolver.UsesRaphaelSolver(recipeExecutionContext);
+        }
+
+        if (_editingListItem != null)
+        {
+            return !CraftingContextResolver.TryResolveListExecutionContext(_editingList, _editingListItem, GetSettingsForEvaluation(), out var itemExecutionContext)
+                || CraftingContextResolver.UsesRaphaelSolver(itemExecutionContext);
+        }
+
+        return !CraftingContextResolver.TryResolveListExecutionContext(_editingList, _recipeId, !_isPrecraftMode, GetSettingsForEvaluation(), out var listExecutionContext)
+            || CraftingContextResolver.UsesRaphaelSolver(listExecutionContext);
+    }
+
+    private void DrawRaphaelValidationStatus()
+    {
+        SaveIngredientPreferences();
+        if (!UsesRaphaelSolverForEdit())
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "Raphael: 当前求解器未启用");
+            return;
+        }
+        var assessment = GetRaphaelAssessment();
+        var color = assessment.State switch
+        {
+            RaphaelAssessmentState.Ready when assessment.Outcome is RaphaelAssessmentOutcome.FullQuality
+                or RaphaelAssessmentOutcome.CollectibleTier3
+                or RaphaelAssessmentOutcome.MinimumQualityMet
+                or RaphaelAssessmentOutcome.NoQualityRequired
+                => ImGuiColors.ParsedGreen,
+            RaphaelAssessmentState.Ready => ImGuiColors.DalamudYellow,
+            RaphaelAssessmentState.Generating => ImGuiColors.DalamudGrey,
+            RaphaelAssessmentState.Failed => ImGuiColors.DalamudRed,
+            RaphaelAssessmentState.Unavailable => ImGuiColors.DalamudYellow,
+            _ => ImGuiColors.DalamudGrey,
+        };
+
+        ImGui.Spacing();
+        ImGui.TextColored(color, $"Raphael: {assessment.Summary}");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(assessment.Details);
+    }
+
+    private void QueueCurrentRaphaelWarmup()
+    {
+        var persistedSettings = BuildPersistedSettings();
+        if (_isPrecraftMode && _editingList != null)
+        {
+            RaphaelAssessmentService.TryQueueWarmupForPrecraft(_recipeId, _editingList, persistedSettings);
+            return;
+        }
+
+        if (_editingList != null)
+        {
+            RaphaelAssessmentService.TryQueueWarmupForListRecipe(_recipeId, _editingList, persistedSettings);
+            return;
+        }
+
+        RaphaelAssessmentService.TryQueueWarmupForRecipe(_recipeId, persistedSettings);
+    }
+
     private string? ResolveEffectiveMacroIdForEdit()
     {
         if (_editingListItem == null && !_isPrecraftMode)
@@ -375,38 +484,38 @@ public class RecipeCraftSettingsPopup
     private void RefreshValidationIfNeeded()
     {
         SaveIngredientPreferences();
+        var evaluationSettings = GetSettingsForEvaluation();
         var macroId = ResolveEffectiveMacroIdForEdit();
         _resolvedMacroId = macroId;
         var listConsumables = _editingList?.Consumables;
-
-        var effectiveFoodId = _editingSettings.FoodMode switch
+        var effectiveFoodId = evaluationSettings.FoodMode switch
         {
-            ConsumableOverrideMode.Specific => _editingSettings.FoodItemId,
+            ConsumableOverrideMode.Specific => evaluationSettings.FoodItemId,
             ConsumableOverrideMode.Inherit  => listConsumables?.FoodItemId,
             _                               => null,
         };
-        var effectiveFoodHQ = _editingSettings.FoodMode switch
+        var effectiveFoodHQ = evaluationSettings.FoodMode switch
         {
-            ConsumableOverrideMode.Specific => _editingSettings.FoodHQ,
+            ConsumableOverrideMode.Specific => evaluationSettings.FoodHQ,
             ConsumableOverrideMode.Inherit  => listConsumables?.FoodHQ ?? false,
             _                               => false,
         };
-        var effectiveMedicineId = _editingSettings.MedicineMode switch
+        var effectiveMedicineId = evaluationSettings.MedicineMode switch
         {
-            ConsumableOverrideMode.Specific => _editingSettings.MedicineItemId,
+            ConsumableOverrideMode.Specific => evaluationSettings.MedicineItemId,
             ConsumableOverrideMode.Inherit  => listConsumables?.MedicineItemId,
             _                               => null,
         };
-        var effectiveMedicineHQ = _editingSettings.MedicineMode switch
+        var effectiveMedicineHQ = evaluationSettings.MedicineMode switch
         {
-            ConsumableOverrideMode.Specific => _editingSettings.MedicineHQ,
+            ConsumableOverrideMode.Specific => evaluationSettings.MedicineHQ,
             ConsumableOverrideMode.Inherit  => listConsumables?.MedicineHQ ?? false,
             _                               => false,
         };
 
         var recipe = RecipeManager.GetRecipe(_recipeId);
         var startingQuality = recipe.HasValue
-            ? CraftingQualityPolicyResolver.Resolve(recipe.Value, _editingSettings).CalculateGuaranteedInitialQuality(recipe.Value)
+            ? CraftingQualityPolicyResolver.Resolve(recipe.Value, evaluationSettings).CalculateGuaranteedInitialQuality(recipe.Value)
             : 0;
 
         if (macroId == _lastValidatedMacroId
@@ -431,7 +540,7 @@ public class RecipeCraftSettingsPopup
         }
 
         MacroValidator.Invalidate(_recipeId, macroId);
-        _validationResult = MacroValidator.GetOrCompute(_recipeId, macroId, _editingSettings, listConsumables);
+        _validationResult = MacroValidator.GetOrCompute(_recipeId, macroId, evaluationSettings, listConsumables);
         GatherBuddy.Log.Debug($"[RecipeCraftSettingsPopup] Validation refreshed: {(_validationResult == null ? "null" : _validationResult.IsValid ? "PASS" : $"FAIL ({_validationResult.Failure})")}");
     }
 
@@ -927,11 +1036,14 @@ public class RecipeCraftSettingsPopup
     private void LoadIngredients()
     {
         _ingredients.Clear();
-        _useAllNQ = _editingSettings.UseAllNQ;
-        
         var recipe = RecipeManager.GetRecipe(_recipeId);
         if (!recipe.HasValue)
             return;
+
+        var qualityDisplaySettings = _editingList != null
+            ? CraftingQualityPolicyResolver.BuildEffectiveSettings(recipe.Value, _editingSettings, _editingList.UseAllHQ) ?? _editingSettings.Clone()
+            : _editingSettings.Clone();
+        _useAllNQ = qualityDisplaySettings.UseAllNQ;
         
         var ingredients = RecipeManager.GetIngredients(recipe.Value);
         foreach (var (itemId, amount) in ingredients)
@@ -940,7 +1052,7 @@ public class RecipeCraftSettingsPopup
             if (item == null) continue;
             
             var (availNQ, availHQ) = GetInventoryCountSplit(itemId);
-            var desiredHQ = _editingSettings.IngredientPreferences.GetValueOrDefault(itemId, 0);
+            var desiredHQ = qualityDisplaySettings.IngredientPreferences.GetValueOrDefault(itemId, 0);
             var canBeHQ = item.Value.CanBeHq;
             
             _ingredients.Add(new IngredientData
@@ -965,6 +1077,16 @@ public class RecipeCraftSettingsPopup
                 _editingSettings.IngredientPreferences[ing.ItemId] = ing.DesiredHQ;
         }
         _editingSettings.UseAllNQ = _useAllNQ;
+
+        var recipe = RecipeManager.GetRecipe(_recipeId);
+        if (_editingList != null
+            && _editingList.UseAllHQ
+            && !_editingSettings.UseAllNQ
+            && recipe.HasValue
+            && CraftingQualityPolicyResolver.MatchesAllHQPreferences(recipe.Value, _editingSettings.IngredientPreferences))
+        {
+            _editingSettings.IngredientPreferences.Clear();
+        }
     }
     
     private int CalculateCurrentQuality(Recipe recipe)
@@ -1014,6 +1136,11 @@ public class RecipeCraftSettingsPopup
         ImGui.Checkbox("优先 NQ##ingredientNQ", ref _useAllNQ);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("默认使用 NQ 材料, 仅在 NQ 不足时回退到 HQ。\n下方按材料单独设置的 HQ 数量仍有效。");
+
+        if (_editingList != null && _editingList.UseAllHQ)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "清单默认全部 HQ。\n调整下方材料数量可覆盖此配方。");
+        }
         
         ImGui.Spacing();
         

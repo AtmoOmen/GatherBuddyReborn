@@ -358,7 +358,10 @@ public partial class GatherBuddy : IDalamudPlugin
         NativeItemTooltipBridge = null;
         //Wotsit?.Dispose();
         if (Interface != null)
+        {
             Dalamud.PluginInterface.UiBuilder.OpenConfigUi -= Interface.Toggle;
+            Dalamud.PluginInterface.UiBuilder.OpenMainUi -= Interface.Toggle;
+        }
         if (WindowSystem != null)
             Dalamud.PluginInterface.UiBuilder.Draw -= DrawUi;
         Interface?.Dispose();
@@ -379,3 +382,4 @@ public partial class GatherBuddy : IDalamudPlugin
         return list;
     }
 }
+

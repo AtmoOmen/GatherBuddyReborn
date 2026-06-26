@@ -29,6 +29,7 @@ public class CraftingListDefinition
     public bool QuickSynthAll { get; set; } = false;
     public bool QuickSynthAllPreferNQ { get; set; } = false;
     public bool QuickSynthAllPrecraftsOnly { get; set; } = false;
+    public bool UseAllHQ { get; set; } = false;
     public bool Materia { get; set; } = false;
     public bool Repair { get; set; } = false;
     public int RepairPercent { get; set; } = 50;
@@ -92,6 +93,7 @@ public class CraftingListDefinition
             QuickSynthAll = QuickSynthAll,
             QuickSynthAllPreferNQ = QuickSynthAllPreferNQ,
             QuickSynthAllPrecraftsOnly = QuickSynthAllPrecraftsOnly,
+            UseAllHQ = UseAllHQ,
             Materia = Materia,
             Repair = Repair,
             RepairPercent = RepairPercent,

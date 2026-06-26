@@ -59,6 +59,14 @@ public partial class VulcanWindow
             ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(220f));
             ImGui.InputTextWithHint("##solutionsSearch", "搜索物品...", ref _solutionsSearch, 128);
             ImGui.SameLine();
+            using (ImRaii.Disabled(coordinator.PendingSolves <= 0))
+            {
+                if (ImGui.Button("停止队列", VulcanUiScaling.Scaled(90f, 0f)))
+                    coordinator.CancelAllPendingSolves();
+            }
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("取消排队中和活动中的 Raphael 求解，保留已缓存的方案。");
+            ImGui.SameLine();
             if (ImGui.Button("全部清空", VulcanUiScaling.Scaled(90f, 0f)))
             {
                 coordinator.Clear();
