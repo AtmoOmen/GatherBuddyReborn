@@ -376,7 +376,7 @@ public static class RaphaelAssessmentService
         var progressPercent = craft.CraftProgress <= 0 ? 0f : finalStep.Progress * 100f / craft.CraftProgress;
         var qualityPercent = craft.CraftQualityMax <= 0 ? 0f : finalStep.Quality * 100f / craft.CraftQualityMax;
         var summary = BuildReadySummary(outcome, qualityPercent);
-        var details = $"Progress {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), Quality {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%), Steps {solution.ActionIds.Count}.";
+        var details = $"进度 {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%)，品质 {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%)，步骤 {solution.ActionIds.Count}。";
 
         return new RaphaelAssessment(
             RaphaelAssessmentState.Ready,
@@ -437,22 +437,22 @@ public static class RaphaelAssessmentService
     private static string BuildReadySummary(RaphaelAssessmentOutcome outcome, float qualityPercent)
         => outcome switch
         {
-            RaphaelAssessmentOutcome.FullQuality => "Validated — completes with full quality and progress.",
-            RaphaelAssessmentOutcome.CollectibleTier3 => "Validated — reaches collectible tier 3.",
-            RaphaelAssessmentOutcome.CollectibleTier2 => "Validated — reaches collectible tier 2.",
-            RaphaelAssessmentOutcome.CollectibleTier1 => "Validated — reaches collectible tier 1.",
-            RaphaelAssessmentOutcome.MinimumQualityMet => "Validated — meets the required quality target.",
-            RaphaelAssessmentOutcome.NoQualityRequired => "Validated — completes progress. No quality target is required.",
-            RaphaelAssessmentOutcome.PartialQuality => $"Validated — completes progress at {qualityPercent:F0}% quality.",
-            RaphaelAssessmentOutcome.FailedDurability => "Raphael generated a solve, but simulation fails on durability.",
-            RaphaelAssessmentOutcome.FailedQualityRequirement => "Raphael generated a solve, but simulation misses the quality target.",
-            RaphaelAssessmentOutcome.Incomplete => "Raphael generated a solve, but simulation does not finish the craft.",
-            _ => "Raphael validation is ready.",
+            RaphaelAssessmentOutcome.FullQuality => "验证通过 — 满品质满进度完成。",
+            RaphaelAssessmentOutcome.CollectibleTier3 => "验证通过 — 达到收藏品第 3 档。",
+            RaphaelAssessmentOutcome.CollectibleTier2 => "验证通过 — 达到收藏品第 2 档。",
+            RaphaelAssessmentOutcome.CollectibleTier1 => "验证通过 — 达到收藏品第 1 档。",
+            RaphaelAssessmentOutcome.MinimumQualityMet => "验证通过 — 满足所需品质目标。",
+            RaphaelAssessmentOutcome.NoQualityRequired => "验证通过 — 完成进度，无需品质目标。",
+            RaphaelAssessmentOutcome.PartialQuality => $"验证通过 — 以 {qualityPercent:F0}% 品质完成制作。",
+            RaphaelAssessmentOutcome.FailedDurability => "Raphael 已生成方案，但模拟因耐久度不足失败。",
+            RaphaelAssessmentOutcome.FailedQualityRequirement => "Raphael 已生成方案，但模拟未达到品质目标。",
+            RaphaelAssessmentOutcome.Incomplete => "Raphael 已生成方案，但模拟未完成整个制作。",
+            _ => "Raphael 验证已就绪。",
         };
 
     private static bool TryGetRecipe(uint recipeId, out Recipe recipe, out RaphaelAssessment assessment)
     {
-        assessment = CreateUnavailableAssessment(recipeId, null, "Recipe data could not be resolved.");
+        assessment = CreateUnavailableAssessment(recipeId, null, "配方数据无法解析。");
         var resolved = RecipeManager.GetRecipe(recipeId);
         if (!resolved.HasValue)
         {
@@ -488,15 +488,15 @@ public static class RaphaelAssessmentService
         => new(
             RaphaelAssessmentState.NotApplicable,
             RaphaelAssessmentOutcome.None,
-            "Raphael validation is not needed for this recipe.",
-            "This recipe has no quality breakpoint to validate.",
+            "此配方无需 Raphael 验证。",
+            "该配方没有需要验证的品质分界点。",
             request ?? new RaphaelSolveRequest(recipeId, 0, 0, 0, 0, false, false, 0));
 
     private static RaphaelAssessment CreateUnavailableAssessment(uint recipeId, RaphaelSolveRequest? request, string details)
         => new(
             RaphaelAssessmentState.Unavailable,
             RaphaelAssessmentOutcome.None,
-            "Raphael validation is unavailable.",
+            "Raphael 验证不可用。",
             details,
             request ?? new RaphaelSolveRequest(recipeId, 0, 0, 0, 0, false, false, 0));
 }
