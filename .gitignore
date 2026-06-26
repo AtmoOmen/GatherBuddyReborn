@@ -5,3 +5,5 @@ obj/
 SecretKeys.generated.cs
 .vscode/
 GatherBuddy/raphael-rs/
+.reasonix
+.codegraph
