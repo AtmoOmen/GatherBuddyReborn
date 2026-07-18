@@ -125,11 +125,16 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Refresh Gearset", VulcanUiScaling.Scaled(150f, 0f)))
+        if (ImGui.Button("Update Saved Gearset", VulcanUiScaling.Scaled(170f, 0f)))
         {
-            GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
-            _debugLastTestResult = "Gearset refreshed from currently equipped items";
+            var refreshResult = GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
+            var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
+            _debugLastTestResult = stats != null
+                ? $"{refreshResult} Current read: Craftsmanship={stats.Craftsmanship}, Control={stats.Control}, CP={stats.CP}, Manipulation={stats.Manipulation}"
+                : refreshResult;
         }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Updates the selected job's saved gearset from your currently equipped items. You must be on that job.");
 
         if (_debugLastTestResult != null)
         {
