@@ -488,14 +488,13 @@ public class CraftingTreeWindow : Window
                 var subCraftCount = subRecipeYield > 0
                     ? (int)Math.Ceiling((double)totalNeeded / subRecipeYield)
                     : totalNeeded;
-                var producedItems = subCraftCount * Math.Max(subRecipeYield, 1);
                 var child = new TreeNode
                 {
                     NodeId       = nextId++,
                     ItemId       = ingredientItemId,
                     IconId       = ingItem.Icon,
                     ItemName     = ingItem.Name.ExtractText(),
-                    Quantity     = producedItems,
+                    Quantity     = totalNeeded,
                     CraftCount   = subCraftCount,
                     RecipeYield  = subRecipeYield,
                     IsCraft      = true,

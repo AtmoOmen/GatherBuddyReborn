@@ -160,6 +160,11 @@ public static unsafe class GearsetStatsReader
             return true;
         }
 
+        return TryResolveExistingGearsetIndex(gearsetModule, jobId, out gearsetIndex);
+    }
+
+    internal static bool TryResolveExistingGearsetIndex(RaptureGearsetModule* gearsetModule, uint jobId, out int gearsetIndex)
+    {
         for (int i = 0; i < 100; i++)
         {
             if (!IsMatchingGearset(gearsetModule, i, jobId))
@@ -169,6 +174,7 @@ public static unsafe class GearsetStatsReader
             return true;
         }
 
+        gearsetIndex = -1;
         return false;
     }
 
