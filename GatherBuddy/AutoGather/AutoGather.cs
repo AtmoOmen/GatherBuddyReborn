@@ -753,6 +753,7 @@ namespace GatherBuddy.AutoGather
             {
                 if (!GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
                 {
+                    GatherBuddy.Log.Warning("[AutoGather] Fishing data collection opt-in is disabled. Enable fishing data collection in configuration or remove fish from auto-gather lists.");
                     Communicator.PrintError(
                         "You have fish on your auto-gather list but you have not opted in to fishing data collection. Auto-gather cannot continue. Please enable fishing data collection in your configuration options or remove fish from your auto-gather lists.");
                     AbortAutoGather();

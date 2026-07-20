@@ -375,8 +375,11 @@ public static class RaphaelAssessmentService
         var qualityTarget = ResolveQualityTarget(craft, outcome);
         var progressPercent = craft.CraftProgress <= 0 ? 0f : finalStep.Progress * 100f / craft.CraftProgress;
         var qualityPercent = craft.CraftQualityMax <= 0 ? 0f : finalStep.Quality * 100f / craft.CraftQualityMax;
-        var summary = BuildReadySummary(outcome, qualityPercent);
-        var details = $"Progress {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), Quality {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%), Steps {solution.ActionIds.Count}.";
+        var hqChance = Calculations.GetHQChance(qualityPercent);
+        var summary = BuildReadySummary(outcome, hqChance);
+        var details = outcome == RaphaelAssessmentOutcome.PartialQuality
+            ? $"Progress {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), Quality {finalStep.Quality}/{craft.CraftQualityMax}, HQ Chance {hqChance}%, Steps {solution.ActionIds.Count}."
+            : $"Progress {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), Quality {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%), Steps {solution.ActionIds.Count}.";
 
         return new RaphaelAssessment(
             RaphaelAssessmentState.Ready,
@@ -434,7 +437,7 @@ public static class RaphaelAssessmentService
             _ => 0,
         };
 
-    private static string BuildReadySummary(RaphaelAssessmentOutcome outcome, float qualityPercent)
+    private static string BuildReadySummary(RaphaelAssessmentOutcome outcome, int hqChance)
         => outcome switch
         {
             RaphaelAssessmentOutcome.FullQuality => "Validated — completes with full quality and progress.",
@@ -443,7 +446,7 @@ public static class RaphaelAssessmentService
             RaphaelAssessmentOutcome.CollectibleTier1 => "Validated — reaches collectible tier 1.",
             RaphaelAssessmentOutcome.MinimumQualityMet => "Validated — meets the required quality target.",
             RaphaelAssessmentOutcome.NoQualityRequired => "Validated — completes progress. No quality target is required.",
-            RaphaelAssessmentOutcome.PartialQuality => $"Validated — completes progress at {qualityPercent:F0}% quality.",
+            RaphaelAssessmentOutcome.PartialQuality => $"Validated — completes progress at {hqChance}% HQ chance.",
             RaphaelAssessmentOutcome.FailedDurability => "Raphael generated a solve, but simulation fails on durability.",
             RaphaelAssessmentOutcome.FailedQualityRequirement => "Raphael generated a solve, but simulation misses the quality target.",
             RaphaelAssessmentOutcome.Incomplete => "Raphael generated a solve, but simulation does not finish the craft.",
