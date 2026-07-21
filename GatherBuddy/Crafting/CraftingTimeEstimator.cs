@@ -21,14 +21,14 @@ public static class CraftingTimeEstimator
         if (queue.Count == 0 || fromIndex >= queue.Count)
             return 0;
 
-        var actionDelayMs = ActionExecutionMs + GatherBuddy.Config.VulcanExecutionDelayMs;
+        var configuredActionDelayMs = GatherBuddy.Config.VulcanExecutionDelayMs;
         long total = 0;
         for (var i = fromIndex < 0 ? 0 : fromIndex; i < queue.Count; i++)
-            total += EstimateItemMs(queue[i], actionDelayMs, listConsumables);
+            total += EstimateItemMs(queue[i], configuredActionDelayMs, listConsumables);
         return total;
     }
 
-    public static long EstimateItemMs(CraftingListItem item, int actionDelayMs, CraftingListConsumableSettings? listConsumables = null)
+    public static long EstimateItemMs(CraftingListItem item, int configuredActionDelayMs, CraftingListConsumableSettings? listConsumables = null)
     {
         var recipe = RecipeManager.GetRecipe(item.RecipeId);
         CraftingExecutionContext? executionContext = null;
@@ -40,7 +40,8 @@ public static class CraftingTimeEstimator
         }
 
         var actions = ResolveActionCount(item, recipe, executionContext, listConsumables);
-        return (long)actions * actionDelayMs + CraftOverheadMs;
+        var estimatedActionDurationMs = ActionExecutionMs + configuredActionDelayMs;
+        return (long)actions * estimatedActionDurationMs + CraftOverheadMs;
     }
 
     private static int ResolveActionCount(

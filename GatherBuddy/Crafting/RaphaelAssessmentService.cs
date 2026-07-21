@@ -306,7 +306,8 @@ public static class RaphaelAssessmentService
         if (!CraftingContextResolver.TryBuildSimulationContext(
                 recipe,
                 executionContext,
-                CraftingStatsSource.PreferCurrentJobStats,
+                CraftingStatsSource.AlwaysGearsetStats,
+                CraftingSimulationIntent.ValidatorPreview,
                 out context))
         {
             GatherBuddy.Log.Debug($"[RaphaelAssessment] Failed to build simulation context for recipe {recipe.RowId}");
