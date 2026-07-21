@@ -12,6 +12,12 @@ public enum CraftingStatsSource
     AlwaysGearsetStats,
 }
 
+public enum CraftingSimulationIntent
+{
+    Execution,
+    ValidatorPreview,
+}
+
 public sealed record CraftingExecutionContext(
     RecipeCraftSettings? ConsumableSettings,
     CraftingQualityPolicy QualityPolicy,
@@ -160,7 +166,7 @@ public static class CraftingContextResolver
         out CraftingSimulationContext context)
     {
         var executionContext = ResolveExecutionContext(item, recipe, listConsumables);
-        return TryBuildSimulationContext(recipe, executionContext, statsSource, out context);
+        return TryBuildSimulationContext(recipe, executionContext, statsSource, CraftingSimulationIntent.Execution, out context);
     }
 
     public static bool TryBuildSimulationContext(
@@ -168,17 +174,28 @@ public static class CraftingContextResolver
         CraftingExecutionContext executionContext,
         CraftingStatsSource statsSource,
         out CraftingSimulationContext context)
+        => TryBuildSimulationContext(recipe, executionContext, statsSource, CraftingSimulationIntent.Execution, out context);
+
+    public static bool TryBuildSimulationContext(
+        Recipe recipe,
+        CraftingExecutionContext executionContext,
+        CraftingStatsSource statsSource,
+        CraftingSimulationIntent intent,
+        out CraftingSimulationContext context)
     {
         context = null!;
 
         var requiredJob = (uint)(recipe.CraftType.RowId + 8);
-        var stats = ResolvePlayerStats(requiredJob, executionContext.ConsumableSettings, statsSource);
+        var stats = ResolvePlayerStats(requiredJob, executionContext.ConsumableSettings, statsSource, intent);
         if (stats == null)
             return false;
 
         var initialQuality = executionContext.QualityPolicy.CalculateGuaranteedInitialQuality(recipe);
         var craft = GameStateBuilder.BuildCraftState(CraftingStateBuilder.BuildRecipeInfo(recipe), stats) with { InitialQuality = initialQuality };
-        var request = RaphaelSolveRequest.FromCraftState(craft, GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions);
+        var validationContext = intent == CraftingSimulationIntent.ValidatorPreview
+            ? BuildValidatorPreviewContext(executionContext.ConsumableSettings)
+            : null;
+        var request = RaphaelSolveRequest.FromCraftState(craft, GatherBuddy.Config.RaphaelSolverConfig.RaphaelAllowSpecialistActions, validationContext);
         context = new(executionContext, stats, craft, request);
         return true;
     }
@@ -253,8 +270,21 @@ public static class CraftingContextResolver
         };
     }
 
-    private static GameStateBuilder.PlayerStats? ResolvePlayerStats(uint requiredJob, RecipeCraftSettings? consumableSettings, CraftingStatsSource statsSource)
+    private static GameStateBuilder.PlayerStats? ResolvePlayerStats(
+        uint requiredJob,
+        RecipeCraftSettings? consumableSettings,
+        CraftingStatsSource statsSource,
+        CraftingSimulationIntent intent)
     {
+        if (intent == CraftingSimulationIntent.ValidatorPreview)
+        {
+            var stats = GearsetStatsReader.ReadGearsetStatsForJob(requiredJob);
+            var previewConsumables = ConsumableChecker.GetValidatorPreviewCraftStatConsumables(consumableSettings);
+            if (stats != null && previewConsumables != null)
+                stats = GearsetStatsReader.ApplyConsumablesToStats(stats, previewConsumables);
+            return stats;
+        }
+
         if (statsSource == CraftingStatsSource.AlwaysGearsetStats)
         {
             var stats = GearsetStatsReader.ReadGearsetStatsForJob(requiredJob);
@@ -280,6 +310,9 @@ public static class CraftingContextResolver
             gearsetStats = GearsetStatsReader.ApplyConsumablesToStats(gearsetStats, projected);
         return gearsetStats;
     }
+
+    private static string BuildValidatorPreviewContext(RecipeCraftSettings? settings)
+        => $"validator:{settings?.FoodItemId ?? 0}:{(settings?.FoodHQ == true ? 1 : 0)}:{settings?.MedicineItemId ?? 0}:{(settings?.MedicineHQ == true ? 1 : 0)}";
 
     private static bool TryCreateListSourceItem(CraftingListDefinition list, uint recipeId, bool isOriginalRecipe, out CraftingListItem item)
     {

@@ -12,6 +12,13 @@ public enum CraftingQualityOverrideMode
     RequireNQOnly,
 }
 
+public enum PlannedOutputQuality
+{
+    Unknown,
+    NQ,
+    HQ,
+}
+
 public readonly record struct IngredientQualityDemand(int RequiredHQ, int RequiredNQ, int PreferHQ, int PreferNQ)
 {
     public int Total
@@ -192,6 +199,23 @@ public sealed class CraftingQualityPolicy
 
 public static class CraftingQualityPolicyResolver
 {
+    public static PlannedOutputQuality ResolvePlannedOutputQuality(
+        Recipe recipe,
+        CraftingQualityPolicy qualityPolicy,
+        IngredientQualityDemand demand)
+    {
+        if (demand.RequiredHQ > 0 && demand.RequiredNQ == 0)
+            return PlannedOutputQuality.HQ;
+
+        if (demand.RequiredNQ > 0
+            && demand.RequiredHQ == 0
+            && recipe.CanQuickSynth
+            && qualityPolicy.OverrideMode == CraftingQualityOverrideMode.RequireNQOnly)
+            return PlannedOutputQuality.NQ;
+
+        return PlannedOutputQuality.Unknown;
+    }
+
     public static bool HasExplicitQualitySettings(RecipeCraftSettings? settings)
         => settings?.UseAllNQ == true || (settings?.IngredientPreferences.Count ?? 0) > 0;
 

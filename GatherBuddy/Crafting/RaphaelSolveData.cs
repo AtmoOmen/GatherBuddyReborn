@@ -12,10 +12,11 @@ public record RaphaelSolveRequest(
     int CP,
     bool Manipulation,
     bool Specialist,
-    int InitialQuality = 0
+    int InitialQuality = 0,
+    string? ValidationContext = null
 )
 {
-    public static RaphaelSolveRequest FromCraftState(CraftState craft, bool allowSpecialistActions)
+    public static RaphaelSolveRequest FromCraftState(CraftState craft, bool allowSpecialistActions, string? validationContext = null)
         => new(
             RecipeId: craft.RecipeId,
             Level: craft.StatLevel,
@@ -24,12 +25,14 @@ public record RaphaelSolveRequest(
             CP: craft.StatCP,
             Manipulation: craft.UnlockedManipulation,
             Specialist: allowSpecialistActions && craft.Specialist,
-            InitialQuality: craft.InitialQuality
+            InitialQuality: craft.InitialQuality,
+            ValidationContext: validationContext
         );
 
     public string GetKey()
     {
-        return $"{RecipeId}/{Level}/{Craftsmanship}/{Control}/{CP}/{(Manipulation ? "1" : "0")}/{(Specialist ? "1" : "0")}/{InitialQuality}";
+        var key = $"{RecipeId}/{Level}/{Craftsmanship}/{Control}/{CP}/{(Manipulation ? "1" : "0")}/{(Specialist ? "1" : "0")}/{InitialQuality}";
+        return string.IsNullOrEmpty(ValidationContext) ? key : $"{key}/{ValidationContext}";
     }
 }
 

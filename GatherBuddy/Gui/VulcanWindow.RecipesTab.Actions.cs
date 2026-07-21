@@ -24,14 +24,11 @@ public partial class VulcanWindow
                 return;
             }
 
-            for (int i = 0; i < 100; i++)
+            if (GearsetStatsReader.TryResolveExistingGearsetIndex(gearsetModule, requiredJobId, out var gearsetIndex))
             {
-                if (gearsetModule->Entries[i].ClassJob == requiredJobId)
-                {
-                    gearsetModule->EquipGearset(i);
-                    GatherBuddy.Log.Information($"[VulcanWindow] Switched to gearset {i} for job {requiredJobId}");
-                    return;
-                }
+                gearsetModule->EquipGearset(gearsetIndex);
+                GatherBuddy.Log.Information($"[VulcanWindow] Switched to gearset {gearsetIndex} for job {requiredJobId}");
+                return;
             }
 
             GatherBuddy.Log.Warning($"[VulcanWindow] No gearset found for job {requiredJobId}");

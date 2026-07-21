@@ -313,22 +313,22 @@ public class ContextMenu : IDisposable
         if (contextItemId.HasValue && GatherBuddy.VendorBuyListManager.CanAddSupportedItem(contextItemId.Value))
             _lastVendorBuyListItemId = contextItemId.Value;
 
-        var vEnabled = GatherBuddy.Config.VulcanContextMenuEntries;
-        _menuItemCrafting.IsEnabled      = vEnabled;
-        _menuItemVulcanRecipe.IsEnabled  = vEnabled;
-        _menuItemVendorBuyList.IsEnabled = vEnabled;
-
         if (_lastGatherable != null)
             args.AddMenuItem(_menuItem);
         if (_lastGatherable is Gatherable)
             args.AddMenuItem(_menuItemAuto);
-        if (_lastRecipeId.HasValue)
+        if (GatherBuddy.Config.VulcanContextMenuEntries && _lastRecipeId.HasValue)
         {
+            _menuItemCrafting.IsEnabled = true;
+            _menuItemVulcanRecipe.IsEnabled = true;
             args.AddMenuItem(_menuItemCrafting);
             args.AddMenuItem(_menuItemVulcanRecipe);
         }
-        if (_lastVendorBuyListItemId.HasValue)
+        if (GatherBuddy.Config.VulcanContextMenuEntries && _lastVendorBuyListItemId.HasValue)
+        {
+            _menuItemVendorBuyList.IsEnabled = true;
             args.AddMenuItem(_menuItemVendorBuyList);
+        }
     }
 
     private unsafe uint? GetRecipeIdFromContext(IMenuOpenedArgs args)
