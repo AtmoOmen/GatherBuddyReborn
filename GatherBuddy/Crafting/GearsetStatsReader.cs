@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using static FFXIVClientStructs.FFXIV.Client.Game.InventoryType;
+using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using GatherBuddy.Vulcan;
 
@@ -11,11 +12,64 @@ namespace GatherBuddy.Crafting;
 
 public static unsafe class GearsetStatsReader
 {
-    private static readonly uint[] StatParamIds = [70, 71, 11]; // Craftsmanship, Control, CP
+    private const uint CraftsmanshipParamId = 70;
+    private const uint ControlParamId = 71;
+    private const uint CpParamId = 11;
+    private const int CraftsmanshipIndex = 0;
+    private const int ControlIndex = 1;
+    private const int CpIndex = 2;
+    private const int StatCount = 3;
+    private const int MateriaSlotCount = 5;
+    private const int GearsetItemCount = 14;
+    private const int SpecialistSlotIndex = 13;
+    private const int BaseCp = 180;
+    private const int MaxEquipSlotCategoryId = 22;
 
-    public static void RefreshGearsetFromCurrentEquipped(uint jobId)
+    public static string RefreshGearsetFromCurrentEquipped(uint jobId)
     {
-        GatherBuddy.Log.Information($"[GearsetStatsReader] NOTE: To refresh gearset from saved file, switch to the job and back in-game, or reload the gearset via the UI. The gearset module will sync automatically.");
+        try
+        {
+            var currentJob = Dalamud.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
+            if (currentJob != jobId)
+            {
+                var message = "请先切换至所选职业, 再更新已保存的装备套装";
+                GatherBuddy.Log.Debug($"[GearsetStatsReader] {message}, 请求职业={jobId}, 当前职业={currentJob}");
+                return message;
+            }
+
+            var gearsetModule = RaptureGearsetModule.Instance();
+            if (gearsetModule == null)
+            {
+                GatherBuddy.Log.Warning("[GearsetStatsReader] 装备套装模块不可用, 无法更新装备套装");
+                return "装备套装模块不可用, 更新已保存的装备套装失败";
+            }
+
+            if (!TryResolveRefreshTarget(gearsetModule, jobId, out var gearsetIndex, out var usedCurrentGearset))
+            {
+                var message = "所选职业没有已保存的装备套装";
+                GatherBuddy.Log.Debug($"[GearsetStatsReader] {message}, 职业 ID={jobId}");
+                return message;
+            }
+
+            var updateResult = gearsetModule->UpdateGearset(gearsetIndex);
+            if (updateResult < 0)
+            {
+                GatherBuddy.Log.Warning($"[GearsetStatsReader] 更新职业 {jobId} 的装备套装 {gearsetIndex} 失败, 结果={updateResult}");
+                return $"更新已保存的装备套装 {gearsetIndex} 失败";
+            }
+
+            var targetDescription = usedCurrentGearset
+                ? $"当前启用的已保存装备套装 {gearsetIndex}"
+                : $"首个匹配的已保存装备套装 {gearsetIndex}";
+            var successMessage = $"已使用当前装备更新{targetDescription}";
+            GatherBuddy.Log.Information($"[GearsetStatsReader] {successMessage}");
+            return successMessage;
+        }
+        catch (Exception ex)
+        {
+            GatherBuddy.Log.Warning($"[GearsetStatsReader] 更新职业 {jobId} 的已保存装备套装失败: {ex.Message}");
+            return "更新已保存的装备套装失败";
+        }
     }
 
     private static GameStateBuilder.PlayerStats? ReadFromCurrentlyEquipped(uint jobId)
@@ -24,7 +78,7 @@ public static unsafe class GearsetStatsReader
         {
             var craftsmanship = 0;
             var control = 0;
-            var cp = 180;
+            var cp = BaseCp;
 
             var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
             var materiaSheet = Dalamud.GameData.GetExcelSheet<Materia>();
@@ -54,71 +108,27 @@ public static unsafe class GearsetStatsReader
 
                 if (!itemSheet.TryGetRow(actualItemId, out var item))
                     continue;
+                var baseStats = new int[StatCount];
+                var meldStats = new int[StatCount];
 
-                var baseParams = item.BaseParam;
-                var baseParamValues = item.BaseParamValue;
+                AccumulateBaseStats(item, isHQ, baseStats);
 
-                int idx = 0;
-                foreach (var paramRef in baseParams)
-                {
-                    var paramId = paramRef.RowId;
-                    var paramValue = baseParamValues[idx];
-
-                    if (paramId == 70)
-                        craftsmanship += paramValue;
-                    else if (paramId == 71)
-                        control += paramValue;
-                    else if (paramId == 11)
-                        cp += paramValue;
-
-                    idx++;
-                }
-
-                if (isHQ)
-                {
-                    var hqParams = item.BaseParamSpecial;
-                    if (hqParams.Count > 0)
-                    {
-                        var hqValues = item.BaseParamValueSpecial;
-                        int hqIdx = 0;
-                        foreach (var hqParam in hqParams)
-                        {
-                            var hqParamId = hqParam.RowId;
-                            var hqParamValue = hqValues[hqIdx];
-
-                            if (hqParamId == 70)
-                                craftsmanship += hqParamValue;
-                            else if (hqParamId == 71)
-                                control += hqParamValue;
-                            else if (hqParamId == 11)
-                                cp += hqParamValue;
-
-                            hqIdx++;
-                        }
-                    }
-                }
-
-                for (int m = 0; m < 5; m++)
+                for (int m = 0; m < MateriaSlotCount; m++)
                 {
                     var materiaId = inventoryItem->Materia[m];
-                    if (materiaId == 0)
+                    if (materiaId == 0 || !materiaSheet.TryGetRow(materiaId, out var materia))
                         continue;
 
-                    if (!materiaSheet.TryGetRow(materiaId, out var materia))
-                        continue;
-
-                    var baseParamId = materia.BaseParam.RowId;
-                    if (baseParamId == 70)
-                        craftsmanship += materia.Value[inventoryItem->MateriaGrades[m]];
-                    else if (baseParamId == 71)
-                        control += materia.Value[inventoryItem->MateriaGrades[m]];
-                    else if (baseParamId == 11)
-                        cp += materia.Value[inventoryItem->MateriaGrades[m]];
+                    AccumulateMateriaStats(materia, inventoryItem->MateriaGrades[m], meldStats);
                 }
+
+                craftsmanship += CalculateEffectiveItemStat(item, CraftsmanshipParamId, baseStats[CraftsmanshipIndex], meldStats[CraftsmanshipIndex]);
+                control += CalculateEffectiveItemStat(item, ControlParamId, baseStats[ControlIndex], meldStats[ControlIndex]);
+                cp += CalculateEffectiveItemStat(item, CpParamId, baseStats[CpIndex], meldStats[CpIndex]);
             }
 
             var manipulation = IsManipulationUnlocked(jobId);
-            var isSpecialist = equippedContainer->Size > 13 && (equippedContainer->Items + 13)->ItemId != 0;
+            var isSpecialist = equippedContainer->Size > SpecialistSlotIndex && (equippedContainer->Items + SpecialistSlotIndex)->ItemId != 0;
 
             return new GameStateBuilder.PlayerStats(
                 Craftsmanship: craftsmanship,
@@ -135,6 +145,163 @@ public static unsafe class GearsetStatsReader
             GatherBuddy.Log.Warning($"[GearsetStatsReader] Failed to read currently equipped stats: {ex.Message}");
             return null;
         }
+    }
+
+    private static bool TryResolveRefreshTarget(RaptureGearsetModule* gearsetModule, uint jobId, out int gearsetIndex, out bool usedCurrentGearset)
+    {
+        gearsetIndex = -1;
+        usedCurrentGearset = false;
+
+        var currentGearsetIndex = gearsetModule->CurrentGearsetIndex;
+        if (IsMatchingGearset(gearsetModule, currentGearsetIndex, jobId))
+        {
+            gearsetIndex = currentGearsetIndex;
+            usedCurrentGearset = true;
+            return true;
+        }
+
+        return TryResolveExistingGearsetIndex(gearsetModule, jobId, out gearsetIndex);
+    }
+
+    internal static bool TryResolveExistingGearsetIndex(RaptureGearsetModule* gearsetModule, uint jobId, out int gearsetIndex)
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            if (!IsMatchingGearset(gearsetModule, i, jobId))
+                continue;
+
+            gearsetIndex = i;
+            return true;
+        }
+
+        gearsetIndex = -1;
+        return false;
+    }
+
+    private static bool IsMatchingGearset(RaptureGearsetModule* gearsetModule, int gearsetIndex, uint jobId)
+    {
+        if (gearsetIndex < 0 || gearsetIndex >= 100)
+            return false;
+
+        var gearset = gearsetModule->Entries[gearsetIndex];
+        return (gearset.Flags & RaptureGearsetModule.GearsetFlag.Exists) != 0 && gearset.ClassJob == jobId;
+    }
+
+    private static void AccumulateBaseStats(Item item, bool isHighQuality, Span<int> baseStats)
+    {
+        var baseParams = item.BaseParam;
+        var baseParamValues = item.BaseParamValue;
+
+        var baseParamIndex = 0;
+        foreach (var paramRef in baseParams)
+        {
+            AddStatValue(baseStats, paramRef.RowId, baseParamValues[baseParamIndex]);
+            baseParamIndex++;
+        }
+
+        if (!isHighQuality || item.BaseParamSpecial.Count == 0)
+            return;
+
+        var hqValues = item.BaseParamValueSpecial;
+        var hqParamIndex = 0;
+        foreach (var paramRef in item.BaseParamSpecial)
+        {
+            AddStatValue(baseStats, paramRef.RowId, hqValues[hqParamIndex]);
+            hqParamIndex++;
+        }
+    }
+
+    private static void AccumulateMateriaStats(Materia materia, byte grade, Span<int> meldStats)
+    {
+        AddStatValue(meldStats, materia.BaseParam.RowId, materia.Value[grade]);
+    }
+
+    private static void AddStatValue(Span<int> stats, uint paramId, int value)
+    {
+        if (value == 0 || !TryGetStatIndex(paramId, out var statIndex))
+            return;
+
+        stats[statIndex] += value;
+    }
+
+    private static bool TryGetStatIndex(uint paramId, out int statIndex)
+    {
+        statIndex = paramId switch
+        {
+            CraftsmanshipParamId => CraftsmanshipIndex,
+            ControlParamId => ControlIndex,
+            CpParamId => CpIndex,
+            _ => -1
+        };
+        return statIndex >= 0;
+    }
+
+    private static int CalculateEffectiveItemStat(Item item, uint paramId, int baseValue, int meldedValue)
+    {
+        var uncappedValue = baseValue + meldedValue;
+        if (uncappedValue == 0)
+            return 0;
+
+        if (!TryGetItemStatCap(item, paramId, baseValue, out var cap))
+            return uncappedValue;
+
+        return Math.Min(uncappedValue, cap);
+    }
+
+    private static bool TryGetItemStatCap(Item item, uint paramId, int baseValue, out int cap)
+    {
+        cap = 0;
+
+        var slotCategoryId = (int)item.EquipSlotCategory.RowId;
+        if (slotCategoryId <= 0 || slotCategoryId > MaxEquipSlotCategoryId)
+        {
+            GatherBuddy.Log.Debug($"[GearsetStatsReader] 物品 {item.RowId} 的属性 {paramId} 缺少上限数据: 装备栏位分类 {slotCategoryId} 超出范围");
+            return false;
+        }
+
+        var levelStatValue = GetItemLevelStat(item, paramId);
+        if (levelStatValue <= 0)
+        {
+            cap = baseValue;
+            return true;
+        }
+
+        var baseParamSheet = Dalamud.GameData.GetExcelSheet<RawRow>(name: "BaseParam");
+        if (baseParamSheet == null)
+        {
+            GatherBuddy.Log.Debug($"[GearsetStatsReader] 计算物品 {item.RowId} 的属性 {paramId} 上限时缺少 BaseParam 表");
+            return false;
+        }
+
+        if (!baseParamSheet.TryGetRow(paramId, out var baseParamRow))
+        {
+            GatherBuddy.Log.Debug($"[GearsetStatsReader] 计算物品 {item.RowId} 的属性上限时缺少 BaseParam 行 {paramId}");
+            return false;
+        }
+
+        var slotModifier = baseParamRow.ReadInt16Column(slotCategoryId + 3);
+        if (slotModifier <= 0)
+        {
+            GatherBuddy.Log.Debug($"[GearsetStatsReader] 物品 {item.RowId}、属性 {paramId}、装备栏位分类 {slotCategoryId} 缺少栏位修正值");
+            return false;
+        }
+
+        cap = Math.Max(
+            baseValue,
+            (int)Math.Round(levelStatValue * slotModifier / 1000d, MidpointRounding.AwayFromZero));
+        return true;
+    }
+
+    private static int GetItemLevelStat(Item item, uint paramId)
+    {
+        var levelItem = item.LevelItem.Value;
+        return paramId switch
+        {
+            CraftsmanshipParamId => levelItem.Craftsmanship,
+            ControlParamId => levelItem.Control,
+            CpParamId => levelItem.CP,
+            _ => 0
+        };
     }
 
     public static GameStateBuilder.PlayerStats? ReadGearsetStatsForJob(uint jobId)
@@ -185,7 +352,7 @@ public static unsafe class GearsetStatsReader
         {
             var craftsmanship = 0;
             var control = 0;
-            var cp = 180;
+            var cp = BaseCp;
 
             var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
             var materiaSheet = Dalamud.GameData.GetExcelSheet<Materia>();
@@ -196,7 +363,7 @@ public static unsafe class GearsetStatsReader
                 return null;
             }
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < GearsetItemCount; i++)
             {
                 var gearItem = gearset->Items[i];
                 if (gearItem.ItemId == 0)
@@ -206,71 +373,27 @@ public static unsafe class GearsetStatsReader
                 bool isHQ = gearItem.ItemId >= 1000000;
                 if (!itemSheet.TryGetRow(actualItemId, out var item))
                     continue;
+                var baseStats = new int[StatCount];
+                var meldStats = new int[StatCount];
 
-                var baseParams = item.BaseParam;
-                var baseParamValues = item.BaseParamValue;
-                
-                int idx = 0;
-                foreach (var paramRef in baseParams)
-                {
-                    var paramId = paramRef.RowId;
-                    var paramValue = baseParamValues[idx];
+                AccumulateBaseStats(item, isHQ, baseStats);
 
-                    if (paramId == 70)
-                        craftsmanship += paramValue;
-                    else if (paramId == 71)
-                        control += paramValue;
-                    else if (paramId == 11)
-                        cp += paramValue;
-
-                    idx++;
-                }
-
-                if (isHQ)
-                {
-                    var hqParams = item.BaseParamSpecial;
-                    if (hqParams.Count > 0)
-                    {
-                        var hqValues = item.BaseParamValueSpecial;
-                        int hqIdx = 0;
-                        foreach (var hqParam in hqParams)
-                        {
-                            var hqParamId = hqParam.RowId;
-                            var hqParamValue = hqValues[hqIdx];
-
-                            if (hqParamId == 70)
-                                craftsmanship += hqParamValue;
-                            else if (hqParamId == 71)
-                                control += hqParamValue;
-                            else if (hqParamId == 11)
-                                cp += hqParamValue;
-
-                            hqIdx++;
-                        }
-                    }
-                }
-
-                for (int m = 0; m < 5; m++)
+                for (int m = 0; m < MateriaSlotCount; m++)
                 {
                     var materiaId = gearItem.Materia[m];
-                    if (materiaId == 0)
+                    if (materiaId == 0 || !materiaSheet.TryGetRow(materiaId, out var materia))
                         continue;
 
-                    if (!materiaSheet.TryGetRow(materiaId, out var materia))
-                        continue;
-
-                    var baseParamId = materia.BaseParam.RowId;
-                    if (baseParamId == 70)
-                        craftsmanship += materia.Value[gearItem.MateriaGrades[m]];
-                    else if (baseParamId == 71)
-                        control += materia.Value[gearItem.MateriaGrades[m]];
-                    else if (baseParamId == 11)
-                        cp += materia.Value[gearItem.MateriaGrades[m]];
+                    AccumulateMateriaStats(materia, gearItem.MateriaGrades[m], meldStats);
                 }
+
+                craftsmanship += CalculateEffectiveItemStat(item, CraftsmanshipParamId, baseStats[CraftsmanshipIndex], meldStats[CraftsmanshipIndex]);
+                control += CalculateEffectiveItemStat(item, ControlParamId, baseStats[ControlIndex], meldStats[ControlIndex]);
+                cp += CalculateEffectiveItemStat(item, CpParamId, baseStats[CpIndex], meldStats[CpIndex]);
             }
 
             var manipulation = IsManipulationUnlocked(jobId);
-            var isSpecialist = gearset->Items[13].ItemId != 0;
+            var isSpecialist = gearset->Items[SpecialistSlotIndex].ItemId != 0;
 
             return new GameStateBuilder.PlayerStats(
                 Craftsmanship: craftsmanship,

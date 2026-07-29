@@ -125,11 +125,16 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("刷新装备套装", VulcanUiScaling.Scaled(150f, 0f)))
+        if (ImGui.Button("更新已保存的装备套装", VulcanUiScaling.Scaled(170f, 0f)))
         {
-            GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
-            _debugLastTestResult = "已根据当前装备刷新装备套装";
+            var refreshResult = GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
+            var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
+            _debugLastTestResult = stats != null
+                ? $"{refreshResult} 当前读取结果: 作业精度={stats.Craftsmanship}, 加工精度={stats.Control}, CP={stats.CP}, 掌握={stats.Manipulation}"
+                : refreshResult;
         }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("使用当前装备更新所选职业的已保存装备套装, 需要切换至该职业");
 
         if (_debugLastTestResult != null)
         {

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using GatherBuddy.AutoGather.Helpers;
 using GatherBuddy.Classes;
@@ -259,6 +258,7 @@ public class ContextMenu : IDisposable
 
         args.OpenSubmenu(menuItems);
     }
+
     private void OpenCreateCraftingListPopup(uint recipeId)
     {
         var vulcanWindow = GatherBuddy.VulcanWindow;
@@ -312,22 +312,22 @@ public class ContextMenu : IDisposable
         if (contextItemId.HasValue && GatherBuddy.VendorBuyListManager.CanAddSupportedItem(contextItemId.Value))
             _lastVendorBuyListItemId = contextItemId.Value;
 
-        var vEnabled = GatherBuddy.Config.VulcanContextMenuEntries;
-        _menuItemCrafting.IsEnabled      = vEnabled;
-        _menuItemVulcanRecipe.IsEnabled  = vEnabled;
-        _menuItemVendorBuyList.IsEnabled = vEnabled;
-
         if (_lastGatherable != null)
             args.AddMenuItem(_menuItem);
         if (_lastGatherable is Gatherable)
             args.AddMenuItem(_menuItemAuto);
-        if (_lastRecipeId.HasValue)
+        if (GatherBuddy.Config.VulcanContextMenuEntries && _lastRecipeId.HasValue)
         {
+            _menuItemCrafting.IsEnabled = true;
+            _menuItemVulcanRecipe.IsEnabled = true;
             args.AddMenuItem(_menuItemCrafting);
             args.AddMenuItem(_menuItemVulcanRecipe);
         }
-        if (_lastVendorBuyListItemId.HasValue)
+        if (GatherBuddy.Config.VulcanContextMenuEntries && _lastVendorBuyListItemId.HasValue)
+        {
+            _menuItemVendorBuyList.IsEnabled = true;
             args.AddMenuItem(_menuItemVendorBuyList);
+        }
     }
 
     private unsafe uint? GetRecipeIdFromContext(IMenuOpenedArgs args)
@@ -355,26 +355,34 @@ public class ContextMenu : IDisposable
         return args.AddonName switch
         {
             null                 => GetSatisfactionSupplyItemId(),
-            "ContentsInfoDetail" => GetGameObjectItemId("ContentsInfo", Offsets.ContentsInfoDetailContextItemId),
-            "RecipeNote"         => GetGameObjectItemId("RecipeNote", Offsets.RecipeNoteContextItemId),
-            "RecipeTree"         => GetGameObjectItemId(AgentById(AgentId.RecipeItemContext), Offsets.AgentItemContextItemId),
-            "RecipeMaterialList" => GetGameObjectItemId(AgentById(AgentId.RecipeItemContext), Offsets.AgentItemContextItemId),
+            "ContentsInfoDetail" => NormalizeItemId(AgentContentsTimer.Instance()->ContextMenuItemId),
+            "RecipeNote"         => NormalizeItemId(AgentRecipeNote.Instance()->ContextMenuResultItemId),
+            "RecipeTree"         => NormalizeItemId(AgentRecipeItemContext.Instance()->ResultItemId),
+            "RecipeMaterialList" => NormalizeItemId(AgentRecipeItemContext.Instance()->ResultItemId),
             "GatheringNote"      => GetGatheringNoteItemId(args),
             "ItemSearch"         => NormalizeItemId((uint)AgentContext.Instance()->UpdateCheckerParam),
-            "ChatLog"            => GetGameObjectItemId("ChatLog", Offsets.ChatLogContextItemId, ValidateChatLogContext),
+            "ChatLog"            => GetChatLogItemId(),
             _                    => null,
         };
     }
 
     private static unsafe uint? GetGatheringNoteItemId(IMenuOpenedArgs args)
     {
-        var agent = Dalamud.GameGui.FindAgentInterface("GatheringNote");
-        if (agent == IntPtr.Zero)
-            return null;
         var discriminator = *(byte*)(args.AgentPtr + Offsets.GatheringNoteContextDiscriminator);
         if (discriminator != 4)
             return null;
-        return NormalizeItemId(*(uint*)(agent + Offsets.GatheringNoteContextItemId));
+
+        return NormalizeItemId(AgentGatheringNote.Instance()->ContextMenuItemId);
+    }
+
+    private static unsafe uint? GetChatLogItemId()
+    {
+        var agent = AgentChatLog.Instance();
+
+        if (*(uint*)((nint)(&agent->ContextItemId) + 8) != 3)
+            return null;
+
+        return NormalizeItemId(agent->ContextItemId);
     }
 
     private static uint NormalizeItemId(uint itemId)
@@ -401,45 +409,20 @@ public class ContextMenu : IDisposable
         return GatherBuddy.GameData.Fishes.GetValueOrDefault(itemId);
     }
 
-    private static IGatherable? HandleItem(uint itemId)
-        => ResolveGatherable(NormalizeItemId(itemId));
-
-    private unsafe uint? GetGameObjectItemId(IntPtr agent, int offset, Func<nint, bool> validate)
-        => agent != IntPtr.Zero && validate(agent) ? NormalizeItemId(*(uint*)(agent + offset)) : null;
-
-    private unsafe uint? GetGameObjectItemId(IntPtr agent, int offset)
-        => agent != IntPtr.Zero ? NormalizeItemId(*(uint*)(agent + offset)) : null;
-
-    private uint? GetGameObjectItemId(string name, int offset, Func<nint, bool> validate)
-        => GetGameObjectItemId(Dalamud.GameGui.FindAgentInterface(name), offset, validate);
-
-    private uint? GetGameObjectItemId(string name, int offset)
-        => GetGameObjectItemId(Dalamud.GameGui.FindAgentInterface(name), offset);
-
     private unsafe uint? GetSatisfactionSupplyItemId()
     {
-        var agent = Dalamud.GameGui.FindAgentInterface("SatisfactionSupply");
-        if (agent == IntPtr.Zero)
+        var agent = AgentSatisfactionSupply.Instance();
+        if (!agent->IsAgentActive())
             return null;
 
-        var itemIdx = *(byte*)(agent + Offsets.SatisfactionSupplyItemIdx);
-        return itemIdx switch
-        {
-            1 => NormalizeItemId(*(uint*)(agent + Offsets.SatisfactionSupplyItem1Id)),
-            2 => NormalizeItemId(*(uint*)(agent + Offsets.SatisfactionSupplyItem2Id)),
-            _ => null,
-        };
-    }
+        var agentContext = AgentContext.Instance();
+        if (agentContext->CurrentContextMenuTarget != null)
+            return null;
 
-    private static unsafe bool ValidateChatLogContext(nint agent)
-        => *(uint*)(agent + Offsets.ChatLogContextItemId + 8) == 3;
+        var itemIdx = agent->NpcInfo.SelectedItemIndex;
+        if (itemIdx < 0 || itemIdx >= agent->Items.Length)
+            return null;
 
-    private static unsafe IntPtr AgentById(AgentId id)
-    {
-        var uiModule = (UIModule*)Dalamud.GameGui.GetUIModule().Address;
-        var agents   = uiModule->GetAgentModule();
-        var agent    = agents->GetAgentByInternalId(id);
-        return (IntPtr)agent;
+        return NormalizeItemId(agent->Items[itemIdx].Id);
     }
 }
-

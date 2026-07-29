@@ -353,14 +353,11 @@ public static class CraftingGatherBridge
                 return;
             }
             
-            for (int i = 0; i < 100; i++)
+            if (GearsetStatsReader.TryResolveExistingGearsetIndex(gearsetModule, jobId, out var gearsetIndex))
             {
-                if (gearsetModule->Entries[i].ClassJob == jobId)
-                {
-                    gearsetModule->EquipGearset(i);
-                    GatherBuddy.Log.Information($"Equipped gearset {i} for job {jobId}");
-                    return;
-                }
+                gearsetModule->EquipGearset(gearsetIndex);
+                GatherBuddy.Log.Information($"已装备职业 {jobId} 的装备套装 {gearsetIndex}");
+                return;
             }
             
             GatherBuddy.Log.Warning($"No gearset found for job {jobId}");

@@ -191,7 +191,9 @@ public static class CraftingListPlanner
             AddRecipe(_plan.Recipes, recipe.RowId, craftCount, false);
 
             var surplus = craftCount * (int)recipe.AmountResult - remainingDemand.Total;
-            _availability.AddPlanned(resultItemId, surplus);
+            var qualityPolicy = ResolveQualityPolicy(recipe, false);
+            var outputQuality = CraftingQualityPolicyResolver.ResolvePlannedOutputQuality(recipe, qualityPolicy, remainingDemand);
+            _availability.AddPlanned(resultItemId, surplus, outputQuality);
 
             PlanIngredients(recipe, craftCount, false);
         }
@@ -260,7 +262,7 @@ public static class CraftingListPlanner
     private sealed class AvailabilityLedger
     {
         private readonly bool _useRetainers;
-        private readonly Dictionary<uint, int> _plannedAvailable = new();
+        private readonly Dictionary<uint, PlannedAvailability> _plannedAvailable = new();
         private readonly Dictionary<uint, (int NQ, int HQ)> _inventoryAvailable = new();
         private readonly Dictionary<uint, (int NQ, int HQ)> _retainerAvailable = new();
 
@@ -270,7 +272,27 @@ public static class CraftingListPlanner
         }
 
         public int ConsumePlanned(uint itemId, int requested)
-            => Consume(_plannedAvailable, itemId, requested, _ => 0);
+        {
+            if (requested <= 0)
+                return 0;
+
+            var available = _plannedAvailable.GetValueOrDefault(itemId);
+            var consumed = Math.Min(requested, available.Total);
+            if (consumed <= 0)
+                return 0;
+
+            var remainingToConsume = consumed;
+            var consumeUnknown = Math.Min(remainingToConsume, available.Unknown);
+            remainingToConsume -= consumeUnknown;
+            var consumeNQ = Math.Min(remainingToConsume, available.NQ);
+            remainingToConsume -= consumeNQ;
+            var consumeHQ = Math.Min(remainingToConsume, available.HQ);
+            _plannedAvailable[itemId] = new PlannedAvailability(
+                available.Unknown - consumeUnknown,
+                available.NQ - consumeNQ,
+                available.HQ - consumeHQ);
+            return consumed;
+        }
 
         public int ConsumeInventory(uint itemId, int requested)
             => ConsumeTotal(_inventoryAvailable, itemId, requested, GetInventorySplitCounts);
@@ -281,11 +303,15 @@ public static class CraftingListPlanner
                 return demand;
 
             var available = _plannedAvailable.GetValueOrDefault(itemId);
-            if (available <= 0)
+            if (available.Total <= 0)
                 return demand;
 
-            var remaining = demand.ConsumeUnknownQuality(available, out var consumed);
-            _plannedAvailable[itemId] = Math.Max(0, available - consumed);
+            var remaining = demand.ConsumeSplit(available.NQ, available.HQ, out var consumedNQ, out var consumedHQ);
+            remaining = remaining.ConsumeUnknownQuality(available.Unknown, out var consumedUnknown);
+            _plannedAvailable[itemId] = new PlannedAvailability(
+                available.Unknown - consumedUnknown,
+                available.NQ - consumedNQ,
+                available.HQ - consumedHQ);
             return remaining;
         }
 
@@ -302,31 +328,23 @@ public static class CraftingListPlanner
                 ? ConsumeTotal(_retainerAvailable, itemId, requested, GetRetainerSplitCounts)
                 : 0;
 
-        public void AddPlanned(uint itemId, int amount)
+        public void AddPlanned(uint itemId, int amount, PlannedOutputQuality outputQuality = PlannedOutputQuality.Unknown)
         {
             if (amount <= 0)
                 return;
 
-            _plannedAvailable[itemId] = _plannedAvailable.GetValueOrDefault(itemId) + amount;
+            var available = _plannedAvailable.GetValueOrDefault(itemId);
+            _plannedAvailable[itemId] = outputQuality switch
+            {
+                PlannedOutputQuality.NQ => available with { NQ = available.NQ + amount },
+                PlannedOutputQuality.HQ => available with { HQ = available.HQ + amount },
+                _ => available with { Unknown = available.Unknown + amount },
+            };
         }
 
-        private static int Consume(Dictionary<uint, int> ledger, uint itemId, int requested, Func<uint, int> valueFactory)
+        private readonly record struct PlannedAvailability(int Unknown, int NQ, int HQ)
         {
-            if (requested <= 0)
-                return 0;
-
-            if (!ledger.TryGetValue(itemId, out var available))
-            {
-                available = valueFactory(itemId);
-                ledger[itemId] = available;
-            }
-
-            if (available <= 0)
-                return 0;
-
-            var consumed = Math.Min(requested, available);
-            ledger[itemId] = available - consumed;
-            return consumed;
+            public int Total => Unknown + NQ + HQ;
         }
 
         private static int ConsumeTotal(

@@ -14,7 +14,6 @@ using GatherBuddy.Interfaces;
 using GatherBuddy.SeFunctions;
 using GatherBuddy.Time;
 using GatherBuddy.Utility;
-using CommandManager = GatherBuddy.SeFunctions.CommandManager;
 using GatheringType = GatherBuddy.Enums.GatheringType;
 using Aetheryte = GatherBuddy.Classes.Aetheryte;
 using MapType = FFXIVClientStructs.FFXIV.Client.UI.Agent.MapType;
@@ -32,10 +31,9 @@ public class Executor
         Fish,
     }
 
-    private readonly CommandManager _commandManager = new(Dalamud.GameGui, new ProcessChatBox(Dalamud.SigScanner));
-    private readonly MacroManager _macroManager = new();
-    private readonly GatherBuddy _plugin;
-    public readonly Identificator Identificator = new();
+    private readonly MacroManager   _macroManager   = new();
+    private readonly GatherBuddy    _plugin;
+    public readonly  Identificator  Identificator = new();
 
     public Executor(GatherBuddy plugin)
         => _plugin = plugin;
@@ -105,7 +103,7 @@ public class Executor
             _visitedLocations.Clear();
         _keepVisitedLocations = true;
         if (_item == null)
-            Communicator.Print("没有可用的上一次的采集指令。");
+            Communicator.Print("没有可用的上一次采集指令");
     }
 
     private void DoIdentify()
@@ -215,7 +213,7 @@ public class Executor
         };
         if (set == null)
         {
-            Communicator.PrintError("此位置没有关联任何职业: ", _location.Name, GatherBuddy.Config.SeColorArguments, ".");
+            Communicator.PrintError("此位置没有关联任何职业: ", _location.Name, GatherBuddy.Config.SeColorArguments, "");
             return;
         }
 
@@ -244,7 +242,7 @@ public class Executor
                 return;
             }
 
-            _commandManager.Execute($"/gearset change \"{set}\"");
+            CommandManager.Execute($"/gearset change \"{set}\"");
 
             if (_item is Fish fish)
                 GatherBuddy.CurrentBait.ChangeBait(fish.InitialBait.Id);
@@ -432,14 +430,14 @@ public class Executor
     {
         if (territory.Aetherytes.Count == 0)
         {
-            Communicator.PrintError(string.Empty, territory.Name, GatherBuddy.Config.SeColorArguments, " 没有可传送的以太之光。");
+            Communicator.PrintError(string.Empty, territory.Name, GatherBuddy.Config.SeColorArguments, " 没有可传送的以太之光");
             return;
         }
 
         var aetheryte = territory.Aetherytes.FirstOrDefault(a => Teleporter.IsAttuned(a.Id));
         if (aetheryte == null)
         {
-            Communicator.PrintError("没有与此区域的任何以太之光进行共鸣: ", territory.Name, GatherBuddy.Config.SeColorArguments, ".");
+            Communicator.PrintError("没有与此区域的任何以太之光进行共鸣: ", territory.Name, GatherBuddy.Config.SeColorArguments, "");
             return;
         }
 

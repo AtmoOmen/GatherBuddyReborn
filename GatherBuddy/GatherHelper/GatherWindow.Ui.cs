@@ -41,10 +41,11 @@ public class GatherWindow : Window
           | ImGuiWindowFlags.NoNavFocus
           | ImGuiWindowFlags.NoScrollbar)
     {
-        _plugin            = plugin;
-        IsOpen             = GatherBuddy.Config.ShowGatherWindow;
-        RespectCloseHotkey = false;
-        Namespace          = "GatherHelperReborn";
+        _plugin             = plugin;
+        IsOpen              = GatherBuddy.Config.ShowGatherWindow;
+        RespectCloseHotkey  = false;
+        Namespace           = "GatherHelperReborn";
+        DisableWindowSounds = true;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = Vector2.Zero,
@@ -79,11 +80,11 @@ public class GatherWindow : Window
     {
         var sb = new StringBuilder();
         sb.Append(loc == null
-            ? "Î´ÖªÎ»ÖÃ\nÎ´ÖªµØÍ¼\nÎ´ÖªÒÔÌ«Ö®¹â\n"
-            : $"{loc.Name}\n{loc.Territory.Name}\n{loc.ClosestAetheryte?.Name ?? "ÎŞÒÔÌ«Ö®¹â"}\n");
+            ? "æœªçŸ¥ä½ç½®\næœªçŸ¥åœ°å›¾\næœªçŸ¥ä»¥å¤ªä¹‹å…‰\n"
+            : $"{loc.Name}\n{loc.Territory.Name}\n{loc.ClosestAetheryte?.Name ?? "æœªçŸ¥ä»¥å¤ªä¹‹å…‰"}\n");
 
         sb.Append(time.Equals(TimeInterval.Always)
-            ? "³£×¤"
+            ? "å¸¸é©»"
             : $"{time.Start}\n{time.End}\n{time.DurationString()}\n{TimeInterval.DurationString(time.Start > GatherBuddy.Time.ServerTime ? time.Start : time.End, GatherBuddy.Time.ServerTime, false)}");
 
         return sb.ToString();
@@ -368,7 +369,7 @@ public class GatherWindow : Window
     {
         var       colorId = GatherBuddy.AutoGather.Enabled ? ColorId.GatherWindowAvailable.Value() : ColorId.GatherWindowText.Value();
         using var color = ImRaii.PushColor(ImGuiCol.Text, colorId);
-        if (ImGui.Selectable($"×Ô¶¯²É¼¯: {GatherBuddy.AutoGather.AutoStatus}###toggle-button"))
+        if (ImGui.Selectable($"è‡ªåŠ¨é‡‡é›†: {GatherBuddy.AutoGather.AutoStatus}###toggle-button"))
         {
             GatherBuddy.AutoGather.Enabled = !GatherBuddy.AutoGather.Enabled;
         }
@@ -377,7 +378,7 @@ public class GatherWindow : Window
             _plugin.Interface.Toggle();
         }
         color.Pop();
-        ImGuiUtil.HoverTooltip("µã»÷ÒÔÆôÓÃ/½ûÓÃ×Ô¶¯²É¼¯, ÓÒ¼üÒÔ¿ª¹Ø²å¼ş½çÃæ");
+        ImGuiUtil.HoverTooltip("å·¦é”®å¯ç”¨æˆ–ç¦ç”¨è‡ªåŠ¨é‡‡é›†, å³é”®æ˜¾ç¤ºæˆ–éšè—ä¸»ç•Œé¢");
         using var table = ImRaii.Table("##table", GatherBuddy.Config.ShowGatherWindowTimers ? 2 : 1);
         if (!table)
             return;

@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.Enums;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using GatherBuddy.AutoGather;
 using GatherBuddy.AutoGather.Lists;
@@ -177,7 +178,7 @@ public partial class Interface
         }
     }
 
-    private void DrawDebugButtons()
+    private unsafe void DrawDebugButtons()
     {
         if (ImGui.CollapsingHeader("调试"))
         {
@@ -205,7 +206,7 @@ public partial class Interface
             if (ImGui.Button("测试增强天气"))
             {
                 var enhancedWeather = EnhancedCurrentWeather.GetCurrentWeatherWithDebug();
-                var originalWeather = GatherBuddy.CurrentWeather?.Current ?? 0;
+                var originalWeather = WeatherManager.Instance()->GetCurrentWeather();
                 
                 GatherBuddy.Log.Information($"[Weather Test] Enhanced: {enhancedWeather}, Original: {originalWeather}");
                 
@@ -215,6 +216,9 @@ public partial class Interface
                 if (GatherBuddy.GameData.Weathers.TryGetValue(originalWeather, out var oWeather))
                     GatherBuddy.Log.Information($"[Weather Test] Original Weather Name: {oWeather.Name}");
             }
+
+            if (ImGui.Button("解锁所有鱼类图鉴"))
+                GatherBuddy.FishLog.SetAllUnlocked();
 
             if (FishTimerWindow.CollectableIcon.TryGetWrap(out var wrapCollectable, out _))
                 ImGui.Image(wrapCollectable.Handle, wrapCollectable.Size);
@@ -301,8 +305,7 @@ public partial class Interface
             : "无");
         ImGuiUtil.DrawTableColumn("当前真实天气");
         ImGuiUtil.DrawTableColumn(Dalamud.ClientState.TerritoryType != 0
-         && GatherBuddy.CurrentWeather != null
-         && GatherBuddy.GameData.Weathers.TryGetValue(GatherBuddy.CurrentWeather.Current, out var w)
+         && GatherBuddy.GameData.Weathers.TryGetValue(WeatherManager.Instance()->GetCurrentWeather(), out var w)
                 ? w.Name
                 : "无");
         ImGuiUtil.DrawTableColumn("增强天气 (ClientStructs)");
@@ -336,10 +339,8 @@ public partial class Interface
             : TimeInterval.DurationString(_plugin.FishRecorder.SaveTime, TimeStamp.UtcNow, false));
         ImGuiUtil.DrawTableColumn("UIState 地址");
         ImGuiUtil.DrawTableColumn($"{(IntPtr)FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance():X}");
-        ImGuiUtil.DrawTableColumn("EventFramework 地址");
-        ImGuiUtil.DrawTableColumn(GatherBuddy.EventFramework.Address.ToString("X"));
-        ImGuiUtil.DrawTableColumn("钓鱼管理器地址");
-        ImGuiUtil.DrawTableColumn($"0x{(nint)GatherBuddy.EventFramework.FishingManager:X}");
+        ImGuiUtil.DrawTableColumn("FishingEventHandler 地址");
+        ImGuiUtil.DrawTableColumn($"0x{(nint)GatherBuddy.EventFramework.FishingEventHandler:X}");
         ImGuiUtil.DrawTableColumn("钓鱼状态");
         ImGuiUtil.DrawTableColumn(GatherBuddy.EventFramework.FishingState.ToString());
         ImGuiUtil.DrawTableColumn("游泳鱼饵数量");

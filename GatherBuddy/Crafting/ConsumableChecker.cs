@@ -107,6 +107,20 @@ public static class ConsumableChecker
     public static bool HasConfiguredConsumableInInventory(uint itemId, bool hq)
         => HasItemInInventory(GetConsumableInventoryItemId(itemId, hq));
 
+    public static RecipeCraftSettings? GetValidatorPreviewCraftStatConsumables(RecipeCraftSettings? settings)
+    {
+        if (settings == null || (!settings.FoodItemId.HasValue && !settings.MedicineItemId.HasValue))
+            return null;
+
+        return new RecipeCraftSettings
+        {
+            FoodItemId = settings.FoodItemId,
+            FoodHQ = settings.FoodHQ,
+            MedicineItemId = settings.MedicineItemId,
+            MedicineHQ = settings.MedicineHQ,
+        };
+    }
+
     public static RecipeCraftSettings? GetProjectedCraftStatConsumables(RecipeCraftSettings? settings)
     {
         if (settings == null)

@@ -306,7 +306,8 @@ public static class RaphaelAssessmentService
         if (!CraftingContextResolver.TryBuildSimulationContext(
                 recipe,
                 executionContext,
-                CraftingStatsSource.PreferCurrentJobStats,
+                CraftingStatsSource.AlwaysGearsetStats,
+                CraftingSimulationIntent.ValidatorPreview,
                 out context))
         {
             GatherBuddy.Log.Debug($"[RaphaelAssessment] Failed to build simulation context for recipe {recipe.RowId}");
@@ -375,8 +376,11 @@ public static class RaphaelAssessmentService
         var qualityTarget = ResolveQualityTarget(craft, outcome);
         var progressPercent = craft.CraftProgress <= 0 ? 0f : finalStep.Progress * 100f / craft.CraftProgress;
         var qualityPercent = craft.CraftQualityMax <= 0 ? 0f : finalStep.Quality * 100f / craft.CraftQualityMax;
-        var summary = BuildReadySummary(outcome, qualityPercent);
-        var details = $"进度 {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%)，品质 {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%)，步骤 {solution.ActionIds.Count}。";
+        var hqChance = Calculations.GetHQChance(qualityPercent);
+        var summary = BuildReadySummary(outcome, hqChance);
+        var details = outcome == RaphaelAssessmentOutcome.PartialQuality
+            ? $"进度 {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), 品质 {finalStep.Quality}/{craft.CraftQualityMax}, HQ 概率 {hqChance}%, 步骤 {solution.ActionIds.Count}"
+            : $"进度 {finalStep.Progress}/{craft.CraftProgress} ({progressPercent:F0}%), 品质 {finalStep.Quality}/{craft.CraftQualityMax} ({qualityPercent:F0}%), 步骤 {solution.ActionIds.Count}";
 
         return new RaphaelAssessment(
             RaphaelAssessmentState.Ready,
@@ -434,7 +438,7 @@ public static class RaphaelAssessmentService
             _ => 0,
         };
 
-    private static string BuildReadySummary(RaphaelAssessmentOutcome outcome, float qualityPercent)
+    private static string BuildReadySummary(RaphaelAssessmentOutcome outcome, int hqChance)
         => outcome switch
         {
             RaphaelAssessmentOutcome.FullQuality => "验证通过 — 满品质满进度完成。",
@@ -443,7 +447,7 @@ public static class RaphaelAssessmentService
             RaphaelAssessmentOutcome.CollectibleTier1 => "验证通过 — 达到收藏品第 1 档。",
             RaphaelAssessmentOutcome.MinimumQualityMet => "验证通过 — 满足所需品质目标。",
             RaphaelAssessmentOutcome.NoQualityRequired => "验证通过 — 完成进度，无需品质目标。",
-            RaphaelAssessmentOutcome.PartialQuality => $"验证通过 — 以 {qualityPercent:F0}% 品质完成制作。",
+            RaphaelAssessmentOutcome.PartialQuality => $"验证通过 — 以 {hqChance}% HQ 概率完成制作。",
             RaphaelAssessmentOutcome.FailedDurability => "Raphael 已生成方案，但模拟因耐久度不足失败。",
             RaphaelAssessmentOutcome.FailedQualityRequirement => "Raphael 已生成方案，但模拟未达到品质目标。",
             RaphaelAssessmentOutcome.Incomplete => "Raphael 已生成方案，但模拟未完成整个制作。",

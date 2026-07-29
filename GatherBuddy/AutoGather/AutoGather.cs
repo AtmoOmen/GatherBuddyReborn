@@ -753,6 +753,7 @@ namespace GatherBuddy.AutoGather
             {
                 if (!GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
                 {
+                    GatherBuddy.Log.Warning("[AutoGather] 未启用钓鱼数据收集, 请在设置中启用该功能或从自动采集列表中移除鱼类");
                     Communicator.PrintError(
                         "自动采集列表中含有鱼类, 但尚未启用\"参与钓鱼数据收集\", 自动采集无法继续. 请在设置中启用\"参与钓鱼数据收集\", 或从自动采集列表中移除鱼类");
                     AbortAutoGather();

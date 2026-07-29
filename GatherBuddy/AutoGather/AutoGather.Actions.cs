@@ -1,5 +1,6 @@
 using GatherBuddy.Helpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Event;
 using GatherBuddy.Classes;
 using System;
 using System.Linq;

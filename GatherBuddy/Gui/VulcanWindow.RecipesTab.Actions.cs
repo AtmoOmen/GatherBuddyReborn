@@ -24,14 +24,11 @@ public partial class VulcanWindow
                 return;
             }
 
-            for (int i = 0; i < 100; i++)
+            if (GearsetStatsReader.TryResolveExistingGearsetIndex(gearsetModule, requiredJobId, out var gearsetIndex))
             {
-                if (gearsetModule->Entries[i].ClassJob == requiredJobId)
-                {
-                    gearsetModule->EquipGearset(i);
-                    GatherBuddy.Log.Information($"[VulcanWindow] Switched to gearset {i} for job {requiredJobId}");
-                    return;
-                }
+                gearsetModule->EquipGearset(gearsetIndex);
+                GatherBuddy.Log.Information($"[VulcanWindow] 已切换至职业 {requiredJobId} 的装备套装 {gearsetIndex}");
+                return;
             }
 
             GatherBuddy.Log.Warning($"[VulcanWindow] No gearset found for job {requiredJobId}");
