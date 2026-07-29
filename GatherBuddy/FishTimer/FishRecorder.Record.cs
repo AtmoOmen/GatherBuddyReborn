@@ -4,13 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Game;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game.Event;
 using GatherBuddy.Classes;
 using GatherBuddy.Helpers;
 using GatherBuddy.Utilities;
 using GatherBuddy.Enums;
 using GatherBuddy.FishTimer.Parser;
 using GatherBuddy.Models;
-using GatherBuddy.SeFunctions;
 using GatherBuddy.Structs;
 using GatherBuddy.Time;
 using Lumina.Excel.Sheets;
@@ -291,12 +291,12 @@ public partial class FishRecorder
         switch (state)
         {
             case FishingState.Bite:    OnBite(); break;
-            case FishingState.Reeling: Step |= CatchSteps.FishReeled; break;
+            case FishingState.Hooking: Step |= CatchSteps.FishReeled; break;
             case FishingState.PoleReady:
-            case FishingState.Quit:
+            case FishingState.Quitting:
                 OnFishingStop();
                 break;
-            case FishingState.PullPoleIn:
+            case FishingState.PullingPoleIn:
                 Step |= CatchSteps.NoMoreHook;
                 break;
         }

@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
@@ -28,7 +27,6 @@ public unsafe class FishLog
         _numFish      = (uint) gameData.GetExcelSheet<FishParameter>().Count;
         _numSpearFish = (uint) gameData.GetExcelSheet<SpearfishingItem>().Count;
 
-        ;
         _fish      = PlayerState.Instance()->CaughtFishBitArray.Pointer;
         _spearFish = PlayerState.Instance()->CaughtSpearfishBitArray.Pointer;
 

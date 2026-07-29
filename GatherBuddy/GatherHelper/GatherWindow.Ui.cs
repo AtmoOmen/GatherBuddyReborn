@@ -41,10 +41,11 @@ public class GatherWindow : Window
           | ImGuiWindowFlags.NoNavFocus
           | ImGuiWindowFlags.NoScrollbar)
     {
-        _plugin            = plugin;
-        IsOpen             = GatherBuddy.Config.ShowGatherWindow;
-        RespectCloseHotkey = false;
-        Namespace          = "GatherHelperReborn";
+        _plugin             = plugin;
+        IsOpen              = GatherBuddy.Config.ShowGatherWindow;
+        RespectCloseHotkey  = false;
+        Namespace           = "GatherHelperReborn";
+        DisableWindowSounds = true;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = Vector2.Zero,
