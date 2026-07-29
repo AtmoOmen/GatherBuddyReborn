@@ -14,7 +14,6 @@ using GatherBuddy.Interfaces;
 using GatherBuddy.SeFunctions;
 using GatherBuddy.Time;
 using GatherBuddy.Utility;
-using CommandManager = GatherBuddy.SeFunctions.CommandManager;
 using GatheringType = GatherBuddy.Enums.GatheringType;
 using Aetheryte = GatherBuddy.Classes.Aetheryte;
 using MapType = FFXIVClientStructs.FFXIV.Client.UI.Agent.MapType;
@@ -32,10 +31,9 @@ public class Executor
         Fish,
     }
 
-    private readonly CommandManager _commandManager = new(Dalamud.GameGui, new ProcessChatBox(Dalamud.SigScanner));
-    private readonly MacroManager _macroManager = new();
-    private readonly GatherBuddy _plugin;
-    public readonly Identificator Identificator = new();
+    private readonly MacroManager   _macroManager   = new();
+    private readonly GatherBuddy    _plugin;
+    public readonly  Identificator  Identificator = new();
 
     public Executor(GatherBuddy plugin)
         => _plugin = plugin;
@@ -244,7 +242,7 @@ public class Executor
                 return;
             }
 
-            _commandManager.Execute($"/gearset change \"{set}\"");
+            CommandManager.Execute($"/gearset change \"{set}\"");
 
             if (_item is Fish fish)
                 GatherBuddy.CurrentBait.ChangeBait(fish.InitialBait.Id);

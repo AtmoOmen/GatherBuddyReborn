@@ -68,7 +68,6 @@ public partial class GatherBuddy : IDalamudPlugin
     public static FishLog               FishLog         { get; private set; } = null!;
     public static EventFramework        EventFramework  { get; private set; } = null!;
     public static CurrentBait           CurrentBait     { get; private set; } = null!;
-    public static CurrentWeather        CurrentWeather  { get; private set; } = null!;
     public static SeTugType             TugType         { get; private set; } = null!;
     public static WaymarkManager        WaymarkManager  { get; private set; } = null!;
     public static AutoGather.AutoGather AutoGather      { get; private set; } = null!;
@@ -89,7 +88,6 @@ public partial class GatherBuddy : IDalamudPlugin
     public static Vulcan.Vendors.VendorNavigator  VendorNavigator        { get; private set; } = null!;
     public static Vulcan.Vendors.VendorPurchaseManager VendorPurchaseManager { get; private set; } = null!;
     public static Vulcan.Vendors.VendorBuyListManager VendorBuyListManager { get; private set; } = null!;
-
 
     internal readonly GatherGroup.GatherGroupManager GatherGroupManager;
     internal readonly LocationManager                LocationManager;
@@ -133,10 +131,7 @@ public partial class GatherBuddy : IDalamudPlugin
             try { FishLog = new FishLog(sigScannerWrapper, Dalamud.GameData); }
             catch (Exception e) { Log.Warning($"Failed to initialize FishLog: {e.Message}"); FishLog = null!; }
             EventFramework         = new EventFramework();
-            try { CurrentBait = new CurrentBait(sigScannerWrapper); }
-            catch (Exception e) { Log.Warning($"Failed to initialize CurrentBait: {e.Message}"); CurrentBait = null!; }
-            try { CurrentWeather = new CurrentWeather(sigScannerWrapper); }
-            catch (Exception e) { Log.Warning($"Failed to initialize CurrentWeather: {e.Message}"); CurrentWeather = null!; }
+            CurrentBait           = new CurrentBait();
             try { TugType = new SeTugType(sigScannerWrapper); }
             catch (Exception e) { Log.Warning($"Failed to initialize TugType: {e.Message}"); TugType = null!; }
             Executor               = new Executor(this);

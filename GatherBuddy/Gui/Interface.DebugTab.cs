@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.Enums;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using GatherBuddy.AutoGather;
 using GatherBuddy.AutoGather.Lists;
@@ -177,7 +178,7 @@ public partial class Interface
         }
     }
 
-    private void DrawDebugButtons()
+    private unsafe void DrawDebugButtons()
     {
         if (ImGui.CollapsingHeader("Debug"))
         {
@@ -205,7 +206,7 @@ public partial class Interface
             if (ImGui.Button("Test Enhanced Weather"))
             {
                 var enhancedWeather = EnhancedCurrentWeather.GetCurrentWeatherWithDebug();
-                var originalWeather = GatherBuddy.CurrentWeather?.Current ?? 0;
+                var originalWeather = WeatherManager.Instance()->GetCurrentWeather();
                 
                 GatherBuddy.Log.Information($"[Weather Test] Enhanced: {enhancedWeather}, Original: {originalWeather}");
                 
@@ -215,6 +216,9 @@ public partial class Interface
                 if (GatherBuddy.GameData.Weathers.TryGetValue(originalWeather, out var oWeather))
                     GatherBuddy.Log.Information($"[Weather Test] Original Weather Name: {oWeather.Name}");
             }
+
+            if (ImGui.Button("Set All Fish Unlocked"))
+                GatherBuddy.FishLog.SetAllUnlocked();
 
             if (FishTimerWindow.CollectableIcon.TryGetWrap(out var wrapCollectable, out _))
                 ImGui.Image(wrapCollectable.Handle, wrapCollectable.Size);
@@ -301,8 +305,7 @@ public partial class Interface
             : "None");
         ImGuiUtil.DrawTableColumn("Current True Weather");
         ImGuiUtil.DrawTableColumn(Dalamud.ClientState.TerritoryType != 0
-         && GatherBuddy.CurrentWeather != null
-         && GatherBuddy.GameData.Weathers.TryGetValue(GatherBuddy.CurrentWeather.Current, out var w)
+         && GatherBuddy.GameData.Weathers.TryGetValue(WeatherManager.Instance()->GetCurrentWeather(), out var w)
                 ? w.Name
                 : "None");
         ImGuiUtil.DrawTableColumn("Enhanced Weather (ClientStructs)");
@@ -336,10 +339,8 @@ public partial class Interface
             : TimeInterval.DurationString(_plugin.FishRecorder.SaveTime, TimeStamp.UtcNow, false));
         ImGuiUtil.DrawTableColumn("UiState Address");
         ImGuiUtil.DrawTableColumn($"{(IntPtr)FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance():X}");
-        ImGuiUtil.DrawTableColumn("Event Framework Address");
-        ImGuiUtil.DrawTableColumn(GatherBuddy.EventFramework.Address.ToString("X"));
-        ImGuiUtil.DrawTableColumn("Fishing Manager Address");
-        ImGuiUtil.DrawTableColumn($"0x{(nint)GatherBuddy.EventFramework.FishingManager:X}");
+        ImGuiUtil.DrawTableColumn("FishingEventHandler Address");
+        ImGuiUtil.DrawTableColumn($"0x{(nint)GatherBuddy.EventFramework.FishingEventHandler:X}");
         ImGuiUtil.DrawTableColumn("Fishing State");
         ImGuiUtil.DrawTableColumn(GatherBuddy.EventFramework.FishingState.ToString());
         ImGuiUtil.DrawTableColumn("Num SwimBait");
