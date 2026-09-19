@@ -448,43 +448,43 @@ public partial class GatherBuddy
                 
             case "wary":
                 Dalamud.ToastGui.ShowQuest("The fish have become wary of your presence. It might be time to shift your position...");
-                Communicator.Print("Debug: Triggered 'wary' quest toast [EN] (ID 5517)");
+                Communicator.Print("调试: 已触发 'wary' 任务提示 [EN] (ID 5517)");
                 break;
             case "amiss":
                 Dalamud.ToastGui.ShowQuest("The fish sense something amiss. Perhaps it is time to try another location.");
-                Communicator.Print("Debug: Triggered 'amiss' quest toast [EN] (ID 3516)");
+                Communicator.Print("调试: 已触发 'amiss' 任务提示 [EN] (ID 3516)");
                 break;
             case "wary-de":
                 Dalamud.ToastGui.ShowQuest("Die Fische in der Umgebung sind auf dich aufmerksam geworden. Besser, du wechselst den Ort ...");
-                Communicator.Print("Debug: Triggered 'wary' quest toast [DE] (ID 5517)");
+                Communicator.Print("调试: 已触发 'wary' 任务提示 [DE] (ID 5517)");
                 break;
             case "amiss-de":
                 Dalamud.ToastGui.ShowQuest("Die Fische sind misstrauisch und kommen keinen Ilm näher. Versuch es lieber an einer anderen Stelle.");
-                Communicator.Print("Debug: Triggered 'amiss' quest toast [DE] (ID 3516)");
+                Communicator.Print("调试: 已触发 'amiss' 任务提示 [DE] (ID 3516)");
                 break;
             case "wary-fr":
                 Dalamud.ToastGui.ShowQuest("Les poissons des environs commencent à se méfier de vous. Il est temps d'aller voir ailleurs...");
-                Communicator.Print("Debug: Triggered 'wary' quest toast [FR] (ID 5517)");
+                Communicator.Print("调试: 已触发 'wary' 任务提示 [FR] (ID 5517)");
                 break;
             case "amiss-fr":
                 Dalamud.ToastGui.ShowQuest("Les poissons sont devenus méfiants. Vous devriez aller pêcher dans un autre endroit.");
-                Communicator.Print("Debug: Triggered 'amiss' quest toast [FR] (ID 3516)");
+                Communicator.Print("调试: 已触发 'amiss' 任务提示 [FR] (ID 3516)");
                 break;
             case "wary-jp":
                 Dalamud.ToastGui.ShowQuest("周辺の魚が警戒し始めている。そろそろ移動した方が良さそうだ……");
-                Communicator.Print("Debug: Triggered 'wary' quest toast [JP] (ID 5517)");
+                Communicator.Print("调试: 已触发 'wary' 任务提示 [JP] (ID 5517)");
                 break;
             case "amiss-jp":
                 Dalamud.ToastGui.ShowQuest("魚たちに警戒されてしまったようだ……。少し場所を変えたほうがいいだろう。");
-                Communicator.Print("Debug: Triggered 'amiss' quest toast [JP] (ID 3516)");
+                Communicator.Print("调试: 已触发 'amiss' 任务提示 [JP] (ID 3516)");
                 break;
             case "wary-cn":
                 Dalamud.ToastGui.ShowQuest("附近的鱼已经有所警惕了。最好换个位置试试。");
-                Communicator.Print("Debug: Triggered 'wary' quest toast [CN] (ID 5517)");
+                Communicator.Print("调试: 已触发 'wary' 任务提示 [CN] (ID 5517)");
                 break;
             case "amiss-cn":
                 Dalamud.ToastGui.ShowQuest("这里的鱼现在警惕性很高，看来还是换个地点比较好。");
-                Communicator.Print("Debug: Triggered 'amiss' quest toast [CN] (ID 3516)");
+                Communicator.Print("调试: 已触发 'amiss' 任务提示 [CN] (ID 3516)");
                 break;
             case "repair":
                 Communicator.Print("[Debug] 强制进入修理模式进行测试...");

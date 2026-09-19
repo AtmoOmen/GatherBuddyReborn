@@ -37,7 +37,7 @@ public static class Functions
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not create save directory at {dir.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法在 {dir.FullName} 创建保存目录:\n{e}");
             return null;
         }
 

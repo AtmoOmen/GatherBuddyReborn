@@ -106,7 +106,7 @@ public static class SkillActionMap
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Failed to assign action IDs for skill {skill}: {ex.Message}");
+            GatherBuddy.Log.Error($"为技能 {skill} 分配动作 ID 失败: {ex.Message}");
         }
     }
 }

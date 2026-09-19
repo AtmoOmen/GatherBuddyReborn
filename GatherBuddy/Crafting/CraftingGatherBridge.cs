@@ -281,7 +281,7 @@ public static class CraftingGatherBridge
                 {
                     _waitingForGatherComplete = true;
                     GatherBuddy.AutoGather.Enabled = true;
-                    GatherBuddy.Log.Information($"Created crafting gather list with {_gatherList.Items.Count} items. Starting auto-gather.");
+                    GatherBuddy.Log.Information($"已创建包含 {_gatherList.Items.Count} 个物品的制作采集清单，开始自动采集。");
                 }
             }
             else
@@ -312,7 +312,7 @@ public static class CraftingGatherBridge
         var recipeSheet = Dalamud.GameData.GetExcelSheet<Recipe>();
         if (recipeSheet == null || !recipeSheet.TryGetRow(_recipeIdToCraft, out var recipe))
         {
-            GatherBuddy.Log.Error($"Could not find recipe {_recipeIdToCraft}");
+            GatherBuddy.Log.Error($"找不到配方 {_recipeIdToCraft}");
             _recipeIdToCraft = 0;
             _waitingForGatherComplete = false;
             return;
@@ -335,7 +335,7 @@ public static class CraftingGatherBridge
         
         _waitingForGatherComplete = false;
         _waitingForJobSwitch = false;
-        GatherBuddy.Log.Information($"Gathering complete. Starting craft for recipe {_recipeIdToCraft}");
+        GatherBuddy.Log.Information($"采集完成，开始为配方 {_recipeIdToCraft} 制作");
         
         DeleteTemporaryGatherList();
         

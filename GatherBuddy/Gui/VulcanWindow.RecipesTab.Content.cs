@@ -487,8 +487,8 @@ public partial class VulcanWindow
                     GatherBuddy.CraftingListManager.SaveList(newList);
                     RaphaelAssessmentService.QueueWarmupForAddedListRecipe(recipe.Recipe.RowId, newList);
                     RefreshOpenCraftingList(newList.ID);
-                    GatherBuddy.Log.Information($"[VulcanWindow] Created list '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}");
-                    Communicator.Print($"Created '{newList.Name}' and added {recipe.Name} x{_contextMenuAddQuantity}.");
+                    GatherBuddy.Log.Information($"[VulcanWindow] 已创建清单 '{newList.Name}' 并添加 {recipe.Name} x{_contextMenuAddQuantity}");
+                    Communicator.Print($"已创建 '{newList.Name}' 并添加 {recipe.Name} x{_contextMenuAddQuantity}。");
                     ImGui.CloseCurrentPopup();
                 }
 
@@ -526,8 +526,8 @@ public partial class VulcanWindow
                             GatherBuddy.CraftingListManager.SaveList(list);
                             RaphaelAssessmentService.QueueWarmupForAddedListRecipe(recipe.Recipe.RowId, list);
                             RefreshOpenCraftingList(list.ID);
-                            GatherBuddy.Log.Information($"Added {recipe.Name} x{_contextMenuAddQuantity} to crafting list '{list.Name}'");
-                            Communicator.Print($"Added {recipe.Name} x{_contextMenuAddQuantity} to '{list.Name}'.");
+                            GatherBuddy.Log.Information($"已将 {recipe.Name} x{_contextMenuAddQuantity} 添加到制作清单 '{list.Name}'");
+                            Communicator.Print($"已将 {recipe.Name} x{_contextMenuAddQuantity} 添加到 '{list.Name}'。");
                             _contextMenuLastAddedList = list.Name;
                             _contextMenuLastAddedAt   = DateTime.Now;
                         }
@@ -603,7 +603,7 @@ public partial class VulcanWindow
             ImGui.SetCursorPos(new Vector2(detailInset, emptyStateStartY));
             ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "选择配方以查看详情");
             ImGui.SetCursorPosX(detailInset);
-            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "and start crafting.");
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "并开始制作。");
             return;
         }
 
@@ -791,8 +791,8 @@ public partial class VulcanWindow
                 raphaelAssessment = new RaphaelAssessment(
                     RaphaelAssessmentState.Unavailable,
                     RaphaelAssessmentOutcome.None,
-                    "Raphael validation is unavailable.",
-                    "No usable stats are available for this recipe.");
+                    "Raphael 验证不可用。",
+                    "此配方没有可用的属性。");
             }
 
             ImGui.Separator();

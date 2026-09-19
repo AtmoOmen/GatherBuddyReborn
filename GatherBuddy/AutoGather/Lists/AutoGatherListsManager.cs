@@ -177,7 +177,7 @@ public partial class AutoGatherListsManager : IDisposable
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Error serializing auto-gather lists data:\n{e}");
+            GatherBuddy.Log.Error($"序列化自动采集清单数据时出错:\n{e}");
         }
     }
 
@@ -200,7 +200,7 @@ public partial class AutoGatherListsManager : IDisposable
             }
             catch (Exception e)
             {
-                GatherBuddy.Log.Error($"Error deserializing auto gather lists:\n{e}");
+                GatherBuddy.Log.Error($"反序列化自动采集清单时出错:\n{e}");
                 Communicator.PrintError($"[GatherBuddy Reborn] �Զ��ɼ��б�����ʧ��, ��ִ�����á�");
             }
         }

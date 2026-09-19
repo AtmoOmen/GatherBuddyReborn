@@ -46,7 +46,7 @@ public class SoundHelper
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Error during honk: {ex}");
+            GatherBuddy.Log.Error($"播放提示音时出错: {ex}");
         }
     }
 

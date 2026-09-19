@@ -75,7 +75,7 @@ public class LocationManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not write custom locations to file {file.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法将自定义位置写入文件 {file.FullName}:\n{e}");
         }
     }
 
@@ -130,7 +130,7 @@ public class LocationManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Error loading custom infos:\n{e}");
+            GatherBuddy.Log.Error($"加载自定义信息时出错:\n{e}");
         }
 
         return ret;

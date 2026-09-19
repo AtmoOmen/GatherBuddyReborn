@@ -192,7 +192,7 @@ internal sealed unsafe class NativeItemTooltipBridge : IDisposable
         }
         catch (Exception ex)
         {
-            MaybeLogItemDetailRepositionFailure($"Failed to reposition ItemDetail addon: {ex.Message}");
+            MaybeLogItemDetailRepositionFailure($"重新定位 ItemDetail 窗口失败: {ex.Message}");
         }
     }
 

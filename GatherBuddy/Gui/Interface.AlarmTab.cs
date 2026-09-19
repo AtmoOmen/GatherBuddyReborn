@@ -334,7 +334,7 @@ public partial class Interface
             }
             catch (Exception e)
             {
-                GatherBuddy.Log.Error($"Could not write Alarm Group {group.Name} to Clipboard:\n{e}");
+                GatherBuddy.Log.Error($"无法将闹钟组 {group.Name} 写入剪贴板:\n{e}");
                 Communicator.PrintClipboardMessage("闹钟组 ", group.Name, e);
             }
         }

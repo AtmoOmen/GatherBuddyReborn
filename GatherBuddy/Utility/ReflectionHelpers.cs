@@ -51,7 +51,7 @@ public static class ReflectionHelpers
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Debug($"Failed to get plugin {internalName}: {e.Message}");
+            GatherBuddy.Log.Debug($"获取插件 {internalName} 失败: {e.Message}");
             instance = null;
             return false;
         }

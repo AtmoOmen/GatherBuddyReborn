@@ -367,7 +367,7 @@ public partial class VulcanWindow
                                 GatherBuddy.CraftingListManager.SaveList(list);
                                 RaphaelAssessmentService.QueueWarmupForAddedListRecipe(item.Recipe.RowId, list);
                                 GatherBuddy.VulcanWindow?.RefreshOpenCraftingList(list.ID);
-                                GatherBuddy.Log.Information($"Added {item.Name} to crafting list '{list.Name}'");
+                                GatherBuddy.Log.Information($"已将 {item.Name} 添加到制作清单 '{list.Name}'");
                             }
                         }
                         

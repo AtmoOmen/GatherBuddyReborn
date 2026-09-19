@@ -246,7 +246,7 @@ public partial class Interface
                         }
                         catch (Exception ex)
                         {
-                            GatherBuddy.Log.Error($"Could not move fish data override file to backup:\n{ex}");
+                            GatherBuddy.Log.Error($"无法将鱼类数据覆盖文件移动到备份:\n{ex}");
                         }
             }
             

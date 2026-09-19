@@ -38,7 +38,7 @@ internal static class DalamudPluginToggleHelper
         catch (Exception e)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] Failed to inspect toggle state for {internalName}: {e}");
-            return new PluginToggleState(true, false, false, $"Could not inspect {internalName}.");
+            return new PluginToggleState(true, false, false, $"无法检查 {internalName}。");
         }
     }
 

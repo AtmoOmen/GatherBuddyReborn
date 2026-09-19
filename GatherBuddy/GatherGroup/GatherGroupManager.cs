@@ -181,7 +181,7 @@ public class GatherGroupManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Could not write gather groups to file {file.FullName}:\n{e}");
+            GatherBuddy.Log.Error($"无法将采集组写入文件 {file.FullName}:\n{e}");
         }
     }
 
@@ -264,7 +264,7 @@ public class GatherGroupManager
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Error($"Error loading gather groups:\n{e}");
+            GatherBuddy.Log.Error($"加载采集组时出错:\n{e}");
             manager.Groups.Clear();
             manager.SetDefaults();
             manager.Save();

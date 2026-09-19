@@ -135,7 +135,7 @@ namespace GatherBuddy.Gui
                 }
                 catch (Exception e)
                 {
-                    GatherBuddy.Log.Error($"Error serializing config presets data:\n{e}");
+                    GatherBuddy.Log.Error($"序列化配置预设数据时出错:\n{e}");
                 }
             }
 
