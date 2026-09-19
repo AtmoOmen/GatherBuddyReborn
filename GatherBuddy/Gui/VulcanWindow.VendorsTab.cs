@@ -65,6 +65,8 @@ public partial class VulcanWindow
     private bool                                         _vendorFilterDirty    = true;
     private List<VendorDisplayRow>                       _vendorDisplay        = new();
     private bool                                         _vendorDisplayBuiltWithResolvedLocations;
+    private int                                          _vendorDisplayShopRevision = -1;
+    private int                                          _vendorDisplayLocationRevision = -1;
     private Dictionary<VendorCurrencyGroup, int>?        _vendorGroupCounts;
     private Dictionary<VendorGilFilter, int>?            _vendorGilCounts;
     private readonly Dictionary<VendorGilFilter, ushort> _vendorGilFilterIconIds = new();
@@ -165,7 +167,7 @@ public partial class VulcanWindow
         currencyName = itemSheet != null && itemSheet.TryGetRow(currencyItemId, out var item)
             ? item.Name.ExtractText()
             : string.IsNullOrWhiteSpace(fallbackName)
-                ? $"Currency {currencyItemId}"
+                ? $"货币 {currencyItemId}"
                 : fallbackName;
         _vendorCurrencyNames[currencyItemId] = currencyName;
         return currencyName;
@@ -175,15 +177,15 @@ public partial class VulcanWindow
     {
         var routeParts = new List<string>();
         if (npc.GcRankIndex >= 0)
-            routeParts.Add($"Rank {npc.GcRankIndex + 1}");
+            routeParts.Add($"军衔 {npc.GcRankIndex + 1}");
         if (npc.GcCategoryIndex >= 0)
-            routeParts.Add($"Category {npc.GcCategoryIndex + 1}");
+            routeParts.Add($"类别 {npc.GcCategoryIndex + 1}");
         if (npc.InclusionPageIndex >= 0)
-            routeParts.Add($"Page {npc.InclusionPageIndex + 1}");
+            routeParts.Add($"页 {npc.InclusionPageIndex + 1}");
         if (npc.InclusionSubPageIndex > 0)
-            routeParts.Add($"Tab {npc.InclusionSubPageIndex}");
+            routeParts.Add($"标签 {npc.InclusionSubPageIndex}");
         if (routeParts.Count == 0 && npc.SourceShopId != 0)
-            routeParts.Add($"Route {npc.SourceShopId}");
+            routeParts.Add($"路线 {npc.SourceShopId}");
         return string.Join(" / ", routeParts);
     }
 
@@ -238,6 +240,7 @@ public partial class VulcanWindow
 
     private void DrawVendorsTabContent()
     {
+        InvalidateVendorDisplayForCacheRevisions();
         var avail = ImGui.GetContentRegionAvail();
         var leftW = VulcanUiScaling.Scaled(220f);
 
@@ -260,7 +263,7 @@ public partial class VulcanWindow
 
     private VendorDisplayRow BuildVendorDisplayRow(VendorShopEntry entry, bool locationCacheReady)
     {
-        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(entry.Npcs, "building the Vendors tab", entry.ItemName);
+        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(entry.Npcs, "构建商店标签页", entry.ItemName);
         var npcOptions = new List<VendorDisplayNpcOption>(selectableNpcs.Count);
         foreach (var npc in selectableNpcs)
         {
@@ -283,7 +286,7 @@ public partial class VulcanWindow
                 ? selectableNpcs[0].Name
                 : entry.Npcs.Count > 0
                     ? entry.Npcs[0].Name
-                    : "Unknown",
+                    : "未知",
             GetVendorDisplayRowId(entry),
             $"{entry.Cost:N0}");
     }
@@ -340,7 +343,7 @@ public partial class VulcanWindow
         var location = selectedNpc?.Location;
         if (location == null)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "Unknown");
+            ImGui.TextColored(ImGuiColors.DalamudGrey3, "未知");
             return;
         }
 
@@ -356,30 +359,30 @@ public partial class VulcanWindow
         if (location == null)
         {
             DrawVendorIconButton($"vendor_flag_disabled_{row.IdSuffix}", FontAwesomeIcon.MapMarkerAlt,
-                VendorMarkerButtonColor, "No location data available", true);
+                VendorMarkerButtonColor, "没有可用的位置数据", true);
             return;
         }
 
         if (DrawVendorIconButton($"vendor_flag_{row.IdSuffix}", FontAwesomeIcon.MapMarkerAlt,
-                VendorMarkerButtonColor, $"Place a map marker for {selectedNpc!.Npc.Name}"))
+                VendorMarkerButtonColor, $"为 {selectedNpc!.Npc.Name} 放置地图标记"))
             GatherBuddy.VendorNavigator.PlaceMapMarker(location);
     }
 
     private string GetVendorZoneName(VendorNpcLocation? location)
     {
         if (location == null)
-            return "Unknown";
+            return "未知";
 
         if (_vendorZoneNames.TryGetValue(location.TerritoryId, out var zoneName))
             return zoneName;
 
         var territorySheet = Dalamud.GameData.GetExcelSheet<TerritoryType>();
         if (territorySheet == null || !territorySheet.TryGetRow(location.TerritoryId, out var territory))
-            return _vendorZoneNames[location.TerritoryId] = $"Territory {location.TerritoryId}";
+            return _vendorZoneNames[location.TerritoryId] = $"区域 {location.TerritoryId}";
 
         zoneName = territory.PlaceName.RowId != 0
             ? territory.PlaceName.Value.Name.ToString()
-            : $"Territory {location.TerritoryId}";
+            : $"区域 {location.TerritoryId}";
         _vendorZoneNames[location.TerritoryId] = zoneName;
         return zoneName;
     }
@@ -572,8 +575,8 @@ public partial class VulcanWindow
         var currentGcCurrencyItemId = GetCurrentGrandCompanyCurrencyItemId();
         var topLevelFilters = new List<(VendorShopType ShopType, VendorCurrencyGroup? Group, string Label, uint CurrencyItemId)>
         {
-            (VendorShopType.GilShop,           null,                         "Gil",      VendorShopResolver.GilCurrencyItemId),
-            (VendorShopType.GrandCompanySeals, null,                         "GC Seals", currentGcCurrencyItemId),
+            (VendorShopType.GilShop,           null,                         "金币",      VendorShopResolver.GilCurrencyItemId),
+            (VendorShopType.GrandCompanySeals, null,                         "军票", currentGcCurrencyItemId),
         };
         topLevelFilters.AddRange(SpecialCurrencyGroups.Select(group => (VendorShopType.SpecialCurrency, (VendorCurrencyGroup?)group.Group, group.Label, group.CurrencyItemId)));
 
@@ -652,7 +655,7 @@ public partial class VulcanWindow
         var renderedButtonCount = currencyFilters.Count + 1;
         var renderedButtons     = 0;
         var isAllSelected = _vendorSelectedCurrencyItemId == null;
-        if (DrawVendorFilterButton("vendorCurrency_all", "All", 0, isAllSelected, "All currencies", buttonSize, iconSize))
+        if (DrawVendorFilterButton("vendorCurrency_all", "全部", 0, isAllSelected, "所有货币", buttonSize, iconSize))
         {
             if (!isAllSelected)
             {
@@ -693,7 +696,7 @@ public partial class VulcanWindow
     private void DrawVendorSidebar()
     {
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Currency");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "货币");
         ImGui.Spacing();
 
         ImGui.BeginChild("##vendorSidebarScroll", new Vector2(-1, ImGui.GetContentRegionAvail().Y), false);
@@ -747,12 +750,12 @@ public partial class VulcanWindow
     private string GetVendorSortLabel()
         => _vendorSortColumn switch
         {
-            VendorSortColumn.Name     => "Name",
-            VendorSortColumn.Cost     => "Cost",
-            VendorSortColumn.Currency => "Currency",
-            VendorSortColumn.Vendor   => "Vendor",
-            VendorSortColumn.Location => "Location",
-            _                         => "Sort",
+            VendorSortColumn.Name     => "名称",
+            VendorSortColumn.Cost     => "花费",
+            VendorSortColumn.Currency => "货币",
+            VendorSortColumn.Vendor   => "商人",
+            VendorSortColumn.Location => "位置",
+            _                         => "排序",
         };
 
     private string GetVendorSortVendorName(VendorDisplayRow row)
@@ -805,7 +808,7 @@ public partial class VulcanWindow
         var originalCount = rows.Count;
         var sortedRows    = ordered.ToList();
         if (sortedRows.Count != originalCount)
-            GatherBuddy.Log.Debug($@"[VulcanWindow] Vendor sort changed row count unexpectedly ({originalCount} -> {sortedRows.Count}) for category={_vendorCategory}, group={_vendorSelectedGroup?.ToString() ?? "none"}, currency={_vendorSelectedCurrencyItemId?.ToString() ?? "all"}, gil={_vendorGilFilter}, search=""{_vendorSearch}""");
+            GatherBuddy.Log.Debug($@"[VulcanWindow] 商店排序意外改变了行数 ({originalCount} -> {sortedRows.Count})，category={_vendorCategory}, group={_vendorSelectedGroup?.ToString() ?? "无"}, currency={_vendorSelectedCurrencyItemId?.ToString() ?? "全部"}, gil={_vendorGilFilter}, search=""{_vendorSearch}""");
 
         rows.Clear();
         rows.AddRange(sortedRows);
@@ -1023,6 +1026,8 @@ public partial class VulcanWindow
             ImGui.SetNextItemWidth(GetVendorQuantityInputWidth());
             ImGui.InputText($"##vendorQty_{row.IdSuffix}", ref _vendorEditingQuantityText, 16,
                 ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+            if (int.TryParse(_vendorEditingQuantityText, out var editedQuantity))
+                SetVendorPurchaseQuantity(row.Entry, editedQuantity);
             if (ImGui.IsItemDeactivated())
                 CommitVendorQuantityEdit(row.Entry);
             return;
@@ -1106,14 +1111,14 @@ public partial class VulcanWindow
         if (!VendorPurchaseManager.IsPurchaseSupported(row.Entry, selectedNpc.Npc))
         {
             DrawVendorIconButton($"vendor_add_disabled_{row.IdSuffix}", FontAwesomeIcon.Plus,
-                VendorBuyListButtonColor, "Automation is not available for the selected vendor route", true);
+                VendorBuyListButtonColor, "所选商店路线不支持自动化", true);
             return;
         }
         var buyListManager = GatherBuddy.VendorBuyListManager;
         if (buyListManager == null)
         {
             DrawVendorIconButton($"vendor_add_disabled_{row.IdSuffix}", FontAwesomeIcon.Plus,
-                VendorBuyListButtonColor, "Vendor buy list manager unavailable", true);
+                VendorBuyListButtonColor, "商店购买清单管理器不可用", true);
             return;
         }
 
@@ -1121,9 +1126,9 @@ public partial class VulcanWindow
         var contextMenuId = $"##vendorAddToListPopup_{row.IdSuffix}";
         if (DrawVendorIconButton($"vendor_add_{row.IdSuffix}", FontAwesomeIcon.Plus,
                 VendorBuyListButtonColor,
-                "Add to active list - right-click for more options")
+                "添加到活动清单 - 右键查看更多选项")
          && !buyListManager.TryAddTarget(row.Entry, selectedNpc.Npc, targetQuantity, openWindow: false, announce: false))
-            GatherBuddy.Log.Debug($@"[VulcanWindow] Unable to add {row.Entry.ItemName} to active vendor list '{buyListManager.ActiveListName}' with target {targetQuantity:N0}.");
+            GatherBuddy.Log.Debug($@"[VulcanWindow] 无法将 {row.Entry.ItemName} 以目标数量 {targetQuantity:N0} 添加到活动商店清单 '{buyListManager.ActiveListName}'。");
 
         if (ImGui.BeginPopupContextItem(contextMenuId))
         {
@@ -1138,7 +1143,7 @@ public partial class VulcanWindow
         if (selectedNpc == null || location == null)
         {
             DrawVendorIconButton($"vendor_go_disabled_{row.IdSuffix}", FontAwesomeIcon.ShoppingCart,
-                VendorAutomationButtonColor, "No location data available", true);
+                VendorAutomationButtonColor, "没有可用的位置数据", true);
             return;
         }
 
@@ -1173,8 +1178,8 @@ public partial class VulcanWindow
         {
             if (DrawVendorIconButton($"vendor_go_{row.IdSuffix}", FontAwesomeIcon.ShoppingCart,
                     VendorAutomationButtonColor, canPurchaseHere
-                        ? $"Navigate to {selectedNpc.Npc.Name} and buy {requestedQuantity:N0}x {entry.ItemName}"
-                        : $"Navigate to {selectedNpc.Npc.Name}"))
+                        ? $"前往 {selectedNpc.Npc.Name} 并购买 {requestedQuantity:N0}x {entry.ItemName}"
+                        : $"前往 {selectedNpc.Npc.Name}"))
             {
                 if (canPurchaseHere)
                     purchaseManager.StartPurchase(entry, selectedNpc.Npc, location, (uint)requestedQuantity);
@@ -1207,5 +1212,20 @@ public partial class VulcanWindow
          && !_vendorDisplay.Any(row => VendorQuantityKey(row.Entry) == _vendorEditingQuantityKey.Value))
             StopEditingVendorQuantity();
         _vendorDisplayBuiltWithResolvedLocations = locationCacheReady;
+        _vendorDisplayShopRevision = VendorShopResolver.Revision;
+        _vendorDisplayLocationRevision = VendorNpcLocationCache.Revision;
+    }
+
+    private void InvalidateVendorDisplayForCacheRevisions()
+    {
+        if (_vendorDisplayShopRevision != VendorShopResolver.Revision)
+        {
+            _vendorGroupCounts = null;
+            _vendorGilCounts = null;
+            _vendorFilterDirty = true;
+        }
+
+        if (_vendorDisplayLocationRevision != VendorNpcLocationCache.Revision)
+            _vendorFilterDirty = true;
     }
 }

@@ -82,7 +82,7 @@ public static class RaphaelAssessmentService
 
     public static bool TryAssessCachedSolution(CachedRaphaelSolution solution, out RaphaelAssessment assessment)
     {
-        assessment = CreateUnavailableAssessment(solution.Request.RecipeId, solution.Request, "Recipe data unavailable for cached Raphael solution.");
+        assessment = CreateUnavailableAssessment(solution.Request.RecipeId, solution.Request, "缓存的 Raphael 解法缺少配方数据。");
         if (!TryGetRecipe(solution.Request.RecipeId, out var recipe, out _))
             return false;
 
@@ -193,9 +193,13 @@ public static class RaphaelAssessmentService
             return true;
         }
 
-        if (!CraftingContextResolver.TryResolveListExecutionContext(list, recipeId, isOriginalRecipe, settings, out var executionContext))
+        CraftingExecutionContext executionContext;
+        var hasExecutionContext = settings == null
+            ? CraftingContextResolver.TryResolveListExecutionContext(list, recipeId, isOriginalRecipe, out executionContext)
+            : CraftingContextResolver.TryResolveListExecutionContext(list, recipeId, isOriginalRecipe, settings, out executionContext);
+        if (!hasExecutionContext)
         {
-            assessment = CreateUnavailableAssessment(recipeId, null, "List crafting settings could not be resolved.");
+            assessment = CreateUnavailableAssessment(recipeId, null, "无法解析清单的制作设置。");
             return false;
         }
 
@@ -209,7 +213,7 @@ public static class RaphaelAssessmentService
     {
         if (!TryBuildSimulationContext(recipe, executionContext, out var context))
         {
-            assessment = CreateUnavailableAssessment(recipe.RowId, null, "No current or gearset stats available for this recipe.");
+            assessment = CreateUnavailableAssessment(recipe.RowId, null, "此配方没有可用的当前属性或套装属性。");
             return false;
         }
 
@@ -333,8 +337,8 @@ public static class RaphaelAssessmentService
             return new RaphaelAssessment(
                 RaphaelAssessmentState.Failed,
                 RaphaelAssessmentOutcome.None,
-                "Raphael validation failed.",
-                string.IsNullOrWhiteSpace(failureReason) ? "Raphael could not generate a solution for this configuration." : failureReason!,
+                "Raphael 验证失败。",
+                string.IsNullOrWhiteSpace(failureReason) ? "Raphael 无法为此配置生成解法。" : failureReason!,
                 request,
                 failureReason);
         }
@@ -344,16 +348,16 @@ public static class RaphaelAssessmentService
             return new RaphaelAssessment(
                 RaphaelAssessmentState.Generating,
                 RaphaelAssessmentOutcome.None,
-                "Raphael validation generating...",
-                "A solve request exists for this exact recipe, stat, and quality configuration.",
+                "正在生成 Raphael 验证...",
+                "已存在针对该配方、属性与品质配置的求解请求。",
                 request);
         }
 
         return new RaphaelAssessment(
             RaphaelAssessmentState.NotGenerated,
             RaphaelAssessmentOutcome.None,
-            "No Raphael validation generated yet.",
-            "Save this configuration or queue Raphael validation to test this exact recipe setup.",
+            "尚未生成 Raphael 验证。",
+            "保存此配置或排队 Raphael 验证以测试该配方设置。",
             request);
     }
 
@@ -366,8 +370,8 @@ public static class RaphaelAssessmentService
             return new RaphaelAssessment(
                 RaphaelAssessmentState.Ready,
                 RaphaelAssessmentOutcome.SimulationFailed,
-                "Raphael generated a solve, but simulation could not validate it.",
-                $"Generated solution with {solution.ActionIds.Count} step(s), but the simulator could not confirm completion.",
+                "Raphael 生成了解法，但模拟无法验证。",
+                $"已生成包含 {solution.ActionIds.Count} 个步骤的解法，但模拟器无法确认完成。",
                 request,
                 StepCount: solution.ActionIds.Count);
         }

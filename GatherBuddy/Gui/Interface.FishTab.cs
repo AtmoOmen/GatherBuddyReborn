@@ -50,7 +50,7 @@ public partial class Interface
                 _uptimeColumnWidth           = TextWidth("999.9%") / Scale + 8; // 概率%: +8 调整宽度，匹配中文
                 _baitColumnWidth             = (Items.Max(f => TextWidth(f.Bait.First().Name)) + ItemSpacing.X + LineIconSize.X) / Scale;
                 _closestAetheryteColumnWidth = GatherBuddy.GameData.Aetherytes.Values.Max(a => TextWidth(a.Name)) / Scale;
-                _typeColumnWidth             = TextWidth("Spearfishing") / Scale;
+                _typeColumnWidth             = TextWidth("刺鱼") / Scale;
                 _collectibleColumnWidth      = TextWidth(_collectibleColumn.Label) / Scale + Table.ArrowWidth + 5; // 收藏品: +5 调整宽度，匹配中文
                 _patchColumnWidth            = TextWidth(_patchColumn.Label) / Scale + Table.ArrowWidth + 5; // 版本: +5 调整宽度，匹配中文
                 _folkloreColumnWidth         = Items.Max(i => TextWidth(i.Data.Folklore)) / Scale;
@@ -235,7 +235,7 @@ public partial class Interface
                 => _nextUptimeColumnWidth * ImGuiHelpers.GlobalScale;
 
             public override void DrawColumn(ExtendedFish item, int _)
-                => DrawTimeInterval(item.Uptime.Item2, item.UptimeDependency);
+                => DrawTimeInterval(item.Uptime.Item2, item.UptimeDependency, true, item.Data);
 
             public override int Compare(ExtendedFish lhs, ExtendedFish rhs)
             {

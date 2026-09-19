@@ -33,7 +33,7 @@ public sealed partial class VendorBuyListManager
             if (destinationList == null)
             {
                 GatherBuddy.Log.Debug($@"[VendorBuyListManager] TeamCraft vendor import requested for missing vendor list {destinationListId.Value}.");
-                return new TeamCraftImportResult(null, "The selected vendor list no longer exists.", null);
+                return new TeamCraftImportResult(null, "所选商店清单已不存在。", null);
             }
 
             GatherBuddy.Log.Debug($@"[VendorBuyListManager] TeamCraft vendor import will update existing vendor list '{destinationList.Name}'.");
@@ -43,7 +43,7 @@ public sealed partial class VendorBuyListManager
         if (parsedLines.Count == 0)
         {
             GatherBuddy.Log.Debug("[VendorBuyListManager] TeamCraft vendor import contained no parsable vendor lines.");
-            return new TeamCraftImportResult(null, "No TeamCraft vendor items were found in the pasted text.", null);
+            return new TeamCraftImportResult(null, "在粘贴的文本中未找到 TeamCraft 商店物品。", null);
         }
 
         var resolvedEntries = new List<(VendorShopEntry Entry, VendorNpc Vendor, uint TargetQuantity)>();
@@ -66,8 +66,8 @@ public sealed partial class VendorBuyListManager
         if (resolvedEntries.Count == 0)
         {
             var errorMessage = unresolvedItems.Count == 1
-                ? $"Could not resolve '{unresolvedItems[0]}' in the vendor data."
-                : $"Could not resolve any of the {unresolvedItems.Count:N0} pasted items in the vendor data.";
+                ? $"无法在商店数据中解析 '{unresolvedItems[0]}'。"
+                : $"无法在商店数据中解析粘贴的 {unresolvedItems.Count:N0} 个物品中的任何一个。";
             GatherBuddy.Log.Debug($"[VendorBuyListManager] TeamCraft vendor import failed: {errorMessage}");
             return new TeamCraftImportResult(null, errorMessage, null);
         }
@@ -77,7 +77,7 @@ public sealed partial class VendorBuyListManager
         if (list == null)
         {
             var listName = string.IsNullOrWhiteSpace(newListName)
-                ? "Imported from TeamCraft"
+                ? "从 TeamCraft 导入"
                 : newListName.Trim();
             list = CreateList(listName, false);
             createdList = true;
@@ -105,7 +105,7 @@ public sealed partial class VendorBuyListManager
                 GatherBuddy.Config.Save();
             }
             GatherBuddy.Log.Debug("[VendorBuyListManager] TeamCraft vendor import produced no importable entries after resolution.");
-            return new TeamCraftImportResult(null, "No supported vendor routes were available for the pasted items.", null);
+            return new TeamCraftImportResult(null, "粘贴的物品没有可用的受支持商店路线。", null);
         }
 
         GatherBuddy.Config.ActiveVendorBuyListId = list.Id;
@@ -113,8 +113,8 @@ public sealed partial class VendorBuyListManager
 
         var warning = BuildTeamCraftImportWarning(unresolvedItems);
         _statusText = warning == null
-            ? $"Imported {importedEntryCount:N0} TeamCraft vendor item(s) into '{list.Name}'."
-            : $"Imported {importedEntryCount:N0} TeamCraft vendor item(s) into '{list.Name}'. {warning}";
+            ? $"已将 {importedEntryCount:N0} 个 TeamCraft 商店物品导入到 '{list.Name}'。"
+            : $"已将 {importedEntryCount:N0} 个 TeamCraft 商店物品导入到 '{list.Name}'。{warning}";
         GatherBuddy.Log.Information($"[VendorBuyListManager] {_statusText}");
         return new TeamCraftImportResult(list, null, warning);
     }
@@ -252,7 +252,7 @@ public sealed partial class VendorBuyListManager
             .Count();
         var itemPreview = string.Join(", ", displayedItems);
         return remainingCount > 0
-            ? $"Skipped {unresolvedItems.Count:N0} item(s): {itemPreview}, and {remainingCount:N0} more."
-            : $"Skipped {unresolvedItems.Count:N0} item(s): {itemPreview}.";
+            ? $"已跳过 {unresolvedItems.Count:N0} 个物品: {itemPreview}，以及另外 {remainingCount:N0} 个。"
+            : $"已跳过 {unresolvedItems.Count:N0} 个物品: {itemPreview}。";
     }
 }

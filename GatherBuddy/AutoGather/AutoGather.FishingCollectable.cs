@@ -17,6 +17,8 @@ namespace GatherBuddy.AutoGather
         [
             "collectability of",
             "収集価値",
+            "收藏价值",
+            "收藏價值",
             "Sammlerwert",
             "Valeur de collection",
             "收藏价值"

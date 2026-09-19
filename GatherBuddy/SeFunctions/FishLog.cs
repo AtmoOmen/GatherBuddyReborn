@@ -69,7 +69,7 @@ public unsafe class FishLog
 
         if (_spearFish == null)
         {
-            GatherBuddy.Log.Error("Requesting spearfish log completion, but pointer not set.");
+            GatherBuddy.Log.Error("请求刺鱼图鉴完成时，指针未设置。");
             return false;
         }
 
@@ -88,7 +88,7 @@ public unsafe class FishLog
 
         if (_fish == null)
         {
-            GatherBuddy.Log.Error("Requesting fish log completion, but pointer not set.");
+            GatherBuddy.Log.Error("请求钓鱼图鉴完成时，指针未设置。");
             return false;
         }
 

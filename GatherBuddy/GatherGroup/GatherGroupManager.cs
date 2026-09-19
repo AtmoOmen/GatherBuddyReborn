@@ -228,7 +228,7 @@ public class GatherGroupManager
             {
                 if (!TimedGroup.FromConfig(config, out var group))
                 {
-                    GatherBuddy.Log.Error($"Invalid items in gather group {group.Name} skipped.");
+                    GatherBuddy.Log.Error($"采集组 {group.Name} 中的无效物品已跳过。");
                     changes = true;
                 }
 
@@ -236,14 +236,14 @@ public class GatherGroupManager
                 if (searchName.Length == 0)
                 {
                     changes = true;
-                    GatherBuddy.Log.Error("Gather group without name found, skipping.");
+                    GatherBuddy.Log.Error("发现没有名称的采集组，已跳过。");
                     continue;
                 }
 
                 if (!manager.Groups.TryAdd(searchName, group))
                 {
                     changes = true;
-                    GatherBuddy.Log.Error($"Multiple gather groups with the same name {searchName} found, skipping later ones.");
+                    GatherBuddy.Log.Error($"发现多个同名采集组 {searchName}，后续的已跳过。");
                 }
             }
 
@@ -251,10 +251,10 @@ public class GatherGroupManager
             {
                 Dalamud.Notifications.AddNotification(new Notification()
                 {
-                    Title = "GatherBuddy Error",
+                    Title = "GatherBuddy 错误",
                     Content =
-                        "Failed to load some gather groups. See the plugin log for more details. This is not saved, if it keeps happening you need to manually change an Gather Group to cause a save.",
-                    MinimizedText = "Failed to load gather groups.",
+                        "部分采集组加载失败。详情请查看插件日志。此状态不会被保存，如果持续出现，需要手动更改一个采集组以触发保存。",
+                    MinimizedText = "采集组加载失败。",
                     Type          = NotificationType.Error,
                 });
             }

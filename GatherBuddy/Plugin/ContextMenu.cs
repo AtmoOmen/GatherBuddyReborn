@@ -278,12 +278,12 @@ public class ContextMenu : IDisposable
         if (existingItem != null)
         {
             existingItem.Quantity += 1;
-            GatherBuddy.Log.Information($"Increased quantity of {recipe.ItemResult.Value.Name.ExtractText()} in list '{list.Name}' to {existingItem.Quantity}");
+            GatherBuddy.Log.Information($"已将清单 '{list.Name}' 中 {recipe.ItemResult.Value.Name.ExtractText()} 的数量增加到 {existingItem.Quantity}");
         }
         else
         {
             list.AddRecipe(recipe.RowId, 1);
-            GatherBuddy.Log.Information($"Added {recipe.ItemResult.Value.Name.ExtractText()} to list '{list.Name}'");
+            GatherBuddy.Log.Information($"已将 {recipe.ItemResult.Value.Name.ExtractText()} 添加到清单 '{list.Name}'");
         }
 
         GatherBuddy.CraftingListManager.SaveList(list);

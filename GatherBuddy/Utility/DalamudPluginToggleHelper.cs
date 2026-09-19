@@ -31,7 +31,7 @@ internal static class DalamudPluginToggleHelper
 
             var isLoaded = localPlugin.GetFoP("IsLoaded") is bool loaded && loaded;
             if (!TryBuildPluginToggleContext(localPlugin, internalName, out var context, out var failureReason))
-                return new PluginToggleState(true, isLoaded, false, failureReason ?? $"Could not inspect {internalName}.");
+                return new PluginToggleState(true, isLoaded, false, failureReason ?? $"无法检查 {internalName}。");
 
             return new PluginToggleState(true, context.IsLoaded, context.BlockedReason == null, context.BlockedReason);
         }
@@ -75,7 +75,7 @@ internal static class DalamudPluginToggleHelper
 
             if (context.ApplicableProfile == null)
             {
-                failureReason = $"Could not find a collection entry for {internalName}.";
+                failureReason = $"找不到 {internalName} 的集合条目。";
                 GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
                 return false;
             }
@@ -87,8 +87,8 @@ internal static class DalamudPluginToggleHelper
         }
         catch (Exception e)
         {
-            GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] Failed to {(enable ? "enable" : "disable")} {internalName}: {e}");
-            failureReason = $"Failed to {(enable ? "enable" : "disable")} {internalName}.";
+            GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] 无法{(enable ? "启用" : "禁用")} {internalName}: {e}");
+            failureReason = $"无法{(enable ? "启用" : "禁用")} {internalName}。";
             operationTask = null;
             return false;
         }
@@ -119,7 +119,7 @@ internal static class DalamudPluginToggleHelper
         var isLoaded = localPlugin.GetFoP("IsLoaded") is bool loaded && loaded;
         if (localPlugin.GetFoP("EffectiveWorkingPluginId") is not Guid workingPluginId || workingPluginId == Guid.Empty)
         {
-            failureReason = $"Could not resolve {internalName}'s plugin id.";
+            failureReason = $"无法解析 {internalName} 的插件 ID。";
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
             return false;
         }
@@ -127,14 +127,14 @@ internal static class DalamudPluginToggleHelper
         var profileManager = ReflectionHelpers.GetDalamudService("Dalamud.Plugin.Internal.Profiles.ProfileManager");
         if (profileManager == null)
         {
-            failureReason = "Could not resolve the Dalamud profile manager.";
+            failureReason = "无法解析 Dalamud 配置管理器。";
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
             return false;
         }
 
         if (profileManager.GetFoP("Profiles") is not IEnumerable profiles)
         {
-            failureReason = "Could not read collections from the Dalamud profile manager.";
+            failureReason = "无法从 Dalamud 配置管理器读取集合。";
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
             return false;
         }
@@ -147,7 +147,7 @@ internal static class DalamudPluginToggleHelper
 
             if (!TryProfileContainsPlugin(profile, workingPluginId, out var containsPlugin))
             {
-                failureReason = "Could not inspect the Dalamud collection assignments.";
+                failureReason = "无法检查 Dalamud 集合分配。";
                 GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
                 return false;
             }
@@ -159,7 +159,7 @@ internal static class DalamudPluginToggleHelper
         var defaultProfile = profileManager.GetFoP("DefaultProfile");
         if (!TryInvokeBoolMethod(profileManager, "IsInDefaultProfile", [typeof(Guid)], [workingPluginId], out var isInDefaultProfile))
         {
-            failureReason = "Could not determine the default collection state.";
+            failureReason = "无法确定默认集合状态。";
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
             return false;
         }
@@ -188,7 +188,7 @@ internal static class DalamudPluginToggleHelper
 
         if (blockedReason == null && applicableProfile == null)
         {
-            failureReason = $"Could not find an applicable collection for {internalName}.";
+            failureReason = $"找不到适用于 {internalName} 的集合。";
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
             return false;
         }
@@ -198,7 +198,7 @@ internal static class DalamudPluginToggleHelper
             var isDefaultProfileEntry = applicableProfile.GetFoP("IsDefaultProfile") is bool profileIsDefault && profileIsDefault;
             if (!isDefaultProfileEntry)
             {
-                var profileName = applicableProfile.GetFoP<string>("Name") ?? "unknown";
+                var profileName = applicableProfile.GetFoP<string>("Name") ?? "未知";
                 var isProfileEnabled = applicableProfile.GetFoP("IsEnabled") is bool profileEnabled && profileEnabled;
                 if (!isProfileEnabled)
                 {
@@ -209,7 +209,7 @@ internal static class DalamudPluginToggleHelper
                 {
                     if (!TryInvokeBoolMethod(applicableProfile, "CheckWantsActiveFromGameState", [typeof(ulong)], [Dalamud.PlayerState.ContentId], out var wantsActive))
                     {
-                        failureReason = $"Could not determine whether the collection '{profileName}' is active.";
+                        failureReason = $"无法确定集合 '{profileName}' 是否处于活动状态。";
                         GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] {failureReason}");
                         return false;
                     }
@@ -245,7 +245,7 @@ internal static class DalamudPluginToggleHelper
     private static async Task InvokeProfileAddOrUpdateAsync(object profile, Guid workingPluginId, string internalName, bool state)
     {
         if (!TryInvokeTaskMethod(profile, "AddOrUpdateAsync", [typeof(Guid), typeof(string), typeof(bool), typeof(bool)], [workingPluginId, internalName, state, false], out var operationTask))
-            throw new InvalidOperationException($"Could not update {internalName}'s collection state.");
+            throw new InvalidOperationException($"无法更新 {internalName} 的集合状态。");
 
         await operationTask.ConfigureAwait(false);
     }
@@ -257,7 +257,7 @@ internal static class DalamudPluginToggleHelper
         if (loadMethod == null)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] Could not find LoadAsync on {pluginType.FullName}.");
-            throw new InvalidOperationException($"Could not load {internalName}.");
+            throw new InvalidOperationException($"无法加载 {internalName}。");
         }
         object?[] loadArguments = loadMethod.GetParameters().Length == 3
             ? [PluginLoadReason.Installer, false, CancellationToken.None]
@@ -266,7 +266,7 @@ internal static class DalamudPluginToggleHelper
         if (loadMethod.Invoke(localPlugin, loadArguments) is not Task operationTask)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] LoadAsync for {internalName} did not return a task.");
-            throw new InvalidOperationException($"Could not load {internalName}.");
+            throw new InvalidOperationException($"无法加载 {internalName}。");
         }
 
         await operationTask.ConfigureAwait(false);
@@ -279,21 +279,21 @@ internal static class DalamudPluginToggleHelper
         if (disposalModeType == null)
         {
             GatherBuddy.Log.Debug("[DalamudPluginToggleHelper] Could not resolve PluginLoaderDisposalMode.");
-            throw new InvalidOperationException($"Could not unload {internalName}.");
+            throw new InvalidOperationException($"无法卸载 {internalName}。");
         }
 
         var unloadMethod = pluginType.GetMethod("UnloadAsync", AllFlags, null, [disposalModeType], null);
         if (unloadMethod == null)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] Could not find UnloadAsync on {pluginType.FullName}.");
-            throw new InvalidOperationException($"Could not unload {internalName}.");
+            throw new InvalidOperationException($"无法卸载 {internalName}。");
         }
 
         var disposalMode = Enum.Parse(disposalModeType, "WaitBeforeDispose");
         if (unloadMethod.Invoke(localPlugin, [disposalMode]) is not Task operationTask)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] UnloadAsync for {internalName} did not return a task.");
-            throw new InvalidOperationException($"Could not unload {internalName}.");
+            throw new InvalidOperationException($"无法卸载 {internalName}。");
         }
 
         await operationTask.ConfigureAwait(false);

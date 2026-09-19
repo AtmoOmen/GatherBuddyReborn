@@ -234,7 +234,7 @@ public class StandardSolver : Solver
                     if (Simulator.CanUseAction(craft, step, VulcanSkill.Veneration) && step.VenerationLeft == 0 && shouldUseVeneration) return new(VulcanSkill.Veneration);
                     if (Simulator.CanUseAction(craft, step, VulcanSkill.WasteNot2) && step.WasteNotLeft == 0 && !_wasteNotUsed) return new(VulcanSkill.WasteNot2);
                     if (Simulator.CanUseAction(craft, step, VulcanSkill.WasteNot) && step.WasteNotLeft == 0 && !_wasteNotUsed) return new(VulcanSkill.WasteNot);
-                    if (Simulator.CanUseAction(craft, step, VulcanSkill.FinalAppraisal) && step.FinalAppraisalLeft == 0 && CanFinishCraft(craft, step, act)) return new(VulcanSkill.FinalAppraisal, $"Synth is {act}");
+                    if (Simulator.CanUseAction(craft, step, VulcanSkill.FinalAppraisal) && step.FinalAppraisalLeft == 0 && CanFinishCraft(craft, step, act)) return new(VulcanSkill.FinalAppraisal, $"制作将完成 {act}");
                     if (!CanFinishCraft(craft, step, act))
                         return new(act);
                 }
@@ -264,7 +264,7 @@ public class StandardSolver : Solver
                 var newQuality = GreatStridesByregotCombo(craft, step);
                 var newHQPercent = maxQuality > 0 ? Calculations.GetHQChance(newQuality * 100.0 / maxQuality) : 100;
                 var newDone = craft.CraftQualityMin1 == 0 ? newHQPercent >= _config.MaxPercentage : newQuality >= maxQuality;
-                if (newDone) return new(VulcanSkill.GreatStrides, "GS Combo");
+                if (newDone) return new(VulcanSkill.GreatStrides, "GS 组合");
             }
 
             if (step.Condition == Condition.Poor && Simulator.CanUseAction(craft, step, VulcanSkill.CarefulObservation) && _config.UseSpecialist) return new(VulcanSkill.CarefulObservation);

@@ -13,6 +13,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using GatherBuddy.AutoGather.Extensions;
 using GatherBuddy.AutoGather.Helpers;
@@ -20,6 +21,7 @@ using GatherBuddy.AutoGather.Lists;
 using GatherBuddy.AutoGather.Movement;
 using GatherBuddy.Automation;
 using GatherBuddy.Classes;
+using GatherBuddy.Crafting;
 using GatherBuddy.CustomInfo;
 using GatherBuddy.Data;
 using GatherBuddy.Enums;
@@ -254,8 +256,6 @@ namespace GatherBuddy.AutoGather
                     // Restore normal controller blocking (blocks everything)
                     GatherBuddy.ControllerSupport?.SetBlockingMode(true, true, true);
 
-                    ClearSpearfishingSessionData();
-                    
                     if (_autoRetainerMultiModeEnabled && AutoRetainer.IsEnabled)
                     {
                         try
@@ -580,8 +580,6 @@ namespace GatherBuddy.AutoGather
                     if (isSpearfishing && fish.Fish != null)
                     {
                         _wasGatheringSpearfish = true;
-                        _wasAtShadowNode = _currentGatherTarget?.FishingSpot?.IsShadowNode == true;
-                        
                         var currentFishId = fish.Fish.ItemId;
                         var targetFishId = _currentAutoHookTarget?.Fish?.ItemId ?? 0;
                         var now = DateTime.Now;
@@ -665,23 +663,8 @@ namespace GatherBuddy.AutoGather
 
             if (_wasGatheringSpearfish)
             {
-                GatherBuddy.Log.Debug("[AutoGather] 刺鱼完成, 正在更新捕获记录");
+                GatherBuddy.Log.Debug("[AutoGather] 刺鱼完成, 正在刷新目标");
                 _wasGatheringSpearfish = false;
-                GatherBuddy.Log.Debug($"[AutoGather] 之前在影子节点: {_wasAtShadowNode}");
-                
-                // If we just finished at a shadow node, clear session data FIRST to allow respawn
-                if (_wasAtShadowNode)
-                {
-                    GatherBuddy.Log.Information("[AutoGather] 在影子节点完成钓鱼, 清除会话数据以允许重生");
-                    ClearSpearfishingSessionData();
-                    _wasAtShadowNode = false;
-                }
-                else
-                {
-                    // Only update catches if we weren't at a shadow node
-                    UpdateSpearfishingCatches();
-                }
-                
                 _activeItemList.ForceRefresh();
             }
             
@@ -1894,15 +1877,22 @@ namespace GatherBuddy.AutoGather
                 .Where(v => !IsBlacklisted(v.Position))
                 .ToList();
 
-            var visibleNodes = Dalamud.Objects
-                .Where(o => allPositions.Contains((o.BaseId, o.Position)))
-                .ToList();
+            var isSpearfishing = next.Fish?.IsSpearFish == true;
+            var visibleNodes = isSpearfishing && next.FishingSpot is { } spearfishingSpot
+                ? Dalamud.Objects
+                    .Where(gameObject => TryGetSpearfishingNodeState(gameObject, out var state)
+                        && state.RemainingCount > 0
+                        && MatchesSpearfishingSpot(spearfishingSpot, state)
+                        && !IsVisitedSpearfishingNode(state))
+                    .ToList()
+                : Dalamud.Objects
+                    .Where(gameObject => allPositions.Contains((gameObject.BaseId, gameObject.Position)))
+                    .ToList();
 
             var closestTargetableNode = visibleNodes
                 .Where(o => o.IsTargetable)
                 .MinBy(o => Vector3.Distance(Player.Position, o.Position));
 
-            var isSpearfishing = next.Fish?.IsSpearFish == true;
             if (!isSpearfishing)
             {
                 var isTimedNode = next.Gatherable?.NodeType is NodeType.未知 or NodeType.传说 or NodeType.梦幻;
@@ -1920,8 +1910,36 @@ namespace GatherBuddy.AutoGather
                 }
                 else if (next.Fish != null)
                 {
-                    MoveToCloseSpearfishingNode(closestTargetableNode, next.Fish);
+                    MoveToCloseSpearfishingNode(closestTargetableNode, next.Fish, next.FishingSpot!);
                 }
+                return;
+            }
+
+            if (isSpearfishing && visibleNodes.MinBy(gameObject => Vector3.Distance(Player.Position, gameObject.Position)) is { } visibleSpearfishingNode)
+            {
+                AutoStatus = visibleSpearfishingNode.IsTargetable ? "正在移动至采集点..." : "正在等待采集点变为可选中...";
+                MoveToCloseSpearfishingNode(visibleSpearfishingNode, next.Fish!, next.FishingSpot!);
+                return;
+            }
+
+            if (isSpearfishing && next.FishingSpot is { IsShadowNode: true } shadowSpot)
+            {
+                if (TryGetSwimmingShadowsMarker(shadowSpot, out var shadowMarker))
+                {
+                    AutoStatus = "正在移动至鱼影...";
+                    if (CurrentDestination != default
+                     && IsPathing
+                     && Vector2.DistanceSquared(CurrentDestination.ToVector2(), shadowMarker.ToVector2()) <= 10 * 10)
+                        return;
+
+                    var destination = VNavmesh.Query.Mesh.NearestPoint(shadowMarker, 10, 10000).GetValueOrDefault(shadowMarker);
+                    Navigate(destination, ShouldFly(destination));
+                    return;
+                }
+
+                StopNavigation();
+                _activeItemList.ForceRefresh();
+                AutoStatus = "正在刷新鱼影状态...";
                 return;
             }
 
@@ -2214,18 +2232,32 @@ namespace GatherBuddy.AutoGather
             return true;
         }
 
-        private bool ChangeGearSet(GatheringType job, int delay)
+        private unsafe bool ChangeGearSet(GatheringType job, int delay)
         {
-            var set = job switch
+            var (preferredName, classJobId) = job switch
             {
-                GatheringType.采矿工 => GatherBuddy.Config.MinerSetName,
-                GatheringType.园艺工 => GatherBuddy.Config.BotanistSetName,
-                GatheringType.捕鱼人 => GatherBuddy.Config.FisherSetName,
-                _ => null,
+                GatheringType.采矿工 => (GatherBuddy.Config.MinerSetName, 16u),
+                GatheringType.园艺工 => (GatherBuddy.Config.BotanistSetName, 17u),
+                GatheringType.捕鱼人 => (GatherBuddy.Config.FisherSetName, 18u),
+                _                    => (null, 0u),
             };
-            if (string.IsNullOrEmpty(set))
+            if (classJobId == 0)
             {
-                Communicator.PrintError($"未设置 {job} 职业的套装");
+                Communicator.PrintError($"没有与 {job} 关联的职业。");
+                return false;
+            }
+
+            var gearsetModule = RaptureGearsetModule.Instance();
+            if (gearsetModule == null)
+            {
+                Communicator.PrintError("无法读取已保存的套装。");
+                return false;
+            }
+
+            if (!GearsetStatsReader.TryResolveExistingGearsetIndex(gearsetModule, classJobId, preferredName, out var gearsetIndex,
+                    out var gearsetName))
+            {
+                Communicator.PrintError($"未找到 {job} 的已保存套装。");
                 return false;
             }
 
@@ -2249,7 +2281,8 @@ namespace GatherBuddy.AutoGather
             }
 
             _diademPathIndex = -1; // Reset The Diadem path after changing job
-            Chat.ExecuteCommand($"/gearset change \"{set}\"");
+            GatherBuddy.Log.Information($"[AutoGather] Switching to {job} with gearset {gearsetIndex} ({gearsetName}).");
+            gearsetModule->EquipGearset(gearsetIndex);
             TaskManager.DelayNext(Random.Shared.Next(delay, delay + 500)); // Add a random delay to be less suspicious
             return true;
         }

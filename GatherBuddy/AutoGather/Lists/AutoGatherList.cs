@@ -34,6 +34,7 @@ public class AutoGatherList
     public bool   Enabled     { get; set; } = false;
     public bool   Fallback    { get; set; } = false;
     public bool   RemoveCompletedItems { get; set; } = false;
+    internal bool UsesRetainerInventory { get; set; } = true;
 
     private List<IGatherable>                  items              = [];
     private Dictionary<IGatherable, uint>      quantities         = [];
@@ -53,7 +54,8 @@ public class AutoGatherList
             Order              = Order,
             Enabled            = false,
             Fallback           = Fallback,
-            RemoveCompletedItems = RemoveCompletedItems
+            RemoveCompletedItems = RemoveCompletedItems,
+            UsesRetainerInventory = UsesRetainerInventory
         };
 
     public bool Add(IGatherable item, uint quantity = 1)

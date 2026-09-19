@@ -407,7 +407,9 @@ public class CraftingMaterialsWindow : Window
     private static IReadOnlyList<CurrencyOption> ResolveCurrencyOptions(uint itemId)
     {
         Dictionary<uint, CurrencyOption>? options = null;
-        foreach (var entry in VendorShopResolver.SpecialShopEntries)
+        foreach (var entry in VendorShopResolver.GilShopEntries
+                     .Concat(VendorShopResolver.SpecialShopEntries)
+                     .Concat(VendorShopResolver.GcShopEntries.Where(VendorShopResolver.MatchesCurrentGrandCompany)))
         {
             if (entry.ItemId != itemId || entry.Cost == 0 || entry.CurrencyItemId == 0)
                 continue;
@@ -506,18 +508,18 @@ public class CraftingMaterialsWindow : Window
             {
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableSetupColumn("",     ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Have", ImGuiTableColumnFlags.WidthFixed, numW);
+                ImGui.TableSetupColumn("拥有", ImGuiTableColumnFlags.WidthFixed, numW);
                 switch (retainerColumnMode)
                 {
                     case RetainerColumnMode.Total:
-                        ImGui.TableSetupColumn("Ret", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇员", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                     case RetainerColumnMode.Split:
-                        ImGui.TableSetupColumn("RNQ", ImGuiTableColumnFlags.WidthFixed, numW);
-                        ImGui.TableSetupColumn("RHQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇员 NQ", ImGuiTableColumnFlags.WidthFixed, numW);
+                        ImGui.TableSetupColumn("雇员 HQ", ImGuiTableColumnFlags.WidthFixed, numW);
                         break;
                 }
-                ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, numW);
+                ImGui.TableSetupColumn("需要", ImGuiTableColumnFlags.WidthFixed, numW);
                 ImGui.TableSetupColumn("%",    ImGuiTableColumnFlags.WidthFixed, barW);
                 var needIdx = retainerColumnMode switch
                 {

@@ -66,7 +66,11 @@ public partial class AutoGather
                 AutoHook.SetPreset?.Invoke(AutoHookGlobalPresetSelectionSentinel);
             if (target.Fish.IsSpearFish)
             {
-                AutoHook.SetAutoGigState?.Invoke(true);
+                if (AutoHook.SetAutoGigState == null)
+                    return;
+
+                AutoHook.SetAutoGigState.Invoke(true);
+                _autoHookSetupComplete = true;
             }
             else
             {
@@ -112,20 +116,15 @@ public partial class AutoGather
             var presetFish = target.Fish;
             if (!isIntuitionFish && target.Fish.Predators.Any())
             {
-                // Only check FIRST predator for shadow node spawning (rest are caught within shadow node)
-                var (firstPredator, requiredCount) = target.Fish.Predators.First();
-                var caughtCount = SpearfishingSessionCatches.TryGetValue(firstPredator.ItemId, out var count) ? count : 0;
-                var firstPredatorMet = caughtCount >= requiredCount;
-                
-                if (!firstPredatorMet)
+                var firstPredator = target.Fish.Predators.First().Item1;
+                if (target.FishingSpot?.IsShadowNode != true)
                 {
-                    // Use first predator fish as preset
                     presetFish = firstPredator;
-                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 的第一捕食者未满足，使用前置鱼 {presetFish.Name[GatherBuddy.Language]} 作为预设");
+                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 位于父节点，使用前置鱼 {presetFish.Name[GatherBuddy.Language]} 作为预设");
                 }
                 else
                 {
-                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 的第一捕食者已满足，使用目标鱼作为预设");
+                    GatherBuddy.Log.Debug($"[AutoGather] 目标鱼 {target.Fish.Name[GatherBuddy.Language]} 位于影子节点，使用目标鱼作为预设");
                 }
             }
             
@@ -280,15 +279,23 @@ public partial class AutoGather
                 }
                 else
                 {
-                    AutoHook.SetPreset?.Invoke(_currentAutoHookPresetName);
-                    AutoHook.DeleteSelectedPreset?.Invoke();
-                    GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookPresetName}'");
-                    
-                    if (_currentAutoHookTargetPresetName != null)
+                    if (_currentAutoHookTarget.HasValue && _currentAutoHookTarget.Value.Fish?.IsSpearFish == true)
                     {
-                        AutoHook.SetPreset?.Invoke(_currentAutoHookTargetPresetName);
+                        GatherBuddy.Log.Warning(
+                            $"[AutoGather] 生成的 AutoGig 预设 '{_currentAutoHookPresetName}' 仍保留在 AutoHook 中，因为 AutoHook 未提供通过 IPC 删除 AutoGig 预设的接口；请在 AutoHook 的 AutoGig 预设中手动删除。");
+                    }
+                    else
+                    {
+                        AutoHook.SetPreset?.Invoke(_currentAutoHookPresetName);
                         AutoHook.DeleteSelectedPreset?.Invoke();
-                        GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookTargetPresetName}'");
+                        GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookPresetName}'");
+
+                        if (_currentAutoHookTargetPresetName != null)
+                        {
+                            AutoHook.SetPreset?.Invoke(_currentAutoHookTargetPresetName);
+                            AutoHook.DeleteSelectedPreset?.Invoke();
+                            GatherBuddy.Log.Debug($"[AutoGather] 已删除 GBR 生成的预设 '{_currentAutoHookTargetPresetName}'");
+                        }
                     }
                 }
             }
@@ -297,12 +304,6 @@ public partial class AutoGather
             AutoHook.SetAutoStartFishing?.Invoke(false);
             AutoHook.SetAutoGigState?.Invoke(false);
             GatherBuddy.Log.Debug("[AutoGather] AutoHook/AutoGig 已禁用");
-            
-            if (_currentAutoHookTarget.HasValue && _currentAutoHookTarget.Value.Fish?.IsSpearFish == true)
-            {
-                GatherBuddy.Log.Debug("[AutoGather] 从 CleanupAutoHook 调用 UpdateSpearfishingCatches");
-                UpdateSpearfishingCatches();
-            }
             
             _currentAutoHookTarget = null;
             _currentAutoHookPresetName = null;

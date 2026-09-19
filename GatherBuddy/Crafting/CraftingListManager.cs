@@ -517,9 +517,9 @@ public class CraftingListManager
     {
         var list = GetListByID(id);
         if (list == null)
-            return (null, "The selected list no longer exists.");
+            return (null, "所选清单已不存在。");
         if (list.Recipes.Count == 0)
-            return (null, "The selected list contains no recipes.");
+            return (null, "所选清单不包含任何配方。");
 
         const string baseUrl = "https://ffxivteamcraft.com/import/";
         var orderedItemIds = new List<uint>();
@@ -555,7 +555,7 @@ public class CraftingListManager
         }
 
         if (orderedItemIds.Count == 0)
-            return (null, "The selected list has no TeamCraft-exportable recipes.");
+            return (null, "所选清单没有可导出到 TeamCraft 的配方。");
 
         var payload = string.Join(";", orderedItemIds.Select(itemId => $"{itemId},null,{exportedItemQuantities[itemId]}"));
         var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
@@ -570,11 +570,11 @@ public class CraftingListManager
             var json = Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
             var source = JsonConvert.DeserializeObject<CraftingListDefinition>(json);
             if (source == null)
-                return (null, "Failed to deserialize list data.");
+                return (null, "无法反序列化清单数据。");
             if (source.Recipes.Count == 0)
-                return (null, "The exported list contains no recipes.");
+                return (null, "导出的清单不包含任何配方。");
 
-            var name = string.IsNullOrWhiteSpace(source.Name) ? "Imported List" : source.Name;
+            var name = string.IsNullOrWhiteSpace(source.Name) ? "导入的清单" : source.Name;
             var newList = CreateNewList(name);
             newList.Recipes               = source.Recipes;
             newList.Consumables           = source.Consumables;
@@ -596,12 +596,12 @@ public class CraftingListManager
         }
         catch (FormatException)
         {
-            return (null, "Clipboard text is not valid base64. Make sure you copied the full export string.");
+            return (null, "剪贴板文本不是有效的 base64。请确认已复制完整的导出字符串。");
         }
         catch (Exception ex)
         {
             GatherBuddy.Log.Error($"[CraftingListManager] Import failed: {ex.Message}");
-            return (null, $"Import failed: {ex.Message}");
+            return (null, $"导入失败: {ex.Message}");
         }
     }
 

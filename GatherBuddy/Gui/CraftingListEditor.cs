@@ -808,10 +808,10 @@ public class CraftingListEditor
         }
 
         if (_nameConflict)
-            ImGui.TextColored(ImGuiColors.DalamudRed, "A list with that name already exists.");
+            ImGui.TextColored(ImGuiColors.DalamudRed, "已存在同名清单。");
 
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Notes");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "备注");
 
         if (_editingDescActive)
         {
@@ -894,37 +894,37 @@ public class CraftingListEditor
 
         if (_list.Consumables.FoodItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Food:");
+            ImGui.TextColored(labelColor, "食物:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.FoodItemId.Value, _list.Consumables.FoodHQ));
             hasAny = true;
         }
         if (_list.Consumables.MedicineItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Medicine:");
+            ImGui.TextColored(labelColor, "药物:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.MedicineItemId.Value, _list.Consumables.MedicineHQ));
             hasAny = true;
         }
         if (_list.Consumables.ManualItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Manual:");
+            ImGui.TextColored(labelColor, "手动:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.ManualItemId.Value, false));
             hasAny = true;
         }
         if (_list.Consumables.SquadronManualItemId.HasValue)
         {
-            ImGui.TextColored(labelColor, "Squadron:");
+            ImGui.TextColored(labelColor, "中队:");
             ImGui.SameLine(valueX);
             ImGui.TextColored(labelColor, GetItemLabel(_list.Consumables.SquadronManualItemId.Value, false));
             hasAny = true;
         }
         if (_list.UseAllHQ)
         {
-            ImGui.TextColored(labelColor, "HQ Mats:");
+            ImGui.TextColored(labelColor, "HQ 材料:");
             ImGui.SameLine(valueX);
-            ImGui.TextColored(labelColor, "All HQ");
+            ImGui.TextColored(labelColor, "全部 HQ");
             hasAny = true;
         }
         if (!hasAny)
@@ -1067,7 +1067,7 @@ public class CraftingListEditor
 
             ImGui.SameLine();
             if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Check.ToIconString() + "##enableSelected", Interface.IconButtonSize,
-                    $"Re-enable all {selectionCount} selected recipes.", false, true))
+                    $"重新启用所选 {selectionCount} 个配方", false, true))
                 BulkSetSkipping(false);
 
             ImGui.SameLine();
@@ -1978,15 +1978,15 @@ public class CraftingListEditor
         var parts = new List<string>();
 
         if (settings.FoodItemId.HasValue)
-            parts.Add($"Food: {GetItemLabel(settings.FoodItemId.Value, settings.FoodHQ)}");
+            parts.Add($"食物: {GetItemLabel(settings.FoodItemId.Value, settings.FoodHQ)}");
         if (settings.MedicineItemId.HasValue)
-            parts.Add($"Medicine: {GetItemLabel(settings.MedicineItemId.Value, settings.MedicineHQ)}");
+            parts.Add($"药物: {GetItemLabel(settings.MedicineItemId.Value, settings.MedicineHQ)}");
         if (settings.ManualItemId.HasValue)
-            parts.Add($"Manual: {GetItemLabel(settings.ManualItemId.Value, false)}");
+            parts.Add($"手动: {GetItemLabel(settings.ManualItemId.Value, false)}");
         if (settings.SquadronManualItemId.HasValue)
-            parts.Add($"Squadron: {GetItemLabel(settings.SquadronManualItemId.Value, false)}");
+            parts.Add($"中队: {GetItemLabel(settings.SquadronManualItemId.Value, false)}");
 
-        return parts.Count > 0 ? string.Join(" | ", parts) : "None";
+        return parts.Count > 0 ? string.Join(" | ", parts) : "无";
     }
 
     private static string GetItemLabel(uint itemId, bool hq)

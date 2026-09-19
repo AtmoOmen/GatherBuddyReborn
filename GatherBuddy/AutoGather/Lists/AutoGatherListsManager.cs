@@ -40,6 +40,7 @@ public partial class AutoGatherListsManager : IDisposable
     private readonly FileSystem<AutoGatherList>             _fileSystem;
     private readonly List<(IGatherable Item, uint Quantity)> _activeItems   = [];
     private readonly List<(IGatherable Item, uint Quantity)> _fallbackItems = [];
+    private readonly HashSet<IGatherable>                    _localInventoryActiveItems = [];
     public static ManualOrderSortMode SortMode { get; } = new();
 
     public FileSystem<AutoGatherList> FileSystem
@@ -53,6 +54,9 @@ public partial class AutoGatherListsManager : IDisposable
 
     public ReadOnlyCollection<(IGatherable Item, uint Quantity)> FallbackItems
         => _fallbackItems.AsReadOnly();
+
+    internal bool UsesRetainerInventory(IGatherable item)
+        => !_localInventoryActiveItems.Contains(item);
 
     public AutoGatherListsManager()
     {
@@ -122,17 +126,18 @@ public partial class AutoGatherListsManager : IDisposable
             Save();
         _activeItems.Clear();
         _fallbackItems.Clear();
+        _localInventoryActiveItems.Clear();
 
         var items = _fileSystem.Root.GetAllDescendants(SortMode)
             .OfType<FileSystem<AutoGatherList>.Leaf>()
             .Select(leaf => leaf.Value)
             .Where(l => l.Enabled)
-            .SelectMany(l => l.Items.Select(i => (Item: i, Quantity: l.Quantities[i], l.Fallback, ItemEnabled: l.EnabledItems[i])))
+            .SelectMany(l => l.Items.Select(i => (Item: i, Quantity: l.Quantities[i], l.Fallback, ItemEnabled: l.EnabledItems[i], l.UsesRetainerInventory)))
             .Where(i => i.ItemEnabled)
             .GroupBy(i => (i.Item, i.Fallback))
-            .Select(x => (x.Key.Item, Quantity: (uint)Math.Min(x.Sum(g => g.Quantity), uint.MaxValue), x.Key.Fallback));
+            .Select(x => (x.Key.Item, Quantity: (uint)Math.Min(x.Sum(g => g.Quantity), uint.MaxValue), x.Key.Fallback, UsesRetainerInventory: x.All(g => g.UsesRetainerInventory)));
 
-        foreach (var (item, quantity, fallback) in items)
+        foreach (var (item, quantity, fallback, usesRetainerInventory) in items)
         {
             if (fallback)
             {
@@ -140,6 +145,8 @@ public partial class AutoGatherListsManager : IDisposable
             }
             else
             {
+                if (!usesRetainerInventory)
+                    _localInventoryActiveItems.Add(item);
                 _activeItems.Add((item, quantity));
             }
         }

@@ -77,61 +77,55 @@ namespace GatherBuddy.AutoGather
                 TaskManager.DelayNext(400);
         }
 
-        private unsafe void EnqueueSpearfishingNodeInteraction(IGameObject gameObject, Classes.Fish targetFish)
+        private void EnqueueSpearfishingNodeInteraction(IGameObject gameObject, Classes.Fish targetFish, FishingSpot expectedSpot)
         {
-            var targetSystem = TargetSystem.Instance();
-            if (targetSystem == null)
+            if (!gameObject.IsTargetable)
                 return;
 
-            var fishForSnapshot = targetFish;
-            if (fishForSnapshot != null)
+            if (!TryGetSpearfishingNodeState(gameObject, out var nodeState)
+             || nodeState.RemainingCount == 0
+             || !MatchesSpearfishingSpot(expectedSpot, nodeState))
+                return;
+
+            var gatheringPrerequisites = targetFish.Predators.Any() && !expectedSpot.IsShadowNode;
+            var shouldUseCollectorsGlove = !gatheringPrerequisites && targetFish.ItemData.IsCollectable;
+            var shouldSetCollectorsGlove = gatheringPrerequisites || expectedSpot.IsShadowNode || shouldUseCollectorsGlove;
+            var collectorsGloveActive = Player.Status.Any(status => Actions.CollectorsGlove.StatusProvide.Contains(status.StatusId));
+            if (shouldSetCollectorsGlove && collectorsGloveActive != shouldUseCollectorsGlove)
             {
-                var actualFishToGather = fishForSnapshot;
-                bool gatheringPrerequisites = false;
-                
-                // Check if THIS SPECIFIC target fish has predator requirements
-                if (fishForSnapshot.Predators.Any())
-                {
-                    var requirementFish = fishForSnapshot.Predators.Select(p => p.Item1).ToList();
-                    SnapshotSpearfishingInventory(requirementFish);
-                    
-                    // Only check FIRST predator for shadow node spawning (rest are caught within shadow node)
-                    var (firstPredator, requiredCount) = fishForSnapshot.Predators.First();
-                    var caughtCount = SpearfishingSessionCatches.TryGetValue(firstPredator.ItemId, out var count) ? count : 0;
-                    var firstPredatorMet = caughtCount >= requiredCount;
-                    
-                    if (!firstPredatorMet)
-                    {
-                        actualFishToGather = firstPredator;
-                        gatheringPrerequisites = true;
-                    }
-                }
-                
-                if (gatheringPrerequisites)
-                {
-                    if (Player.Status.Any(s => Actions.CollectorsGlove.StatusProvide.Contains(s.StatusId)))
-                    {
-                        TaskManager.Enqueue(() => UseAction(Actions.CollectorsGlove));
-                        TaskManager.DelayNext(1000);
-                    }
-                }
-                else if (actualFishToGather.ItemData.IsCollectable && Player.Status.All(s => !Actions.CollectorsGlove.StatusProvide.Contains(s.StatusId)))
-                {
-                    TaskManager.Enqueue(() => UseAction(Actions.CollectorsGlove));
-                    TaskManager.DelayNext(1000);
-                }
+                TaskManager.Enqueue(() => UseAction(Actions.CollectorsGlove));
+                TaskManager.DelayNext(1000);
             }
 
-            TaskManager.Enqueue(() => targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address));
+            TaskManager.Enqueue(() => InteractWithCurrentSpearfishingNode(expectedSpot));
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Gathering], 500);
             
             TaskManager.Enqueue(() => {
                 if (!Dalamud.Conditions[ConditionFlag.Gathering])
-                {
-                    targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
-                }
+                    InteractWithCurrentSpearfishingNode(expectedSpot);
             });
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Gathering], 500);
+        }
+
+        private unsafe void InteractWithCurrentSpearfishingNode(FishingSpot expectedSpot)
+        {
+            var gameObject = Dalamud.Objects
+                .Where(candidate => candidate.IsTargetable
+                    && Vector2.Distance(candidate.Position.ToVector2(), Player.Position.ToVector2()) < 3.5f
+                    && Math.Abs(candidate.Position.Y - Player.Position.Y) < 3
+                    && TryGetSpearfishingNodeState(candidate, out var state)
+                    && state.RemainingCount > 0
+                    && MatchesSpearfishingSpot(expectedSpot, state)
+                    && !IsVisitedSpearfishingNode(state))
+                .MinBy(candidate => Vector3.Distance(Player.Position, candidate.Position));
+            if (gameObject == null || gameObject.Address == nint.Zero)
+                return;
+
+            var targetSystem = TargetSystem.Instance();
+            if (targetSystem == null)
+                return;
+
+            targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
         }
 
         private unsafe void EnqueueGatherItem(ItemSlot slot)
@@ -163,7 +157,7 @@ namespace GatherBuddy.AutoGather
             System.Diagnostics.Debug.Assert(gatherTarget == default || gatherTarget.Gatherable != null && gatherTarget.Node != null);
 
             if (GatheringWindowReader == null)
-                throw new InvalidOperationException("GatheringWindowReader is null");
+                throw new InvalidOperationException("GatheringWindowReader 为空");
             var available = GatheringWindowReader.ItemSlots
                 .Where(i => !i.IsEmpty)
                 .Where(CheckItemOvercap)
@@ -186,7 +180,7 @@ namespace GatherBuddy.AutoGather
                     return (true, crystal);
             }
 
-            if (target != null && target.Item.GetTotalCount() < gatherTarget.Quantity)
+            if (target != null && target.Item.GetTotalCount(_plugin.AutoGatherListsManager.UsesRetainerInventory(gatherTarget.Item)) < gatherTarget.Quantity)
             {
                 //The target item is found in the node, would not overcap and we need to gather more of it
                 return (!target.IsCollectable, target);
@@ -281,7 +275,7 @@ namespace GatherBuddy.AutoGather
         private ItemSlot? GetAnyCrystalInNode()
         {
             if (GatheringWindowReader == null)
-                throw new InvalidOperationException("GatheringWindowReader is null");
+                throw new InvalidOperationException("GatheringWindowReader 为空");
             return GatheringWindowReader.ItemSlots
                 .Where(s => !s.IsEmpty)
                 .Where(s => s.Item.IsCrystal)

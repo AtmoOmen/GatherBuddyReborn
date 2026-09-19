@@ -49,6 +49,9 @@ public class AHBaseBiteConfig
     [JsonProperty("HooksetType")]
     public AHHookType HooksetType { get; set; }
 
+    [JsonProperty("ConditionSet")]
+    public AHConditionSet? ConditionSet { get; set; }
+
     public AHBaseBiteConfig(AHHookType type)
     {
         HooksetType = type;

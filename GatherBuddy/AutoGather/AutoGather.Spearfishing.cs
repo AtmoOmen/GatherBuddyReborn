@@ -1,100 +1,138 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using FFXIVClientStructs.FFXIV.Client.Game;
-using GatherBuddy.AutoGather.Extensions;
+using System.Numerics;
+using Dalamud.Game.ClientState.Objects.Types;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using GatherBuddy.Classes;
+using DalamudObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace GatherBuddy.AutoGather
 {
     public partial class AutoGather
     {
-        public unsafe void SnapshotSpearfishingInventory(IEnumerable<Fish> fishToTrack)
+        private const uint SwimmingShadowsMarkerIconId = 60930;
+        private const long SwimmingShadowsMarkerLogCooldown = 5000;
+
+        private long _lastSwimmingShadowsMarkerLog;
+
+        private readonly record struct SpearfishingNodeState(uint RowId, uint BaseRowId, byte RemainingCount);
+
+        internal bool IsSwimmingShadowsAvailable(FishingSpot shadowSpot)
+            => shadowSpot.IsShadowNode
+            && (HasAvailableSpearfishingNode(shadowSpot) || TryGetSwimmingShadowsMarker(shadowSpot, out _));
+
+        private bool HasAvailableSpearfishingNode(FishingSpot spot)
+            => Dalamud.Objects.Any(gameObject => TryGetSpearfishingNodeState(gameObject, out var state)
+                && state.RemainingCount > 0
+                && MatchesSpearfishingSpot(spot, state));
+
+        private unsafe static bool TryGetSpearfishingNodeState(IGameObject gameObject, out SpearfishingNodeState state)
         {
-            _spearfishingInventorySnapshot.Clear();
-            var inventory = InventoryManager.Instance();
-            
-            foreach (var fish in fishToTrack)
-            {
-                var count = inventory->GetInventoryItemCount(fish.ItemId, false, false, false);
-                _spearfishingInventorySnapshot[fish.ItemId] = (int)count;
-            }
+            state = default;
+            if (gameObject.ObjectKind != DalamudObjectKind.GatheringPoint || gameObject.Address == nint.Zero)
+                return false;
+
+            var gatheringPoint = (GatheringPointObject*)gameObject.Address;
+            return TryReadSpearfishingNodeState(gatheringPoint->Impl, out state)
+                || TryReadSpearfishingNodeState(&gatheringPoint->ObjectImplBase, out state)
+                || TryReadSpearfishingNodeState((GatheringPointObject.GatheringPointObjectImplBase*)&gatheringPoint->ObjectImpl, out state);
         }
-        
-        public unsafe void UpdateSpearfishingCatches()
+
+        private unsafe static bool TryReadSpearfishingNodeState(
+            GatheringPointObject.GatheringPointObjectImplBase* implementation,
+            out SpearfishingNodeState state)
         {
-            if (_spearfishingInventorySnapshot.Count == 0)
-            {
-                if (_spawnRequirementsMetCache.Any(kvp => kvp.Value))
-                {
-                    ClearSpearfishingSessionData();
-                }
-                return;
-            }
-                
-            var inventory = InventoryManager.Instance();
-            
-            foreach (var (fishId, previousCount) in _spearfishingInventorySnapshot)
-            {
-                var currentCount = (int)inventory->GetInventoryItemCount(fishId, false, false, false);
-                var caught = currentCount - previousCount;
-                
-                if (caught > 0)
-                {
-                    if (!SpearfishingSessionCatches.ContainsKey(fishId))
-                        SpearfishingSessionCatches[fishId] = 0;
-                        
-                    SpearfishingSessionCatches[fishId] += caught;
-                    _spawnRequirementsMetCache.Clear();
-                    var fishName = GatherBuddy.GameData.Fishes.TryGetValue(fishId, out var fish) ? fish.Name[GatherBuddy.Language] : fishId.ToString();
-                    GatherBuddy.Log.Information($"[Spearfishing] 捕获 {caught}x {fishName}，会话总计: {SpearfishingSessionCatches[fishId]}");
-                }
-            }
-            
-            _spearfishingInventorySnapshot.Clear();
+            state = default;
+            if (implementation == null || implementation->EventHandler == null)
+                return false;
+
+            var handler = implementation->EventHandler;
+            if ((byte)handler->GatheringType is not (4 or 5))
+                return false;
+
+            state = new SpearfishingNodeState(handler->RowId, handler->BaseRowId, handler->RemainingCount);
+            return state.RowId != 0 || state.BaseRowId != 0;
         }
-        
-        public bool AreSpawnRequirementsMet(FishingSpot shadowNode)
+
+        private static bool MatchesSpearfishingSpot(FishingSpot spot, SpearfishingNodeState state)
         {
-            if (!shadowNode.IsShadowNode || shadowNode.SpawnRequirements.Count == 0)
+            if (state.RowId != 0 && spot.WorldPositions.ContainsKey(state.RowId))
                 return true;
-            
-            if (!IsGathering && _spawnRequirementsMetCache.TryGetValue(shadowNode.Id, out var cached))
-            {
-                GatherBuddy.Log.Debug($"[Spearfishing] 使用缓存的影子节点 {shadowNode.Id} 需求状态: {cached}");
-                return cached;
-            }
-                
-            var allMet = true;
-            foreach (var requirement in shadowNode.SpawnRequirements)
-            {
-                var caughtCount = SpearfishingSessionCatches.GetValueOrDefault(requirement.RequiredFish.ItemId, 0);
-                var reqFishName = GatherBuddy.GameData.Fishes.TryGetValue(requirement.RequiredFish.ItemId, out var fish) ? fish.Name[GatherBuddy.Language] : requirement.RequiredFish.ItemId.ToString();
-                GatherBuddy.Log.Debug($"[Spearfishing] 需求检查: {reqFishName} - 已捕获 {caughtCount}/{requirement.Count}");
-                if (caughtCount < requirement.Count)
-                {
-                    allMet = false;
-                    break;
-                }
-            }
-            
-            GatherBuddy.Log.Debug($"[Spearfishing] 影子节点 {shadowNode.Id} 的需求已满足: {allMet}");
-            
-            if (!IsGathering)
-                _spawnRequirementsMetCache[shadowNode.Id] = allMet;
-            
-            return allMet;
+
+            var baseRowId = spot.SpearfishingSpotData?.GatheringPointBase.RowId ?? 0;
+            return baseRowId != 0 && state.BaseRowId == baseRowId;
         }
-        
-        public void ClearSpearfishingSessionData()
+
+        private bool IsVisitedSpearfishingNode(SpearfishingNodeState state)
+            => state.RowId != 0 && VisitedNodes.Contains(state.RowId);
+
+        private unsafe bool TryGetSwimmingShadowsMarker(FishingSpot shadowSpot, out Vector3 position)
         {
-            SpearfishingSessionCatches.Clear();
-            _spearfishingInventorySnapshot.Clear();
-            _spawnRequirementsMetCache.Clear();
-            
-            if (_currentAutoHookTarget?.Fish?.IsSpearFish == true)
+            position = default;
+            var territoryId = Dalamud.ClientState.TerritoryType;
+            if (!shadowSpot.IsShadowNode || shadowSpot.Territory.Id != territoryId)
+                return false;
+
+            var agentMap = AgentMap.Instance();
+            if (agentMap == null || agentMap->CurrentTerritoryId != territoryId)
+                return false;
+
+            var markers = new List<Vector3>(1);
+            foreach (var marker in agentMap->MiniMapGatheringMarkers)
             {
-                CleanupAutoHook();
+                if (marker.ShouldRender == 0
+                 || marker.MapMarker.IconId != SwimmingShadowsMarkerIconId
+                 || marker.MapMarker.X == 0
+                 || marker.MapMarker.Y == 0)
+                    continue;
+
+                markers.Add(new Vector3(marker.MapMarker.X / 16f, 0, marker.MapMarker.Y / 16f));
             }
+
+            if (markers.Count != 1)
+            {
+                if (markers.Count > 1)
+                    LogSwimmingShadowsMarkerAmbiguity(shadowSpot);
+                return false;
+            }
+
+            var markerPosition = markers[0];
+            var matches = GatherBuddy.GameData.FishingSpots.Values
+                .Where(spot => spot.IsShadowNode && spot.Territory.Id == territoryId)
+                .Where(spot => IsMarkerNearSpot(markerPosition, spot))
+                .Select(spot => spot.Id)
+                .Distinct()
+                .ToArray();
+
+            if (matches.Length != 1 || matches[0] != shadowSpot.Id)
+            {
+                LogSwimmingShadowsMarkerAmbiguity(shadowSpot);
+                return false;
+            }
+
+            position = markerPosition;
+            return true;
+        }
+
+        private void LogSwimmingShadowsMarkerAmbiguity(FishingSpot shadowSpot)
+        {
+            var now = Environment.TickCount64;
+            if (now - _lastSwimmingShadowsMarkerLog < SwimmingShadowsMarkerLogCooldown)
+                return;
+
+            _lastSwimmingShadowsMarkerLog = now;
+            GatherBuddy.Log.Verbose($"鱼影标记无法唯一对应到 {shadowSpot.Name}。");
+        }
+
+        private static bool IsMarkerNearSpot(Vector3 markerPosition, FishingSpot spot)
+        {
+            var marker = new Vector2(markerPosition.X, markerPosition.Z);
+            var maximumDistanceSquared = NodeVisibilityDistance * NodeVisibilityDistance;
+            return spot.WorldPositions.Values
+                .SelectMany(positions => positions)
+                .Any(position => Vector2.DistanceSquared(marker, new Vector2(position.X, position.Z)) <= maximumDistanceSquared);
         }
     }
 }

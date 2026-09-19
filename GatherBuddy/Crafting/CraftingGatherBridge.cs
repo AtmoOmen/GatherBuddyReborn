@@ -248,8 +248,9 @@ public static class CraftingGatherBridge
 
             _gatherList = new AutoGatherList()
             {
-                Name = "Crafting Materials (Auto-Generated)",
-                Enabled = true
+                Name = "制作材料 (自动生成)",
+                Enabled = true,
+                UsesRetainerInventory = false
             };
 
             foreach (var (itemId, quantity) in missing)
@@ -291,7 +292,7 @@ public static class CraftingGatherBridge
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Failed to create gather list: {ex.Message}");
+            GatherBuddy.Log.Error($"创建采集清单失败: {ex.Message}");
         }
     }
     
@@ -324,7 +325,7 @@ public static class CraftingGatherBridge
         {
             if (!_waitingForJobSwitch)
             {
-                GatherBuddy.Log.Information($"Switching from job {currentJob} to job {requiredCraftJob} for crafting");
+                GatherBuddy.Log.Information($"为制作从职业 {currentJob} 切换到职业 {requiredCraftJob}");
                 SwitchJob(requiredCraftJob);
                 _jobSwitchTime = DateTime.Now;
                 _waitingForJobSwitch = true;
@@ -349,7 +350,7 @@ public static class CraftingGatherBridge
             var gearsetModule = FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureGearsetModule.Instance();
             if (gearsetModule == null)
             {
-                GatherBuddy.Log.Error("Failed to get gearset module");
+                GatherBuddy.Log.Error("无法获取套装模块");
                 return;
             }
             
@@ -360,11 +361,11 @@ public static class CraftingGatherBridge
                 return;
             }
             
-            GatherBuddy.Log.Warning($"No gearset found for job {jobId}");
+            GatherBuddy.Log.Warning($"未找到职业 {jobId} 的套装");
         }
         catch (Exception ex)
         {
-            GatherBuddy.Log.Error($"Failed to switch job: {ex.Message}");
+            GatherBuddy.Log.Error($"切换职业失败: {ex.Message}");
         }
     }
 
@@ -541,49 +542,49 @@ public static class CraftingGatherBridge
     {
         if (Dalamud.Conditions[ConditionFlag.BetweenAreas] || Dalamud.Conditions[ConditionFlag.BetweenAreas51])
         {
-            waitReason = "area transition is still active";
+            waitReason = "区域切换仍在进行中";
             return false;
         }
 
         if (Lifestream.Enabled && Lifestream.IsBusy())
         {
-            waitReason = "Lifestream is still busy";
+            waitReason = "Lifestream 仍在忙碌";
             return false;
         }
 
         if (!GenericHelpers.IsScreenReady())
         {
-            waitReason = "the screen is not ready";
+            waitReason = "画面尚未就绪";
             return false;
         }
 
         if (Dalamud.Conditions[ConditionFlag.ExecutingCraftingAction])
         {
-            waitReason = "a crafting action is still executing";
+            waitReason = "制作动作仍在执行中";
             return false;
         }
 
         if (Dalamud.Conditions[ConditionFlag.PreparingToCraft])
         {
-            waitReason = "craft preparation is still active";
+            waitReason = "制作准备仍在进行中";
             return false;
         }
 
         if (Dalamud.Conditions[ConditionFlag.Crafting])
         {
-            waitReason = $"crafting state is still {CraftingGameInterop.CurrentState}";
+            waitReason = $"制作状态仍为 {CraftingGameInterop.CurrentState}";
             return false;
         }
 
         if (CraftingGameInterop.CurrentState != CraftingGameInterop.CraftState.IdleNormal)
         {
-            waitReason = $"crafting has not returned to IdleNormal yet ({CraftingGameInterop.CurrentState})";
+            waitReason = $"制作尚未回到 IdleNormal ({CraftingGameInterop.CurrentState})";
             return false;
         }
 
         if (IsCraftingAddonVisible("RecipeNote") || IsCraftingAddonVisible("Synthesis") || IsCraftingAddonVisible("SynthesisSimple") || IsCraftingAddonVisible("WKSRecipeNotebook"))
         {
-            waitReason = "crafting windows are still visible";
+            waitReason = "制作窗口仍然可见";
             return false;
         }
 
@@ -620,8 +621,8 @@ public static class CraftingGatherBridge
         }
 
         waitReason = VendorNpcLocationCache.IsInitializing
-            ? $"collectables route locations are still loading ({VendorNpcLocationCache.ResolvedNpcCount}/{VendorNpcLocationCache.RequestedNpcCount} NPCs resolved)"
-            : "collectables route locations are still loading";
+            ? $"收藏品路线位置仍在加载 ({VendorNpcLocationCache.ResolvedNpcCount}/{VendorNpcLocationCache.RequestedNpcCount} 个 NPC 已解析)"
+            : "收藏品路线位置仍在加载";
         return true;
     }
 
@@ -719,6 +720,7 @@ public static class CraftingGatherBridge
             _lastCollectablesHardFailLog = DateTime.MinValue;
             _ephemeralListId = null;
             GatherBuddy.AutoGather.Enabled = false;
+            CraftingGameInterop.CancelCurrentCraft();
             DeleteTemporaryGatherList();
             _queueProcessor.Reset();
             _queueProcessor = null;
@@ -731,6 +733,12 @@ public static class CraftingGatherBridge
         {
             GatherBuddy.Log.Information("[CraftingGatherBridge] No queue processor running");
         }
+    }
+
+    public static void PauseQueue(string reason)
+    {
+        if (_isQueueMode && _queueProcessor is { Paused: false })
+            _queueProcessor.Pause(reason);
     }
 
     private static void LogCollectablesHardFailState(string hardFailReason)

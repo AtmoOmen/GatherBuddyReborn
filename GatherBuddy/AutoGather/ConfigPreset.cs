@@ -164,6 +164,8 @@ namespace GatherBuddy.AutoGather
         public record class FishingActionsRec
         {
             public ToggleConfig        Patience      { get; init; } = new() { Enabled = true };
+            public FishingActionConfig DoubleHook    { get; init; } = new() { GpThreshold = AutoGather.Actions.DoubleHook.GpCost };
+            public FishingActionConfig TripleHook    { get; init; } = new() { GpThreshold = AutoGather.Actions.TripleHook.GpCost };
             public FishingActionConfig PrizeCatch    { get; init; } = new() { GpThreshold = AutoGather.Actions.PrizeCatch.GpCost };
             public FishingActionConfig Chum          { get; init; } = new() { GpThreshold = AutoGather.Actions.Chum.GpCost };
             public FishingActionConfig SurfaceSlap   { get; init; } = new() { GpThreshold = AutoGather.Actions.SurfaceSlap.GpCost };
@@ -173,6 +175,8 @@ namespace GatherBuddy.AutoGather
             public FishingActionsRec(FishingActionsRec original)
             {
                 Patience      = original.Patience with { };
+                DoubleHook    = original.DoubleHook with { };
+                TripleHook    = original.TripleHook with { };
                 PrizeCatch    = original.PrizeCatch with { };
                 Chum          = original.Chum with { };
                 SurfaceSlap   = original.SurfaceSlap with { };

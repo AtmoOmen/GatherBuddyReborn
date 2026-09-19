@@ -215,6 +215,7 @@ public class RecipeCraftSettingsPopup
         if (!_isOpen) return;
         
         ImGui.SetNextWindowSize(VulcanUiScaling.Scaled(450f, 450f), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSizeConstraints(VulcanUiScaling.Scaled(450f, 0f), new Vector2(float.MaxValue, float.MaxValue));
         
         if (ImGui.Begin($"制作设置 - {_recipeName}###RecipeCraftSettings_{_instanceId}", ref _isOpen))
         {
@@ -382,8 +383,8 @@ public class RecipeCraftSettingsPopup
         return new RaphaelAssessment(
             RaphaelAssessmentState.Unavailable,
             RaphaelAssessmentOutcome.None,
-            "Raphael validation is unavailable.",
-            "No usable stats are available for this recipe.");
+            "Raphael 验证不可用。",
+            "此配方没有可用的属性。");
     }
 
     private bool UsesRaphaelSolverForEdit()
@@ -1207,35 +1208,8 @@ public class RecipeCraftSettingsPopup
         try
         {
             var inventoryManager = InventoryManager.Instance();
-            if (inventoryManager == null)
-                return false;
-            
-            var inventories = new InventoryType[]
-            {
-                InventoryType.Inventory1, InventoryType.Inventory2,
-                InventoryType.Inventory3, InventoryType.Inventory4
-            };
-            
-            foreach (var invType in inventories)
-            {
-                var container = inventoryManager->GetInventoryContainer(invType);
-                if (container == null) continue;
-                
-                for (int i = 0; i < container->Size; i++)
-                {
-                    var item = container->GetInventorySlot(i);
-                    if (item == null || item->ItemId == 0) continue;
-                    
-                    if (item->ItemId == itemId)
-                    {
-                        bool itemIsHQ = (item->Flags & InventoryItem.ItemFlags.HighQuality) != 0;
-                        if (hq == itemIsHQ && item->Quantity > 0)
-                            return true;
-                    }
-                }
-            }
-            
-            return false;
+            return inventoryManager != null
+                && inventoryManager->GetInventoryItemCount(itemId, hq, false, false) > 0;
         }
         catch
         {

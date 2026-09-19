@@ -106,7 +106,7 @@ public partial class Interface
             var baitRecords = baitGroup.ToList();
             var bait        = baitRecords[0].BaitId;
             var baitName = GatherBuddy.GameData.Bait.TryGetValue(bait, out var b) ? b.Name :
-                GatherBuddy.GameData.Fishes.TryGetValue(bait, out var f)          ? $"Mooch - {new Bait(f.ItemData).Name}" : Bait.Unknown.Name;
+                GatherBuddy.GameData.Fishes.TryGetValue(bait, out var f)          ? $"以小钓大 - {new Bait(f.ItemData).Name}" : Bait.Unknown.Name;
 
             // Bait Name
             sb.AppendLine($"钓饵: {baitName}");

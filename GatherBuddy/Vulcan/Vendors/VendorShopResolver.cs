@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using GatherBuddy.Plugin;
@@ -56,6 +57,7 @@ public static class VendorShopResolver
     private static volatile bool _initialized;
     private static volatile bool _initializing;
     private static volatile bool _lastBuildHadCompleteDataShare;
+    private static int _revision;
     private static readonly TimeSpan RetryCooldown = TimeSpan.FromSeconds(2);
     private static DateTime _lastInitializeAttemptUtc = DateTime.MinValue;
 
@@ -63,6 +65,10 @@ public static class VendorShopResolver
     private static List<VendorShopEntry> _specialShopEntries = new();
     private static List<VendorShopEntry> _gcShopEntries      = new();
     private static HashSet<uint>         _allVendorNpcIds    = new();
+    private static Dictionary<uint, HashSet<uint>> _fallbackGilMap = new();
+    private static Dictionary<uint, HashSet<uint>> _fallbackSpecialMap = new();
+    private static Dictionary<uint, HashSet<uint>> _fallbackGcMap = new();
+    private static Dictionary<uint, HashSet<uint>> _fallbackInclusionMap = new();
 
     private static HashSet<uint> _gatherableIds = new();
     private static HashSet<uint> _fishIds       = new();
@@ -73,6 +79,7 @@ public static class VendorShopResolver
 
     public static bool IsInitialized  => _initialized;
     public static bool IsInitializing => _initializing;
+    public static int Revision => Volatile.Read(ref _revision);
 
     public static IReadOnlyList<VendorShopEntry> GilShopEntries     => _gilShopEntries;
     public static IReadOnlyList<VendorShopEntry> SpecialShopEntries => _specialShopEntries;
@@ -122,12 +129,9 @@ public static class VendorShopResolver
         _lastInitializeAttemptUtc = DateTime.UtcNow;
         var (gilMap, specialMap, gcMap, inclusionMap) = GetShopNpcMapsFromDataShare();
         var hasCompleteDataShare = HasCompleteShopDataShare(gilMap, specialMap, gcMap, inclusionMap);
-        var shouldRefreshForDataShare = _initialized
-            && !_lastBuildHadCompleteDataShare
-            && hasCompleteDataShare;
-        if (_initialized && !shouldRefreshForDataShare) return;
+        if (_initialized && !hasCompleteDataShare) return;
 
-        if (shouldRefreshForDataShare)
+        if (_initialized)
         {
             GatherBuddy.Log.Debug($"[VendorShopResolver] 早期回退构建后 AllaganTools DataShare 已完整可用，重建商人商店缓存 ({AllVendorNpcIds.Count} 个 NPC; {DescribeShopDataShareAvailability(gilMap, specialMap, gcMap, inclusionMap)})");
             _initialized = false;
@@ -148,22 +152,26 @@ public static class VendorShopResolver
                 return;
             }
 
-            var (gilMap, specialMap, gcMap, inclusionMap) = GetShopNpcMapsFromDataShare();
-            var hasCompleteDataShare = HasCompleteShopDataShare(gilMap, specialMap, gcMap, inclusionMap);
-            var hasAnyDataShare      = HasAnyShopDataShare(gilMap, specialMap, gcMap, inclusionMap);
-            var dataShareAvailability = DescribeShopDataShareAvailability(gilMap, specialMap, gcMap, inclusionMap);
+            var (dataShareGilMap, dataShareSpecialMap, dataShareGcMap, dataShareInclusionMap) = GetShopNpcMapsFromDataShare();
+            var (fallbackGilMap, fallbackSpecialMap, fallbackGcMap, fallbackInclusionMap) = BuildNpcShopMapsFromLumina();
+            _fallbackGilMap = fallbackGilMap;
+            _fallbackSpecialMap = fallbackSpecialMap;
+            _fallbackGcMap = fallbackGcMap;
+            _fallbackInclusionMap = fallbackInclusionMap;
+
+            var hasCompleteDataShare = HasCompleteShopDataShare(dataShareGilMap, dataShareSpecialMap, dataShareGcMap, dataShareInclusionMap);
+            var hasAnyDataShare      = HasAnyShopDataShare(dataShareGilMap, dataShareSpecialMap, dataShareGcMap, dataShareInclusionMap);
+            var dataShareAvailability = DescribeShopDataShareAvailability(dataShareGilMap, dataShareSpecialMap, dataShareGcMap, dataShareInclusionMap);
 
             GatherBuddy.Log.Debug($"[VendorShopResolver] AllaganTools DataShare: {(hasCompleteDataShare ? "就绪" : hasAnyDataShare ? "部分可用" : "不可用")} ({dataShareAvailability})");
 
+            var gilMap = MergeNpcMaps(fallbackGilMap, dataShareGilMap);
+            var specialMap = MergeNpcMaps(fallbackSpecialMap, dataShareSpecialMap);
+            var gcMap = MergeNpcMaps(fallbackGcMap, dataShareGcMap);
+            var inclusionMap = MergeNpcMaps(fallbackInclusionMap, dataShareInclusionMap);
             if (!hasCompleteDataShare)
-            {
-                var (lGil, lSpecial, lGc, lInclusion) = BuildNpcShopMapsFromLumina();
-                gilMap       = UseFallbackIfUnavailable(gilMap, lGil);
-                specialMap   = UseFallbackIfUnavailable(specialMap, lSpecial);
-                gcMap        = UseFallbackIfUnavailable(gcMap, lGc);
-                inclusionMap = UseFallbackIfUnavailable(inclusionMap, lInclusion);
-                GatherBuddy.Log.Debug($"[VendorShopResolver] 对缺失的商店映射使用 Lumina 回退 ({dataShareAvailability})");
-            }
+            if (!hasCompleteDataShare)
+                GatherBuddy.Log.Debug($"[VendorShopResolver] 已将缺失的商店映射与 Lumina 回退数据合并 ({dataShareAvailability})");
 
             var directSpecialMap = CloneNpcMap(specialMap);
             var inclusionRoutes  = BuildSpecialShopInclusionRoutes();
@@ -199,6 +207,8 @@ public static class VendorShopResolver
         }
         finally
         {
+            if (success)
+                Interlocked.Increment(ref _revision);
             _initialized  = success;
             _initializing = false;
             if (!success)
@@ -240,10 +250,10 @@ public static class VendorShopResolver
         Dictionary<uint, HashSet<uint>>? specialMap,
         Dictionary<uint, HashSet<uint>>? gcMap,
         Dictionary<uint, HashSet<uint>>? inclusionMap)
-        => HasShopNpcMapData(gilMap)
-        && HasShopNpcMapData(specialMap)
-        && HasShopNpcMapData(gcMap)
-        && HasShopNpcMapData(inclusionMap);
+        => CoversNpcMap(gilMap, _fallbackGilMap)
+        && CoversNpcMap(specialMap, _fallbackSpecialMap)
+        && CoversNpcMap(gcMap, _fallbackGcMap)
+        && CoversNpcMap(inclusionMap, _fallbackInclusionMap);
 
     private static bool HasAnyShopDataShare(
         Dictionary<uint, HashSet<uint>>? gilMap,
@@ -262,16 +272,39 @@ public static class VendorShopResolver
         Dictionary<uint, HashSet<uint>>? inclusionMap)
         => $"gil={(HasShopNpcMapData(gilMap) ? "就绪" : "缺失")}, special={(HasShopNpcMapData(specialMap) ? "就绪" : "缺失")}, gc={(HasShopNpcMapData(gcMap) ? "就绪" : "缺失")}, inclusion={(HasShopNpcMapData(inclusionMap) ? "就绪" : "缺失")}";
 
-    private static Dictionary<uint, HashSet<uint>> UseFallbackIfUnavailable(
-        Dictionary<uint, HashSet<uint>>? preferredMap,
-        Dictionary<uint, HashSet<uint>> fallbackMap)
-        => HasShopNpcMapData(preferredMap) ? preferredMap! : fallbackMap;
+    private static bool CoversNpcMap(
+        Dictionary<uint, HashSet<uint>>? candidate,
+        IReadOnlyDictionary<uint, HashSet<uint>> baseline)
+        => candidate is { Count: > 0 }
+        && baseline.All(entry => candidate.TryGetValue(entry.Key, out var candidateNpcIds) && candidateNpcIds.IsSupersetOf(entry.Value));
 
     private static bool HasShopNpcMapData(Dictionary<uint, HashSet<uint>>? map)
         => map is { Count: > 0 };
 
     private static Dictionary<uint, HashSet<uint>> CloneNpcMap(Dictionary<uint, HashSet<uint>> source)
         => source.ToDictionary(entry => entry.Key, entry => new HashSet<uint>(entry.Value));
+
+    private static Dictionary<uint, HashSet<uint>> MergeNpcMaps(
+        Dictionary<uint, HashSet<uint>> fallbackMap,
+        Dictionary<uint, HashSet<uint>>? dataShareMap)
+    {
+        var mergedMap = CloneNpcMap(fallbackMap);
+        if (dataShareMap == null)
+            return mergedMap;
+
+        foreach (var (shopId, npcIds) in dataShareMap)
+        {
+            if (!mergedMap.TryGetValue(shopId, out var mergedNpcIds))
+            {
+                mergedNpcIds = new HashSet<uint>();
+                mergedMap[shopId] = mergedNpcIds;
+            }
+
+            mergedNpcIds.UnionWith(npcIds);
+        }
+
+        return mergedMap;
+    }
 
     private static void BuildCraftingRelevantIds()
     {

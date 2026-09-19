@@ -8,8 +8,6 @@ using FishingSpotRow = Lumina.Excel.Sheets.FishingSpot;
 
 namespace GatherBuddy.Classes;
 
-public record SpawnRequirement(Fish RequiredFish, int Count);
-
 public class FishingSpot : IComparable<FishingSpot>, ILocation
 {
     public const uint SpearfishingIdOffset = 1u << 31;
@@ -66,8 +64,6 @@ public class FishingSpot : IComparable<FishingSpot>, ILocation
         => _data is SpearfishingNotebook sn && sn.IsShadowNode;
     
     public FishingSpot? ParentNode { get; set; }
-    
-    public List<SpawnRequirement> SpawnRequirements { get; init; } = new();
 
     public Dictionary<uint, List<Vector3>> WorldPositions { get; internal set; } = new();
 

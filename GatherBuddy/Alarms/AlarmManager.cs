@@ -294,7 +294,7 @@ public partial class AlarmManager : IDisposable
                 {
                     if (!Alarm.FromConfig(item, out var alarm))
                     {
-                        GatherBuddy.Log.Error($"Could not add alarm to {group.Name}.");
+                        GatherBuddy.Log.Error($"无法将闹钟添加到 {group.Name}。");
                         changes = true;
                         continue;
                     }
@@ -309,10 +309,10 @@ public partial class AlarmManager : IDisposable
             {
                 Dalamud.Notifications.AddNotification(new Notification()
                 {
-                    Title = "GatherBuddy Error",
+                    Title = "GatherBuddy 错误",
                     Content =
-                        "Failed to load some Alarm groups. See the plugin log for more details. This is not saved, if it keeps happening you need to manually change an Alarm Group to cause a save.",
-                    MinimizedText = "Failed to load Alarm groups.",
+                        "部分闹钟组加载失败。详情请查看插件日志。此状态不会被保存，如果持续出现，需要手动更改一个闹钟组以触发保存。",
+                    MinimizedText = "闹钟组加载失败。",
                     Type          = NotificationType.Error,
                 });
             }

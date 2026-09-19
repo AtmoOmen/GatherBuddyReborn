@@ -63,7 +63,7 @@ public sealed class CollectablesWindow : Window
         var selectedGatheringList = vendorBuyListManager.Lists.FirstOrDefault(list => list.Id == config.GatheringPurchaseListId);
         var selectedCraftingList = vendorBuyListManager.Lists.FirstOrDefault(list => list.Id == config.CraftingPurchaseListId);
 
-        ImGui.TextColored(ImGuiColors.DalamudGrey3, "Configure shared collectables turn-ins, purchase automation, and manual runs.");
+        ImGui.TextColored(ImGuiColors.DalamudGrey3, "配置共享的收藏品缴纳、购买自动化与手动运行。");
         ImGui.Spacing();
         DrawExecutionControls(manager);
         ImGui.Spacing();
@@ -88,35 +88,35 @@ public sealed class CollectablesWindow : Window
     private static void DrawExecutionControls(CollectableManager manager)
     {
         var turnInsAvailable = CollectableTurnInRequirements.IsAvailable;
-        if (ImGui.Button("Setup Guide", VulcanUiScaling.Scaled(120f, 0f)))
+        if (ImGui.Button("设置向导", VulcanUiScaling.Scaled(120f, 0f)))
             ImGui.OpenPopup(SetupGuidePopupId);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Explain how to build and assign collectables purchase lists using Vulcan Vendors and Vendor Buy Lists.");
+            ImGui.SetTooltip("说明如何使用 Vulcan 的商店与商店购买清单来构建并分配收藏品购买清单。");
 
         ImGui.SameLine();
         if (manager.IsRunning)
         {
-            if (ImGui.Button("Stop Collectables Run", VulcanUiScaling.Scaled(180f, 0f)))
+            if (ImGui.Button("停止收藏品运行", VulcanUiScaling.Scaled(180f, 0f)))
                 manager.Stop();
         }
         else
         {
             using var disabledRunButton = ImRaii.Disabled(!turnInsAvailable);
-            if (ImGui.Button("Run Turn-Ins Now", VulcanUiScaling.Scaled(180f, 0f)) && turnInsAvailable)
+            if (ImGui.Button("立即缴纳", VulcanUiScaling.Scaled(180f, 0f)) && turnInsAvailable)
                 manager.Start(CollectableRunSource.Manual);
             if (ImGui.IsItemHovered(turnInsAvailable ? ImGuiHoveredFlags.None : ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(turnInsAvailable
-                    ? "Runs collectable turn-ins immediately."
+                    ? "立即执行收藏品缴纳。"
                     : CollectableTurnInRequirements.UnavailableHelpText);
         }
 
         ImGuiEx.PluginAvailabilityIndicator(RequiredCollectablePlugins, "需要以下插件之一:", all: false);
 
-        if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
+        if (ImGui.Button("打开 Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
             GatherBuddy.VulcanWindow?.RestoreWindow();
 
         ImGui.SameLine();
-        if (ImGui.Button("Open Vendor Buy Lists", VulcanUiScaling.Scaled(170f, 0f)))
+        if (ImGui.Button("打开商店购买清单", VulcanUiScaling.Scaled(170f, 0f)))
             GatherBuddy.VendorBuyListWindow?.Open();
     }
 
@@ -263,10 +263,10 @@ public sealed class CollectablesWindow : Window
         DrawWrappedText("使用 Vulcan 的「商店」标签页构建工票购买清单, 然后在此处分配, 收藏品运行便会知道缴纳后该购买什么");
         ImGui.Spacing();
 
-        if (ImGui.Button("Open Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
+        if (ImGui.Button("打开 Vulcan", VulcanUiScaling.Scaled(120f, 0f)))
             GatherBuddy.VulcanWindow?.RestoreWindow();
         ImGui.SameLine();
-        if (ImGui.Button("Open Vendor Buy Lists", VulcanUiScaling.Scaled(170f, 0f)))
+        if (ImGui.Button("打开商店购买清单", VulcanUiScaling.Scaled(170f, 0f)))
             GatherBuddy.VendorBuyListWindow?.Open();
 
         ImGui.Spacing();

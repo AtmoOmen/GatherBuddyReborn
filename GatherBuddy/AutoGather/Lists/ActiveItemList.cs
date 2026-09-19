@@ -145,7 +145,7 @@ namespace GatherBuddy.AutoGather.Lists
         private bool NeedsGathering((IGatherable item, uint quantity) value)
         {
             var (item, quantity) = value;
-            return item.GetTotalCount() < quantity && CheckOvercap(item);
+            return item.GetTotalCount(_listsManager.UsesRetainerInventory(item)) < quantity && CheckOvercap(item);
         }
 
         private bool NeedsGathering(GatherTarget target)
@@ -434,41 +434,25 @@ namespace GatherBuddy.AutoGather.Lists
 
         private ILocation CorrectForPredatorLocation(IGatherable item, ILocation location)
         {
-            if (item is not Fish fish)
+            if (item is not Fish fish || fish.Predators.Length == 0)
                 return location;
 
-            // Check if THIS SPECIFIC FISH has predator requirements (not the whole shadow node)
-            if (fish.Predators.Length != 0)
-            {
-                // Only check FIRST predator for shadow node spawning (rest are caught within shadow node)
-                var (firstPredator, requiredCount) = fish.Predators[0];
-                var caughtCount = _autoGather.SpearfishingSessionCatches.GetValueOrDefault(firstPredator.ItemId, 0);
-                var firstPredatorMet = caughtCount >= requiredCount;
+            var shadowSpot = fish.FishingSpots.FirstOrDefault(spot => spot.IsShadowNode);
+            if (shadowSpot == null)
+                return location;
 
-                var shadowSpot = fish.FishingSpots.FirstOrDefault(fs => fs.IsShadowNode);
-                if (shadowSpot != null)
-                {
-                    if (firstPredatorMet)
-                    {
-                        // First predator met - shadow node spawns, use it
-                        location = shadowSpot;
-                        GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的第一捕食者已满足，使用影子节点");
-                    }
-                    else if (shadowSpot.ParentNode != null)
-                    {
-                        location = shadowSpot.ParentNode;
-                        GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的第一捕食者未满足，使用父节点");
-                    }
-                }
-            }
-            // Fallback: if preferred location is a shadow node, check its requirements
-            else if (location is FishingSpot spot && spot.IsShadowNode && spot.ParentNode != null)
+            if (_autoGather.IsSwimmingShadowsAvailable(shadowSpot))
             {
-                if (!_autoGather.AreSpawnRequirementsMet(spot))
-                {
-                    location = spot.ParentNode;
-                }
+                GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的鱼影已出现，使用影子节点");
+                return shadowSpot;
             }
+
+            if (shadowSpot.ParentNode != null)
+            {
+                GatherBuddy.Log.Debug($"[ActiveItemList] {fish.Name[GatherBuddy.Language]} 的鱼影尚未出现，使用父节点");
+                return shadowSpot.ParentNode;
+            }
+
             return location;
         }
 
@@ -617,6 +601,7 @@ namespace GatherBuddy.AutoGather.Lists
         /// </returns>
         private bool IsUpdateNeeded()
         {
+            var adjustedServerTime = AutoGather.AdjustedServerTime;
             var currentJob = Player.Job switch
             {
                 16 /* MIN */ => GatheringType.采矿工,
@@ -627,7 +612,8 @@ namespace GatherBuddy.AutoGather.Lists
             
             if (_activeItemsChanged
                 || _forceUpdateUnconditionally
-                || _lastUpdateTime.TotalEorzeaHours() != AutoGather.AdjustedServerTime.TotalEorzeaHours()
+                || _lastUpdateTime.TotalEorzeaHours() != adjustedServerTime.TotalEorzeaHours()
+                || _gatherableItems.Any(x => x.Time.InRange(_lastUpdateTime) != x.Time.InRange(adjustedServerTime))
                 || _lastTerritoryId != Dalamud.ClientState.TerritoryType
                 || Diadem.IsInside && _lastWeatherId != EnhancedCurrentWeather.GetCurrentWeatherId()
                 || _lastJob != currentJob)

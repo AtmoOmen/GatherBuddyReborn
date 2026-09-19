@@ -190,13 +190,9 @@ namespace GatherBuddy.AutoGather
         
         private uint _lastTerritory = 0;
         
-        public readonly Dictionary<uint, int> SpearfishingSessionCatches = new();
-        private readonly Dictionary<uint, int> _spearfishingInventorySnapshot = new();
-        private readonly Dictionary<uint, bool> _spawnRequirementsMetCache = new();
         private DateTime _lastAutoHookSetupTime = DateTime.MinValue;
         private bool _autoHookSetupComplete = false;
         private bool _wasGatheringSpearfish = false;
-        private bool _wasAtShadowNode = false;
 
         private IEnumerator<Actions.BaseAction?>? ActionSequence;
         private long _lastNodeInteractionTime = 0;

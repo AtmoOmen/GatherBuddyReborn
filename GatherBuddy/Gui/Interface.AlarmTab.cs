@@ -96,7 +96,7 @@ public partial class Interface
                 };
 
                 if (group.Alarms.Count < configGroup.Alarms.Count())
-                    GatherBuddy.Log.Warning("Invalid alarms skipped");
+                    GatherBuddy.Log.Warning("已跳过无效的闹钟");
 
                 _manager.AddGroup(group);
                 return true;
@@ -201,7 +201,12 @@ public partial class Interface
         }
 
         if (ImGui.IsItemDeactivated())
+        {
             _plugin.AlarmManager.ChangeAlarmOffset(group, alarmIdx, Math.Clamp(_alarmCache.ChangedSecondOffset, 0, RealTime.SecondsPerDay));
+            _alarmCache.ChangedAlarmIdx     = -1;
+            _alarmCache.ChangedSecondOffset = 0;
+        }
+
         ImGuiUtil.HoverTooltip("闹钟触发将略早于物品激活的时间。");
 
         ImGui.TableNextColumn();

@@ -2025,6 +2025,7 @@ public class VendorNavigator
 
     private unsafe bool TryMountUp()
     {
+        const uint MountRouletteGeneralActionId = 9;
         var actionManager = ActionManager.Instance();
         if (actionManager == null)
             return false;
@@ -2035,9 +2036,9 @@ public class VendorNavigator
         {
             success = actionManager->UseAction(ActionType.Mount, mountId);
         }
-        else if (actionManager->GetActionStatus(ActionType.GeneralAction, 24) == 0)
+        else if (actionManager->GetActionStatus(ActionType.GeneralAction, MountRouletteGeneralActionId) == 0)
         {
-            success = actionManager->UseAction(ActionType.GeneralAction, 24);
+            success = actionManager->UseAction(ActionType.GeneralAction, MountRouletteGeneralActionId);
         }
 
         if (success)

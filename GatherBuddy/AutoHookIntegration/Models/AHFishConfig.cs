@@ -33,6 +33,9 @@ public class AHAutoSurfaceSlap
     
     [JsonProperty("GPThresholdAbove")]
     public bool GPThresholdAbove { get; set; }
+
+    [JsonProperty("ConditionSet")]
+    public AHConditionSet? ConditionSet { get; set; }
     
     public AHAutoSurfaceSlap()
     {
@@ -59,6 +62,9 @@ public class AHAutoIdenticalCast
     
     [JsonProperty("GPThresholdAbove")]
     public bool GPThresholdAbove { get; set; }
+
+    [JsonProperty("ConditionSet")]
+    public AHConditionSet? ConditionSet { get; set; }
     
     public AHAutoIdenticalCast()
     {

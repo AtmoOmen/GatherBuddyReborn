@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -103,7 +103,7 @@ public class LocationManager
                 };
                 if (loc == null)
                 {
-                    GatherBuddy.Log.Error($"Invalid custom location {location.Id} of type {location.Type}, skipped.");
+                    GatherBuddy.Log.Error($"类型为 {location.Type} 的自定义位置 {location.Id} 无效，已跳过。");
                     changes = true;
                     continue;
                 }
@@ -113,7 +113,7 @@ public class LocationManager
                 if (location.AetheryteId != -1)
                     if (!GatherBuddy.GameData.Aetherytes.TryGetValue((uint)location.AetheryteId, out aetheryte))
                     {
-                        GatherBuddy.Log.Error($"Invalid aetheryte id {location.AetheryteId} in custom location for {loc.Name}.");
+                        GatherBuddy.Log.Error($"{loc.Name} 的自定义位置中的以太之光 ID {location.AetheryteId} 无效。");
                         changes = true;
                         continue;
                     }

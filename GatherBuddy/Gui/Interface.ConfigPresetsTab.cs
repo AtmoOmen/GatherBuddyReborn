@@ -169,7 +169,7 @@ namespace GatherBuddy.Gui
                 }
                 catch (Exception ex)
                 {
-                    GatherBuddy.Log.Error($"Error loading config presets, creating default: {ex}");
+                    GatherBuddy.Log.Error($"加载配置预设时出错，正在创建默认预设: {ex}");
                     Items.Clear();
                     try
                     {
@@ -177,7 +177,7 @@ namespace GatherBuddy.Gui
                     }
                     catch (Exception fallbackEx)
                     {
-                        GatherBuddy.Log.Error($"Critical error creating default preset: {fallbackEx}");
+                        GatherBuddy.Log.Error($"创建默认预设时发生严重错误: {fallbackEx}");
                     }
                 }
             }
@@ -593,6 +593,8 @@ namespace GatherBuddy.Gui
                 if (node)
                 {
                     DrawToggleConfig("耐心 / 耐心 II", preset.FishingActions.Patience, selector.Save);
+                    DrawFishingActionConfig(Actions.DoubleHook.Name, preset.FishingActions.DoubleHook, selector.Save, preset.FishingActions.TripleHook);
+                    DrawFishingActionConfig(Actions.TripleHook.Name, preset.FishingActions.TripleHook, selector.Save, preset.FishingActions.DoubleHook);
                     DrawFishingActionConfig(Actions.PrizeCatch.Name,    preset.FishingActions.PrizeCatch,    selector.Save);
                     DrawFishingActionConfig(Actions.Chum.Name,          preset.FishingActions.Chum,          selector.Save);
                     DrawFishingActionConfig(Actions.SurfaceSlap.Name,   preset.FishingActions.SurfaceSlap,   selector.Save);
@@ -810,13 +812,18 @@ namespace GatherBuddy.Gui
                 save();
         }
 
-        private void DrawFishingActionConfig(string name, ConfigPreset.FishingActionConfig action, System.Action save)
+        private void DrawFishingActionConfig(string name, ConfigPreset.FishingActionConfig action, System.Action save, ConfigPreset.FishingActionConfig? oppositeAction = null)
         {
             using var node = ImRaii.TreeNode(name);
             if (!node)
                 return;
 
-            if (ImGuiUtil.Checkbox("启用", "", action.Enabled, x => action.Enabled = x))
+            if (ImGuiUtil.Checkbox("启用", "", action.Enabled, x =>
+                {
+                    action.Enabled = x;
+                    if (x && oppositeAction != null)
+                        oppositeAction.Enabled = false;
+                }))
                 save();
             if (!action.Enabled)
                 return;

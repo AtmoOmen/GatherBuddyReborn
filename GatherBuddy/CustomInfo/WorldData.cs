@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -47,12 +47,12 @@ namespace GatherBuddy.CustomInfo
             using (var stream = assembly.GetManifestResourceStream(resourceName))
             {
                 if (stream == null)
-                    throw new FileNotFoundException("Embedded resource not found.", resourceName);
+                    throw new FileNotFoundException("找不到嵌入资源。", resourceName);
 
                 using (var reader = new StreamReader(stream))
                 {
                     var defaultContent = reader.ReadToEnd();
-                    defaultObj = JsonConvert.DeserializeObject<T>(defaultContent, settings) ?? throw new InvalidDataException($"Failed to deserialize embedded resource {resourceName}.");
+                    defaultObj = JsonConvert.DeserializeObject<T>(defaultContent, settings) ?? throw new InvalidDataException($"无法反序列化嵌入资源 {resourceName}。");
                 }
             }
 
@@ -149,7 +149,7 @@ namespace GatherBuddy.CustomInfo
                     list.Add(location);
 
                 Task.Run(() => { lock (WorldLocationsByNodeId) SaveLocationsToFile(); });
-                GatherBuddy.Log.Debug($"Added location {location} to node {nodeId}");
+                GatherBuddy.Log.Debug($"已将位置 {location} 添加到节点 {nodeId}");
                 WorldLocationsChanged?.Invoke();
             }
         }

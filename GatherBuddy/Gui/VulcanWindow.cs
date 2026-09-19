@@ -411,7 +411,7 @@ public partial class VulcanWindow : Window, IDisposable
         if (_artisanToggleTask is { IsFaulted: true })
         {
             var exception = _artisanToggleTask.Exception?.GetBaseException();
-            GatherBuddy.Log.Error($"[VulcanWindow] 失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan: {exception?.Message ?? "unknown error"}");
+            GatherBuddy.Log.Error($"[VulcanWindow] 失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan: {exception?.Message ?? "未知错误"}");
             if (exception != null)
                 GatherBuddy.Log.Debug($"[VulcanWindow] Artisan toggle exception: {exception}");
             Communicator.PrintError($"失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan.");
@@ -447,7 +447,7 @@ public partial class VulcanWindow : Window, IDisposable
     {
         if (!DalamudPluginToggleHelper.TrySetPluginEnabled(ArtisanPluginName, enable, out var toggleTask, out var failureReason))
         {
-            GatherBuddy.Log.Warning($"[VulcanWindow] 失败: invoke reflected Artisan toggle for state {(enable ? "已启用" : "已禁用")}: {failureReason ?? "unknown reason"}.");
+            GatherBuddy.Log.Warning($"[VulcanWindow] 失败: 调用反射的 Artisan 切换以设置状态 {(enable ? "已启用" : "已禁用")}: {failureReason ?? "未知原因"}。");
             Communicator.PrintError(failureReason ?? $"失败: {(enable ? "启用" : "禁用")} Artisan.");
             return;
         }

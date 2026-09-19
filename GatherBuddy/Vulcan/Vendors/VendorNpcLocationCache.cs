@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
 using GatherBuddy.Plugin;
 using Lumina.Data.Files;
@@ -32,10 +33,11 @@ public static class VendorNpcLocationCache
     private static readonly Dictionary<uint, Dictionary<uint, uint>> MapRowIdsByTerritoryAndLayerIndex = new();
     private static volatile bool _initialized;
     private static volatile bool _initializing;
-    private static volatile bool _lastBuildHadDataShareLocations;
+    private static int _revision;
     private static DateTime _lastBuildAttemptUtc = DateTime.MinValue;
     private static Dictionary<uint, List<VendorNpcLocation>> _locations = new();
     private static HashSet<uint> _lastVendorNpcIds = new();
+    private static HashSet<uint> _lastDataShareCoveredNpcIds = new();
     private static Dictionary<(uint TerritoryTypeId, sbyte MapIndex), uint>? _mapRowIdsByTerritoryAndMapIndex;
     private static Dictionary<uint, int>? _mapRowCountsByTerritoryTypeId;
     private static List<ENpcPlace>? _supplementalNpcPlaces;
@@ -43,6 +45,7 @@ public static class VendorNpcLocationCache
 
     public static bool IsInitialized  => _initialized;
     public static bool IsInitializing => _initializing;
+    public static int Revision => Volatile.Read(ref _revision);
     public static int RequestedNpcCount => _lastVendorNpcIds.Count;
     public static int ResolvedNpcCount  => _locations.Count;
 
@@ -74,20 +77,21 @@ public static class VendorNpcLocationCache
 
         if (!ReferenceEquals(_lastVendorNpcIds, requestedNpcIds))
             _lastVendorNpcIds = requestedNpcIds;
-        var shouldRefreshForDataShare = _initialized
-            && !requestedChanged
-            && _locations.Count < requestedNpcIds.Count
-            && !_lastBuildHadDataShareLocations
-            && HasDataShareLocations();
         if (_initializing)
         {
             if (requestedChanged)
                 GatherBuddy.Log.Debug($"[VendorNpcLocationCache] Vendor NPC set changed during active build ({previousNpcIds.Count} -> {requestedNpcIds.Count}), scheduling a rebuild after the current pass completes");
             return;
         }
-        if (_initialized && !requestedChanged && !shouldRefreshForDataShare)
-            return;
         if ((DateTime.UtcNow - _lastBuildAttemptUtc) < RetryCooldown)
+            return;
+
+        var dataShareCoveredNpcIds = GetDataShareCoveredNpcIds(requestedNpcIds);
+        var shouldRefreshForDataShare = _initialized
+            && !requestedChanged
+            && _locations.Count < requestedNpcIds.Count
+            && !_lastDataShareCoveredNpcIds.SetEquals(dataShareCoveredNpcIds);
+        if (_initialized && !requestedChanged && !shouldRefreshForDataShare)
             return;
 
         if (_initialized && requestedChanged)
@@ -97,17 +101,24 @@ public static class VendorNpcLocationCache
         }
         else if (shouldRefreshForDataShare)
         {
-            GatherBuddy.Log.Debug($"[VendorNpcLocationCache] DataShare locations became available after an early fallback build, rebuilding location cache ({_locations.Count}/{requestedNpcIds.Count})");
+            GatherBuddy.Log.Debug($"[VendorNpcLocationCache] DataShare location coverage changed while vendor NPCs remained unresolved, rebuilding location cache ({_locations.Count}/{requestedNpcIds.Count})");
             _initialized = false;
         }
         StartBuild(requestedNpcIds);
     }
 
-    private static bool HasDataShareLocations()
-        => TryGetDataShareLocations(out var dataShare) && dataShare != null && dataShare.Count > 0;
-
     private static bool TryGetDataShareLocations(out Dictionary<uint, IReadOnlyCollection<Tuple<uint, uint, uint, double, double, bool>>>? dataShare)
         => Dalamud.PluginInterface.TryGetData(DataShareLocationsTag, out dataShare) && dataShare != null;
+
+    private static HashSet<uint> GetDataShareCoveredNpcIds(IReadOnlySet<uint> vendorNpcIds)
+    {
+        if (!TryGetDataShareLocations(out var dataShare) || dataShare == null)
+            return new HashSet<uint>();
+
+        return vendorNpcIds
+            .Where(npcId => dataShare.TryGetValue(npcId, out var locations) && locations.Any(location => location.Item3 > 0))
+            .ToHashSet();
+    }
 
     public static void ReloadAsync()
     {
@@ -156,7 +167,7 @@ public static class VendorNpcLocationCache
 
             var result = new Dictionary<uint, List<VendorNpcLocation>>();
             var npcNames = new Dictionary<uint, string>();
-            var hadDataShareLocations = false;
+            var dataShareCoveredNpcIds = GetDataShareCoveredNpcIds(vendorNpcIds);
 
             foreach (var npc in residentSheet)
             {
@@ -172,7 +183,7 @@ public static class VendorNpcLocationCache
 
             if (dataShareFirst)
             {
-                hadDataShareLocations = ResolveFromDataShare(result, vendorNpcIds, npcNames, mapSheet);
+                ResolveFromDataShare(result, vendorNpcIds, npcNames, mapSheet);
                 ResolveFromLevelSheet(result, vendorNpcIds, npcNames, mapSheet);
                 ResolveFromSupplementalNpcPlaces(result, vendorNpcIds, npcNames, mapSheet);
                 ResolveFromLgb(result, vendorNpcIds, npcNames, mapSheet);
@@ -182,12 +193,12 @@ public static class VendorNpcLocationCache
                 ResolveFromLgb(result, vendorNpcIds, npcNames, mapSheet);
                 ResolveFromLevelSheet(result, vendorNpcIds, npcNames, mapSheet);
                 ResolveFromSupplementalNpcPlaces(result, vendorNpcIds, npcNames, mapSheet);
-                hadDataShareLocations = ResolveFromDataShare(result, vendorNpcIds, npcNames, mapSheet);
+                ResolveFromDataShare(result, vendorNpcIds, npcNames, mapSheet);
             }
             ResolveFromKnownNpcOverrides(result, vendorNpcIds, npcNames, mapSheet);
 
             _locations = result;
-            _lastBuildHadDataShareLocations = hadDataShareLocations;
+            _lastDataShareCoveredNpcIds = dataShareCoveredNpcIds;
 
             var resolvedCount = CountResolvedNpcIds(result, vendorNpcIds, mapSheet);
             GatherBuddy.Log.Debug($"[VendorNpcLocationCache] Final: {resolvedCount}/{vendorNpcIds.Count} vendor NPCs resolved");
@@ -203,6 +214,8 @@ public static class VendorNpcLocationCache
         }
         finally
         {
+            if (success)
+                Interlocked.Increment(ref _revision);
             _initialized = success;
             _initializing = false;
             if (!success)

@@ -119,10 +119,10 @@ public partial class GatherWindowManager : IDisposable
             {
                 Dalamud.Notifications.AddNotification(new Notification()
                 {
-                    Title = "GatherBuddy Error",
+                    Title = "GatherBuddy 错误",
                     Content =
-                        "Failed to load some gather window presets. See the plugin log for more details. This is not saved, if it keeps happening you need to manually change a preset to cause a save.",
-                    MinimizedText = "Failed to load gather window presets.",
+                        "部分采集窗口预设加载失败。详情请查看插件日志。此状态不会被保存，如果持续出现，需要手动更改一个预设以触发保存。",
+                    MinimizedText = "采集窗口预设加载失败。",
                     Type          = NotificationType.Error,
                 });
             }

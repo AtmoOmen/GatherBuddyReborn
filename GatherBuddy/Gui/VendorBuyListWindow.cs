@@ -616,7 +616,7 @@ public sealed partial class VendorBuyListWindow : Window
             return options;
 
         var locationCacheReady = VendorNpcLocationCache.IsInitialized;
-        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(liveEntry.Npcs, "building the vendor buy list", liveEntry.ItemName);
+        var selectableNpcs = VendorDevExclusions.GetSelectableNpcs(liveEntry.Npcs, "构建商店购买清单", liveEntry.ItemName);
         foreach (var npc in selectableNpcs)
         {
             var location = VendorNpcLocationCache.TryGetFirstLocation(npc.NpcId);

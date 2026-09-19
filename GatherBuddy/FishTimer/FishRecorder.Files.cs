@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -78,7 +78,7 @@ public partial class FishRecorder
         try
         {
             var bytes   = Functions.DecompressedBase64(data);
-            var records = ReadBytes(bytes, "Imported Data");
+            var records = ReadBytes(bytes, "导入的数据");
             MergeRecordsIn(records);
         }
         catch (Exception e)

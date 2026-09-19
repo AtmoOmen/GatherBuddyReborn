@@ -1,4 +1,4 @@
-﻿using GatherBuddy.Utilities;
+using GatherBuddy.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -84,7 +84,7 @@ namespace GatherBuddy.CustomInfo
             }
             catch (Exception ex)
             {
-                GatherBuddy.Log.Error($"Error loading auto offsets: {ex.Message}");
+                GatherBuddy.Log.Error($"加载自动偏移时出错: {ex.Message}");
             }
         }
 
@@ -112,7 +112,7 @@ namespace GatherBuddy.CustomInfo
                         using var fs = new FileStream(AutoOffsetsDbPath, FileMode.Append, FileAccess.Write, FileShare.Read);
                         if (fs.Position % OffsetEntry.Size != 0)
                         {
-                            GatherBuddy.Log.Warning("Auto offsets file is corrupted. Rewriting the entire file.");
+                            GatherBuddy.Log.Warning("自动偏移文件已损坏，正在重写整个文件。");
                             fs.Close();
                             WriteAllOffsets();
                             return;
@@ -121,7 +121,7 @@ namespace GatherBuddy.CustomInfo
                     }
                     catch (Exception ex)
                     {
-                        GatherBuddy.Log.Error($"Error writing auto offset to file: {ex.Message}");
+                        GatherBuddy.Log.Error($"将自动偏移写入文件时出错: {ex.Message}");
                     }
                 }
             });
@@ -146,7 +146,7 @@ namespace GatherBuddy.CustomInfo
             }
             catch (Exception ex)
             {
-                GatherBuddy.Log.Error($"Error writing auto offsets to file: {ex.Message}");
+                GatherBuddy.Log.Error($"将自动偏移写入文件时出错: {ex.Message}");
             }
         }
 

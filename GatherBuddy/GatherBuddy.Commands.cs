@@ -101,19 +101,19 @@ public partial class GatherBuddy
 
         _commands["/vvendor"] = new CommandInfo(OnVendor)
         {
-            HelpMessage = "Open the Vulcan Vendors tab.",
+            HelpMessage = "打开 Vulcan 商店标签页。",
             ShowInHelp  = true,
         };
 
         _commands["/vulcanmb"] = new CommandInfo(OnVulcanMarketboard)
         {
-            HelpMessage = "Open the Vulcan Marketboard tab.",
+            HelpMessage = "打开 Vulcan 市场板标签页。",
             ShowInHelp  = true,
         };
 
         _commands["/vcollect"] = new CommandInfo(OnCollectablesWindow)
         {
-            HelpMessage = "Open the Collectables turn-in and purchase window.",
+            HelpMessage = "打开收藏品缴纳与购买窗口。",
             ShowInHelp  = true,
         };
 
@@ -351,7 +351,7 @@ public partial class GatherBuddy
         var tempList = new CraftingListDefinition
         {
             ID   = -1,
-            Name = $"Command: {itemName} x{quantity}",
+            Name = $"指令: {itemName} x{quantity}",
         };
         tempList.Recipes.Add(new CraftingListItem(recipe.Value.RowId, quantity));
 

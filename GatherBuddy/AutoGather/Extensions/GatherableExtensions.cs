@@ -49,8 +49,11 @@ public static class GatherableExtensions
     }
 
     public static int GetTotalCount(this IGatherable gatherable)
+        => gatherable.GetTotalCount(true);
+
+    public static int GetTotalCount(this IGatherable gatherable, bool useRetainerInventory)
     {
-        if (GatherBuddy.Config.AutoGatherConfig.CheckRetainers && AllaganTools.Enabled)
+        if (useRetainerInventory && GatherBuddy.Config.AutoGatherConfig.CheckRetainers && AllaganTools.Enabled)
         {
             return (int)AllaganTools.ItemCountOwned(gatherable.ItemId, true, _inventoryTypesArray);
         }

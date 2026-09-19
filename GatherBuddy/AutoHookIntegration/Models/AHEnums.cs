@@ -15,8 +15,8 @@ public enum AHHookType : uint
     Normal = 296,
     Precision = 4179,
     Powerful = 4103,
-    Double = 27523,
-    Triple = 27524,
-    Stellar = 39127,
+    Double = 269,
+    Triple = 27523,
+    Stellar = 41287,
     Unknown = 255,
 }

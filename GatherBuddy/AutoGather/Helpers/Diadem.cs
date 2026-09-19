@@ -183,10 +183,11 @@ namespace GatherBuddy.AutoGather.Helpers
 
         private void OnUpdate(IFramework _)
         {
-            if (!IsInside)
+            if (!IsInside || Dalamud.Objects.LocalPlayer == null)
             {
                 Array.Fill(_indexes, (byte)0);
                 _initialized = (1 << (int)TotalPaths) - 1;
+                _lastNode = 0u;
                 return;
             }
 

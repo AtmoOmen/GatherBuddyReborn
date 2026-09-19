@@ -164,18 +164,32 @@ public static unsafe class GearsetStatsReader
     }
 
     internal static bool TryResolveExistingGearsetIndex(RaptureGearsetModule* gearsetModule, uint jobId, out int gearsetIndex)
+        => TryResolveExistingGearsetIndex(gearsetModule, jobId, null, out gearsetIndex, out _);
+
+    internal static bool TryResolveExistingGearsetIndex(RaptureGearsetModule* gearsetModule, uint jobId, string? preferredName,
+        out int gearsetIndex, out string gearsetName)
     {
+        var fallbackIndex = -1;
         for (int i = 0; i < 100; i++)
         {
             if (!IsMatchingGearset(gearsetModule, i, jobId))
                 continue;
 
+            if (fallbackIndex < 0)
+                fallbackIndex = i;
+
+            var candidateName = gearsetModule->Entries[i].NameString;
+            if (string.IsNullOrWhiteSpace(preferredName) || !string.Equals(candidateName, preferredName, StringComparison.Ordinal))
+                continue;
+
             gearsetIndex = i;
+            gearsetName  = candidateName;
             return true;
         }
 
-        gearsetIndex = -1;
-        return false;
+        gearsetIndex = fallbackIndex;
+        gearsetName  = fallbackIndex >= 0 ? gearsetModule->Entries[fallbackIndex].NameString : string.Empty;
+        return fallbackIndex >= 0;
     }
 
     private static bool IsMatchingGearset(RaptureGearsetModule* gearsetModule, int gearsetIndex, uint jobId)

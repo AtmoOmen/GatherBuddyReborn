@@ -666,6 +666,23 @@ public partial class Interface
             GatherBuddy.Config.Save();
         }
 
+        public static void DrawUpcomingUptimesCount()
+        {
+            var value = GatherBuddy.Config.UpcomingUptimesCount;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            var ret = ImGui.DragUShort("后续窗口期数量", ref value, 0.1f, 1, 20);
+            ImGuiUtil.HoverTooltip("后续窗口期提示框中显示的采集窗口数量。");
+            if (!ret)
+                return;
+
+            var newValue = Math.Clamp(value, (ushort)1, (ushort)100);
+            if (newValue == GatherBuddy.Config.UpcomingUptimesCount)
+                return;
+
+            GatherBuddy.Config.UpcomingUptimesCount = newValue;
+            GatherBuddy.Config.Save();
+        }
+
         public static void DrawHideFishPopupBox()
             => DrawCheckbox("隐藏捕获弹窗",
                 "阻止显示展示捕获鱼及其尺寸、数量和品质的弹窗。",
@@ -1582,6 +1599,7 @@ public partial class Interface
             new("显示状态行",                               ConfigFunctions.DrawShowStatusLineBox),
             new("隐藏 GatherClippy 按钮",                       ConfigFunctions.DrawHideClippyBox),
             new("打开主界面的热键",                  ConfigFunctions.DrawMainInterfaceHotkeyInput),
+            new("后续窗口期数量",                 ConfigFunctions.DrawUpcomingUptimesCount),
         ]),
         new("界面", "钓鱼计时器",
         [
@@ -1670,7 +1688,7 @@ public partial class Interface
     private void DrawConfigTab()
     {
         using var id  = ImRaii.PushId("Config");
-        using var tab = ImRaii.TabItem("Config");
+        using var tab = ImRaii.TabItem("配置");
         ImGuiUtil.HoverTooltip("设置你专属的 GatherBuddy 以满足你最细致的需求。\n"
           + "如果你善待它，它也许会成为真正的伙伴。");
 

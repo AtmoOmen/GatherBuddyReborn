@@ -8,7 +8,9 @@ using Dalamud.Game.Text.SeStringHandling;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using GatherBuddy.Classes;
+using GatherBuddy.Crafting;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
 using GatherBuddy.SeFunctions;
@@ -199,28 +201,22 @@ public class Executor
         TeleportToAetheryte(_location.ClosestAetheryte);
     }
 
-    private void DoGearChange()
+    private unsafe void DoGearChange()
     {
         if (!GatherBuddy.Config.UseGearChange || _location == null)
             return;
 
-        var set = _location.GatheringType.ToGroup() switch
+        var job = _location.GatheringType.ToGroup();
+        var (preferredName, classJobId) = job switch
         {
-            GatheringType.捕鱼人 => GatherBuddy.Config.FisherSetName,
-            GatheringType.园艺工 => GatherBuddy.Config.BotanistSetName,
-            GatheringType.采矿工 => GatherBuddy.Config.MinerSetName,
-            _ => null,
+            GatheringType.捕鱼人 => (GatherBuddy.Config.FisherSetName, 18u),
+            GatheringType.园艺工 => (GatherBuddy.Config.BotanistSetName, 17u),
+            GatheringType.采矿工 => (GatherBuddy.Config.MinerSetName, 16u),
+            _                    => (null, 0u),
         };
-        if (set == null)
+        if (classJobId == 0)
         {
             Communicator.PrintError("此位置没有关联任何职业: ", _location.Name, GatherBuddy.Config.SeColorArguments, "");
-            return;
-        }
-
-        if (set.Length == 0)
-        {
-            Communicator.PrintError("未设置任何套装: ", _location.GatheringType.ToString(), GatherBuddy.Config.SeColorArguments,
-                "");
             return;
         }
 
@@ -242,7 +238,24 @@ public class Executor
                 return;
             }
 
-            CommandManager.Execute($"/gearset change \"{set}\"");
+            var gearsetModule = RaptureGearsetModule.Instance();
+            if (gearsetModule == null)
+            {
+                Communicator.PrintError("无法读取已保存的套装。");
+                Dalamud.Framework.Update -= DoGearChangeOnArrival;
+                return;
+            }
+
+            if (!GearsetStatsReader.TryResolveExistingGearsetIndex(gearsetModule, classJobId, preferredName, out var gearsetIndex,
+                    out var gearsetName))
+            {
+                Communicator.PrintError("未找到 ", job.ToString(), GatherBuddy.Config.SeColorArguments, " 的已保存套装。");
+                Dalamud.Framework.Update -= DoGearChangeOnArrival;
+                return;
+            }
+
+            GatherBuddy.Log.Information($"[Executor] 正在切换到 {job}，使用套装 {gearsetIndex} ({gearsetName})。");
+            gearsetModule->EquipGearset(gearsetIndex);
 
             if (_item is Fish fish)
                 GatherBuddy.CurrentBait.ChangeBait(fish.InitialBait.Id);

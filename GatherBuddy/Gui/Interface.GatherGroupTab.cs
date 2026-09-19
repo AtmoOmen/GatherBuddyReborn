@@ -98,7 +98,7 @@ public partial class Interface
                 if (!_plugin.GatherGroupManager.ChangeGroupNode(@group, @group.Nodes.Count, d.Node.Item, d.Node.EorzeaStartMinute,
                         d.Node.EorzeaEndMinute, d.Node.Annotation, false))
                 {
-                    GatherBuddy.Log.Error($"Could not move node from group {d.Group.Name} to group {group.Name}.");
+                    GatherBuddy.Log.Error($"无法将节点从组 {d.Group.Name} 移动到组 {group.Name}。");
                     return;
                 }
 

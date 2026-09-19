@@ -348,9 +348,10 @@ public class CraftingListConsumablesPopup
 
     private void EnsureConsumablesLoaded()
     {
-        if (_foodItems.Count > 0 || _medicineItems.Count > 0)
-            return;
-
+        _foodItems.Clear();
+        _medicineItems.Clear();
+        _manualItems.Clear();
+        _squadronManualItems.Clear();
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
         if (itemSheet == null)
             return;
@@ -478,35 +479,8 @@ public class CraftingListConsumablesPopup
         try
         {
             var inventoryManager = InventoryManager.Instance();
-            if (inventoryManager == null)
-                return false;
-            
-            var inventories = new InventoryType[]
-            {
-                InventoryType.Inventory1, InventoryType.Inventory2,
-                InventoryType.Inventory3, InventoryType.Inventory4
-            };
-            
-            foreach (var invType in inventories)
-            {
-                var container = inventoryManager->GetInventoryContainer(invType);
-                if (container == null) continue;
-                
-                for (int i = 0; i < container->Size; i++)
-                {
-                    var item = container->GetInventorySlot(i);
-                    if (item == null || item->ItemId == 0) continue;
-                    
-                    if (item->ItemId == itemId)
-                    {
-                        bool itemIsHQ = (item->Flags & InventoryItem.ItemFlags.HighQuality) != 0;
-                        if (hq == itemIsHQ && item->Quantity > 0)
-                            return true;
-                    }
-                }
-            }
-            
-            return false;
+            return inventoryManager != null
+                && inventoryManager->GetInventoryItemCount(itemId, hq, false, false) > 0;
         }
         catch
         {

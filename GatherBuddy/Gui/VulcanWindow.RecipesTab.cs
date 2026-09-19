@@ -253,14 +253,14 @@ public partial class VulcanWindow
         expandRight = false;
         if (_recipesTooltipWindowMax.X <= _recipesTooltipWindowMin.X || _recipesTooltipWindowMax.Y <= _recipesTooltipWindowMin.Y)
         {
-            MaybeLogTooltipAnchorFailure("Recipes tooltip window bounds are invalid.");
+            MaybeLogTooltipAnchorFailure("配方提示框窗口边界无效。");
             return false;
         }
 
         var displaySize = ImGui.GetIO().DisplaySize;
         if (displaySize.X <= 0f || displaySize.Y <= 0f)
         {
-            MaybeLogTooltipAnchorFailure("Display size is unavailable for native recipe tooltip anchoring.");
+            MaybeLogTooltipAnchorFailure("显示尺寸不可用，无法定位原生配方提示框。");
             return false;
         }
 
@@ -273,7 +273,7 @@ public partial class VulcanWindow
         var anchorBottom = MathF.Round(Math.Min(displaySize.Y - screenPadding, _recipesTooltipWindowMax.Y));
         if (anchorBottom <= anchorTop)
         {
-            MaybeLogTooltipAnchorFailure("Recipes tooltip window side lane collapsed outside the screen bounds.");
+            MaybeLogTooltipAnchorFailure("配方提示框窗口的侧边通道折叠到屏幕边界之外。");
             return false;
         }
 

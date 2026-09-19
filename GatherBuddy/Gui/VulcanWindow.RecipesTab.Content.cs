@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -255,7 +255,7 @@ public partial class VulcanWindow
             ImGui.TextWrapped($"将当前筛选结果中 {_filteredUncraftedRecipeCount} 个尚未制作的配方批量加入:");
             ImGui.Spacing();
             ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextWithHint("##BulkAddFilteredListSearch", "Search lists...", ref _bulkAddFilteredListSearch, 128);
+            ImGui.InputTextWithHint("##BulkAddFilteredListSearch", "搜索清单...", ref _bulkAddFilteredListSearch, 128);
 
             var filteredLists = string.IsNullOrWhiteSpace(_bulkAddFilteredListSearch)
                 ? GatherBuddy.CraftingListManager.Lists.OrderBy(list => list.Name, StringComparer.OrdinalIgnoreCase).ToList()
@@ -326,7 +326,7 @@ public partial class VulcanWindow
         
         var sortLabel = _sortColumn switch
         {
-            SortColumn.Level => _filterByEquipLevel ? "Equip Lv" : "Level",
+            SortColumn.Level => _filterByEquipLevel ? "装备等级" : "等级",
             SortColumn.Crafted => "Crafted",
             _ => "Sort"
         };
@@ -436,7 +436,7 @@ public partial class VulcanWindow
             
             if (isPopupOpen)
             {
-                if (ImGui.MenuItem("Show Recipe Properties (Debug)"))
+                if (ImGui.MenuItem("显示配方属性 (调试)"))
                 {
                     GatherBuddy.Log.Information($"=== Recipe Properties for {recipe.Name} ===");
                     GatherBuddy.Log.Information($"Recipe.RowId: {recipe.Recipe.RowId}");
@@ -476,11 +476,11 @@ public partial class VulcanWindow
 
                 ImGui.TextColored(new Vector4(0.7f, 1.0f, 0.7f, 1.0f), "创建新清单:");
                 ImGui.SetNextItemWidth(-1);
-                var createEnter = ImGui.InputTextWithHint("##NewListName", "List name...", ref _contextMenuNewListName, 128, ImGuiInputTextFlags.EnterReturnsTrue);
-                ImGui.Checkbox("Ephemeral##ctxNewListEphemeral", ref _contextMenuNewListEphemeral);
+                var createEnter = ImGui.InputTextWithHint("##NewListName", "清单名称...", ref _contextMenuNewListName, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+                ImGui.Checkbox("临时##ctxNewListEphemeral", ref _contextMenuNewListEphemeral);
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("Delete this list automatically after crafting completes.\nCan be disabled later in the list editor.");
-                if ((ImGui.Button("Create & Add", new Vector2(-1, 0)) || createEnter) && !string.IsNullOrWhiteSpace(_contextMenuNewListName))
+                if ((ImGui.Button("创建并添加", new Vector2(-1, 0)) || createEnter) && !string.IsNullOrWhiteSpace(_contextMenuNewListName))
                 {
                     var newList = GatherBuddy.CraftingListManager.CreateNewList(_contextMenuNewListName.Trim(), _contextMenuNewListEphemeral);
                     newList.Recipes.Add(new CraftingListItem(recipe.Recipe.RowId, _contextMenuAddQuantity));
@@ -551,7 +551,7 @@ public partial class VulcanWindow
                 }
                 else
                 {
-                    ImGui.TextDisabled("No crafting lists available");
+                    ImGui.TextDisabled("没有可用的制作清单");
                 }
 
                 ImGui.EndPopup();
@@ -798,7 +798,7 @@ public partial class VulcanWindow
             ImGui.Separator();
             ImGui.Spacing();
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + detailInset);
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "Raphael Validation:");
+            ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.9f, 1.0f), "Raphael 验证:");
             ImGui.Spacing();
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
             ImGui.TextColored(GetRaphaelAssessmentColor(raphaelAssessment), raphaelAssessment.Summary);
@@ -812,7 +812,7 @@ public partial class VulcanWindow
             {
                 ImGui.Spacing();
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(24f));
-                if (ImGui.Button("Queue Raphael Validation", new Vector2(0f, footerButtonHeight)))
+                if (ImGui.Button("排队 Raphael 验证", new Vector2(0f, footerButtonHeight)))
                     RaphaelAssessmentService.TryQueueWarmupForRecipe(recipe.Recipe.RowId, settings);
             }
             ImGui.Spacing();

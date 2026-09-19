@@ -320,7 +320,7 @@ public static partial class Fish
             .Mooch     (data, 12710, 12776)
             .Bite      (data, HookSet.Powerful, BiteType.普通竿);
         data.Apply     (12802, Patch.Heavensward) // Caiman
-            .Mooch     (data, 12707, 12730)
+            .Mooch     (data, 12704, 12722)
             .Bite      (data, HookSet.Powerful, BiteType.鱼王竿)
             .Time      (1080, 1230);
         data.Apply     (12803, Patch.Heavensward) // Euphotic Pirarucu
