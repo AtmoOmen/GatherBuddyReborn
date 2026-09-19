@@ -48,26 +48,26 @@ public partial class FishingParser
 
         private static readonly Lazy<Regexes> French = new(() => new Regexes
         {
-            Cast           = new Regex(@".*? commencez? ¨¤ p¨ºcher\.\s*Point de p¨ºche: (?<FishingSpot>.+)\.",        RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            AreaDiscovered = new Regex(@"Vous notez le banc de poissons ¡°(?<FishingSpot>.+)¡± dans votre carnet\.", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Mooch          = new Regex(@"essa[^\s]+ de p¨ºcher au vif avec",                                        RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Undiscovered   = "Zone de p¨ºche inconnue",
+            Cast           = new Regex(@".*? commencez? Ã  pÃªcher\.\s*Point de pÃªche: (?<FishingSpot>.+)\.",        RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            AreaDiscovered = new Regex(@"Vous notez le banc de poissons â€œ(?<FishingSpot>.+)â€ dans votre carnet\.", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Mooch          = new Regex(@"essa[^\s]+ de pÃªcher au vif avec",                                        RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Undiscovered   = "Zone de pÃªche inconnue",
         });
 
         private static readonly Lazy<Regexes> Japanese = new(() => new Regexes
         {
-            Cast           = new Regex(@".+\u306f(?<FishingSpot>.+)¤Çá¤ê¤òé_Ê¼¤·¤¿¡£",               RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            AreaDiscovered = new Regex(@"á¤êÊÖ¤¤ËĞÂ¤·¤¤á¤êˆö¡¸(?<FishingSpot>.+)¡¹¤ÎÇéˆó¤òÓ›åh¤·¤¿£¡", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Mooch          = new Regex(@"¤Ïá¤êÉÏ¤²¤¿.+¤òÉ÷ÖØ¤ËÍ¶¤²Şz¤ß¡¢Ó¾¤¬¤»á¤ê¤òÔ‡¤ß¤¿¡£",            RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Undiscovered   = "Î´Öª¤Îá¤êˆö",
+            Cast           = new Regex(@".+\u306f(?<FishingSpot>.+)ã§é‡£ã‚Šã‚’é–‹å§‹ã—ãŸã€‚",               RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            AreaDiscovered = new Regex(@"é‡£ã‚Šæ‰‹å¸³ã«æ–°ã—ã„é‡£ã‚Šå ´ã€Œ(?<FishingSpot>.+)ã€ã®æƒ…å ±ã‚’è¨˜éŒ²ã—ãŸï¼", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Mooch          = new Regex(@"ã¯é‡£ã‚Šä¸Šã’ãŸ.+ã‚’æ…é‡ã«æŠ•ã’è¾¼ã¿ã€æ³³ãŒã›é‡£ã‚Šã‚’è©¦ã¿ãŸã€‚",            RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Undiscovered   = "æœªçŸ¥ã®é‡£ã‚Šå ´",
         });
 
         private static readonly Lazy<Regexes> ChineseSimplified = new(() => new Regexes
         {
-            Cast = new Regex(@"ÔÚ(?<FishingSpot>.+)Ë¦³öÁËÓãÏß¿ªÊ¼µöÓã¡£", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            AreaDiscovered = new Regex(@"½«ĞÂµö³¡¡°(?<FishingSpot>.+)¡±¼ÇÂ¼µ½ÁËµöÓã±Ê¼ÇÖĞ£¡", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Mooch = new Regex(@"¿ªÊ¼ÀûÓÃÉÏ¹³µÄ.+³¢ÊÔÒÔĞ¡µö´ó¡£", RegexOptions.Compiled | RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
-            Undiscovered = "Î´Öªµö³¡",
+            Cast = new Regex(@"åœ¨(?<FishingSpot>.+)ç”©å‡ºäº†é±¼çº¿å¼€å§‹é’“é±¼ã€‚", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            AreaDiscovered = new Regex(@"å°†æ–°é’“åœºâ€œ(?<FishingSpot>.+)â€è®°å½•åˆ°äº†é’“é±¼ç¬”è®°ä¸­ï¼", RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Mooch = new Regex(@"å¼€å§‹åˆ©ç”¨ä¸Šé’©çš„.+å°è¯•ä»¥å°é’“å¤§ã€‚", RegexOptions.Compiled | RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture),
+            Undiscovered = "æœªçŸ¥é’“åœº",
         });
         // @formatter:on
     }

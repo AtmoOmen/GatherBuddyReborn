@@ -53,7 +53,7 @@ namespace GatherBuddy.AutoGather.Helpers
                 }
                 catch (Exception e)
                 {
-                    GatherBuddy.Log.Error($"Error while getting Artisan List names: {e}");
+                    GatherBuddy.Log.Error($"è·å– Artisan æ¸…å•åç§°æ—¶å‡ºé”™: {e}");
                     return listNames;
                 }
             }
@@ -77,7 +77,7 @@ namespace GatherBuddy.AutoGather.Helpers
                         var targetList = artisanCraftingLists.Cast<object>().SingleOrDefault(l => (int)l.GetFoP("ID") == listKvp.Key);
                         if (targetList == null)
                         {
-                            GatherBuddy.Log.Error($"Artisan list '{listKvp.Value}' ({listKvp.Key}) could not be found");
+                            GatherBuddy.Log.Error($"æ‰¾ä¸åˆ° Artisan æ¸…å• '{listKvp.Value}' ({listKvp.Key})");
                             return false;
                         }
 
@@ -85,7 +85,7 @@ namespace GatherBuddy.AutoGather.Helpers
 
                         AutoGatherList list = new AutoGatherList();
                         list.Name        = listKvp.Value;
-                        list.Description = "À´×Ô Artisan µ¼ÈëµÄÖÆ×÷Çåµ¥";
+                        list.Description = "æ¥è‡ª Artisan å¯¼å…¥çš„åˆ¶ä½œæ¸…å•";
                         foreach (var (itemId, quantity) in matList)
                         {
                             if (!Diadem.ApprovedToRawItemIds.TryGetValue(itemId, out var mappedItemId))
@@ -103,7 +103,7 @@ namespace GatherBuddy.AutoGather.Helpers
                             list.Add(item, (uint)quantity);
                         }
                         _listsManager.AddList(list);
-                        Communicator.Print($"ÁĞ±í '{listKvp.Value}' ³É¹¦µ¼Èë!");
+                        Communicator.Print($"åˆ—è¡¨ '{listKvp.Value}' æˆåŠŸå¯¼å…¥!");
                         return true;
                     }
                     return false;
@@ -111,7 +111,7 @@ namespace GatherBuddy.AutoGather.Helpers
                 }
                 catch (Exception e)
                 {
-                    GatherBuddy.Log.Error($"Error while importing Artisan List: {e}");
+                    GatherBuddy.Log.Error($"å¯¼å…¥ Artisan æ¸…å•æ—¶å‡ºé”™: {e}");
                     throw;
                 }
             }
