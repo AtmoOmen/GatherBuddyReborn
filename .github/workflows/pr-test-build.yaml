@@ -15,18 +15,28 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          # The merged upstream sources use C# 15; the plugin still targets .NET 10.
+          dotnet-version: |
+            10.0.x
+            11.0.x
 
-      - name: Download Dalamud Latest
-        run: |
-          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-          Expand-Archive -Force latest.zip -DestinationPath "$env:AppData\XIVLauncher\addon\Hooks\dev"
+      - name: Install verified mainland Dalamud references
+        shell: pwsh
+        run: ./scripts/install-dalamud-cn.ps1 -Destination (Join-Path $env:RUNNER_TEMP 'gbr-dalamud-cn')
+
+      - name: Initialize RebornMaterial source for the mainland build
+        shell: pwsh
+        run: ./scripts/Initialize-CnRebornMaterial.ps1
 
       - name: Restore Nuget Packages
         run: dotnet restore Gatherbuddy/Gatherbuddy.csproj
 
       - name: Build Plugin
         run: dotnet build --no-restore -c Release Gatherbuddy/Gatherbuddy.csproj --output .\build
+      - name: Verify compiled mainland references
+        shell: pwsh
+        run: ./scripts/verify-dalamud-cn.ps1 -OutputDirectory build
+
       - name: Build raphael-cli from raphael-rs
         run: |
           git clone https://github.com/KonaeAkira/raphael-rs.git raphael-rs-temp

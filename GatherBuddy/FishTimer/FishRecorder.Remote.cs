@@ -1,3 +1,7 @@
+using GatherBuddy.Classes;
+using GatherBuddy.Models;
+using GatherBuddy.Utilities;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,24 +12,19 @@ using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GatherBuddy.Classes;
-using GatherBuddy.Utilities;
-using GatherBuddy.Models;
-using Lumina.Data.Parsing;
-using Newtonsoft.Json;
 
 namespace GatherBuddy.FishTimer;
 
 public partial class FishRecorder
 {
-    public const  string                  RemoteUrl                 = "https://sevxzz9056.execute-api.us-east-1.amazonaws.com/fishwrap";
-    public const  string                  RemoteFishRecordsFileName = "GatherBuddy.CustomInfo.fish_records.json";
-    private const int                     RecordsPerRequest         = 100;
-    internal      List<FishRecord>        RemoteRecords             = [];
-    internal      Queue<FishRecord>       RecordsToUpload           = new();
-    public        Task                    RemoteRecordsUploadTask              { get; private set; } = Task.CompletedTask;
-    private       CancellationTokenSource RemoteRecordsCancellationTokenSource { get; }              = new();
-    public        DateTime                NextRemoteRecordsUpdate = DateTime.MinValue;
+    public const string RemoteUrl = "https://sevxzz9056.execute-api.us-east-1.amazonaws.com/fishwrap";
+    public const string RemoteFishRecordsFileName = "GatherBuddy.CustomInfo.fish_records.json";
+    private const int RecordsPerRequest = 100;
+    internal List<FishRecord> RemoteRecords = [];
+    internal Queue<FishRecord> RecordsToUpload = new();
+    public Task RemoteRecordsUploadTask { get; private set; } = Task.CompletedTask;
+    private CancellationTokenSource RemoteRecordsCancellationTokenSource { get; } = new();
+    public DateTime NextRemoteRecordsUpdate = DateTime.MinValue;
 
     public bool UploadTaskReady
         => RemoteRecordsUploadTask.IsCompleted;
@@ -51,18 +50,47 @@ public partial class FishRecorder
     {
         var allValidRecords = RemoteRecords.Union(Records).Where(r => r.FishingSpot == spot && r.PositionDataValid);
         if (!allValidRecords.Any())
+        {
             return null;
+        }
 
         var random = _random.Next(0, allValidRecords.Count());
         var selectedRecord = allValidRecords.ElementAt(random);
         return (selectedRecord.Position, selectedRecord.RotationAngle);
     }
 
-    public (Vector3 Position, Angle Rotation)? GetPositionForFishingSpot(FishingSpot spot, Vector3 avoidPosition, float minDistance)
+    public (Vector3 Position, Angle Rotation)? GetPositionForFishingSpot(
+        FishingSpot spot,
+        IReadOnlyCollection<Vector3> excludedPositions,
+        Vector3 referencePosition)
     {
-        var allValidRecords = RemoteRecords.Union(Records).Where(r => r.FishingSpot == spot && r.PositionDataValid).ToList();
+        var allValidRecords = RemoteRecords.Union(Records)
+            .Where(r => r.FishingSpot == spot && r.PositionDataValid)
+            .Where(r => excludedPositions.All(p => !ArePositionsIdentical(p, r.Position)))
+            .ToList();
         if (allValidRecords.Count == 0)
+        {
             return null;
+        }
+
+        var selectedRecord = allValidRecords.MinBy(r => Vector3.DistanceSquared(r.Position, referencePosition))!;
+        return (selectedRecord.Position, selectedRecord.RotationAngle);
+    }
+
+    public (Vector3 Position, Angle Rotation)? GetPositionForFishingSpot(
+        FishingSpot spot,
+        Vector3 avoidPosition,
+        float minDistance,
+        IReadOnlyCollection<Vector3> excludedPositions)
+    {
+        var allValidRecords = RemoteRecords.Union(Records)
+            .Where(r => r.FishingSpot == spot && r.PositionDataValid)
+            .Where(r => excludedPositions.All(p => !ArePositionsIdentical(p, r.Position)))
+            .ToList();
+        if (allValidRecords.Count == 0)
+        {
+            return null;
+        }
 
         var farEnough = allValidRecords
             .Where(r => Vector3.Distance(r.Position, avoidPosition) >= minDistance)
@@ -108,12 +136,15 @@ public partial class FishRecorder
                     simpleRecords.Add(simpleRecord);
                 }
 
-                var       json     = JsonConvert.SerializeObject(simpleRecords);
-                var       content  = new StringContent(json, Encoding.UTF8, "application/json");
-                using var client   = new FishRecorderClient();
-                var       response = await client.PostAsync(RemoteUrl, content, cancellationToken);
+                var json = JsonConvert.SerializeObject(simpleRecords);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var client = new FishRecorderClient();
+                var response = await client.PostAsync(RemoteUrl, content, cancellationToken);
                 if (!response.IsSuccessStatusCode)
+                {
                     GatherBuddy.Log.Error($"无法上传本地钓鱼记录: {response.StatusCode}");
+                }
+
                 GatherBuddy.Log.Information($"已上传 {records.Count} 条本地钓鱼记录到远程服务器");
             }
             catch (Exception e)
@@ -132,12 +163,17 @@ public partial class FishRecorder
         {
             var embeddedResource = typeof(FishRecorder).Assembly.GetManifestResourceStream(RemoteFishRecordsFileName);
             if (embeddedResource == null)
+            {
                 throw new FileNotFoundException($"找不到嵌入资源 {RemoteFishRecordsFileName}");
+            }
+
             using var reader = new StreamReader(embeddedResource);
-            var       json   = reader.ReadToEnd();
-            var       records = JsonConvert.DeserializeObject<List<SimpleFishRecord>>(json);
+            var json = reader.ReadToEnd();
+            var records = JsonConvert.DeserializeObject<List<SimpleFishRecord>>(json);
             if (records == null)
+            {
                 throw new JsonException("无法反序列化远程钓鱼记录");
+            }
 
             foreach (var record in records)
             {

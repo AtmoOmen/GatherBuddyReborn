@@ -23,22 +23,32 @@ jobs:
           "tag=$tag" | Out-File -Append -FilePath $Env:GITHUB_ENV
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 10.0.x
+          # The merged upstream sources use C# 15; the plugin still targets .NET 10.
+          dotnet-version: |
+            10.0.x
+            11.0.x
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Download Dalamud Latest
-        run: |
-          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+      - name: Install verified mainland Dalamud references
+        shell: pwsh
+        run: ./scripts/install-dalamud-cn.ps1 -Destination (Join-Path $env:RUNNER_TEMP 'gbr-dalamud-cn')
+
+      - name: Initialize RebornMaterial source for the mainland build
+        shell: pwsh
+        run: ./scripts/Initialize-CnRebornMaterial.ps1
 
       - name: Restore Nuget Packages
         run: dotnet restore Gatherbuddy/Gatherbuddy.csproj
 
       - name: Build Plugin
         run: dotnet build --no-restore -c Release Gatherbuddy/Gatherbuddy.csproj -p:AssemblyVersion=${{ env.tag }} -p:FileVersion=${{ env.tag }} -p:PackageVersion=${{ env.tag }} -p:InformationalVersion=${{ env.tag }} --output .\build
+      - name: Verify compiled mainland references
+        shell: pwsh
+        run: ./scripts/verify-dalamud-cn.ps1 -OutputDirectory build
+
       - name: Build raphael-cli from raphael-rs
         run: |
           git clone https://github.com/KonaeAkira/raphael-rs.git raphael-rs-temp
@@ -52,6 +62,13 @@ jobs:
           cd ..
           Remove-Item -Recurse -Force raphael-rs-temp
           Write-Host "Successfully built and copied raphael-cli.exe"
+
+      - name: Add RebornMaterial license and source notice
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath ./build-configuration/vendor/RebornMaterial/LICENSE -Destination ./build/LICENSE.RebornMaterial-LGPL-3.0.txt
+          Copy-Item -LiteralPath ./build-configuration/GPL-3.0.txt -Destination ./build/LICENSE.RebornMaterial-GPL-3.0.txt
+          Copy-Item -LiteralPath ./build-configuration/RebornMaterial-NOTICE.txt -Destination ./build/RebornMaterial-NOTICE.txt
 
       - name: Zip Plugin
         run: Compress-Archive -Path .\build\* -DestinationPath .\build\GatherbuddyReborn.zip

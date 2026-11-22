@@ -7,3 +7,4 @@ SecretKeys.generated.cs
 GatherBuddy/raphael-rs/
 .reasonix
 .codegraph
+/build-configuration/vendor/

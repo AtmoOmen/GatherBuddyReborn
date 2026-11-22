@@ -1,83 +1,122 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Threading.Tasks;
-using Dalamud.Bindings.ImGui;
-using Dalamud.Game.ClientState.GamePad;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Colors;
-using FFXIVClientStructs.FFXIV.Client.Game;
-using ElliLib;
 using GatherBuddy.Crafting;
 using GatherBuddy.Plugin;
 using GatherBuddy.Utility;
-using GatherBuddy.Vulcan;
 using Lumina.Excel.Sheets;
-using ElliLib.Raii;
+using RebornMaterial;
+using System;
+using System.Numerics;
+using System.Threading.Tasks;
 using Functions = GatherBuddy.Plugin.Functions;
-using ImRaii = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
-public partial class VulcanWindow : Window, IDisposable
+public partial class VulcanWindow : M3ShellWindow, IDisposable
 {
-    // Shared state
-    private CraftingListDefinition? _editingList  = null;
-    private CraftingListDefinition? _previewList  = null;
-    private string?                 _previewFolderPath = null;
-    private CraftingListEditor?     _listEditor   = null;
-    private bool                    _deferEditorDraw = false;
-    private bool                    _craftingListsRequestFocus = false;
-    private bool                    _recipesTabRequestFocus    = false;
-    private bool                    _vendorsTabRequestFocus    = false;
-    private uint?                   _pendingRecipeId           = null;
-    private uint?                   _pendingRecipeScrollId     = null;
-    private bool                    _openCreateListPopup = false;
-    private bool                    _openCreateFolderPopup = false;
+    public const string WindowId = "Vulcan - Crafting###VulcanWindow";
 
-    private bool? _pendingCollapseState = null;
-    private bool _wasFocusedLastFrame = false;
+    private const string SectionCraft = "Craft";
+    private const string SectionBuySell = "Buy and sell";
+    private const string SectionSolvers = "Solvers";
+    private const string SectionSettings = "General";
+    private const string SectionTools = "Tools";
+
+    private const string CraftingListsPageId = "crafting_lists";
+    private const string RecipesPageId = "recipes";
+    private const string VendorsPageId = "vendors";
+    private const string MarketboardPageId = "marketboard";
+
+    private static readonly Vector2 DefaultSize = new(1100f, 760f);
+    private static readonly WindowSizeConstraints DefaultConstraints = new()
+    {
+        MinimumSize = new Vector2(500f, 300f),
+        MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
+    };
+
+    private static readonly M3WindowAction[] VulcanWindowActions =
+    [
+        new("##vulcan_open_collectables", FontAwesomeIcon.BoxOpen, "打开收藏品交付与购买窗口"),
+        new("##vulcan_open_craft_status", FontAwesomeIcon.Tasks, "重新打开当前制作队列的状态窗口"),
+    ];
+
+    // Shared state
+    private CraftingListDefinition? _editingList = null;
+    private CraftingListDefinition? _previewList = null;
+    private string? _previewFolderPath = null;
+    private CraftingListEditor? _listEditor = null;
+    private bool _deferEditorDraw = false;
+    private bool _craftingListsRequestFocus = false;
+    private bool _recipesTabRequestFocus = false;
+    private bool _vendorsTabRequestFocus = false;
+    private uint? _pendingRecipeId = null;
+    private uint? _pendingRecipeScrollId = null;
+    private bool _openCreateListPopup = false;
+    private bool _openCreateFolderPopup = false;
+
     private DateTime _recipesTabHotkeyAvailableAt = DateTime.MinValue;
-    
+
     // TeamCraft import state
-    private static readonly Vector2 LegacyTeamCraftImportWindowSize = new(520f, 310f);
-    private static readonly Vector2 DefaultTeamCraftImportWindowSize = VulcanUiScaling.Scaled(520f, 310f);
-    private bool _showTeamCraftImport    = false;
-    private string _teamCraftListName    = string.Empty;
-    private string _teamCraftFinalItems  = string.Empty;
-    private bool _teamCraftEphemeral     = false;
-    private Vector2 _teamCraftImportWindowSize;
-    private bool _teamCraftImportWindowSizeDirty;
+    private string _teamCraftListName = string.Empty;
+    private string _teamCraftFinalItems = string.Empty;
+    private bool _teamCraftEphemeral = false;
+    private string? _teamCraftImportError;
     private const string ArtisanPluginName = "Artisan";
     private const double ArtisanToggleTimeoutSeconds = 10.0;
     private bool? _pendingArtisanEnabledState = null;
     private DateTime _artisanToggleRequestedAt = DateTime.MinValue;
     private Task? _artisanToggleTask = null;
-    
+
+    private ArtisanChip _artisanChip;
+
     // Debug tab state
     private uint _debugSelectedJobId = 8;
     private string? _debugLastTestResult;
-    private string _repairNPCSearchInput = "";
 
     public CraftingListDefinition? CurrentCraftingList
         => _editingList;
 
-    public VulcanWindow() : base("Vulcan - 制作###VulcanWindow")
+    private readonly record struct ArtisanChip(string Label, FontAwesomeIcon Icon, bool Selected, bool Enabled, string Tooltip, bool Loaded);
+
+    public VulcanWindow()
+        : base(WindowId, "vulcan", "Vulcan", "Vulcan", DefaultSize, DefaultConstraints)
     {
-        Flags |= ImGuiWindowFlags.NoScrollbar;
-        SizeConstraints = new WindowSizeConstraints
-        {
-            MinimumSize = VulcanUiScaling.Scaled(500f, 300f),
-            MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
-        };
-        _teamCraftImportWindowSize = NormalizeTeamCraftImportWindowSize(GatherBuddy.Config.TeamCraftImportWindowSize);
-        
+        BuildPages();
         CraftingGameInterop.CraftFinished += OnCraftFinished;
     }
-    
+
+    private void BuildPages()
+    {
+        AddPage(new M3Page(CraftingListsPageId, "制作清单", FontAwesomeIcon.ClipboardList, SectionCraft,
+            "查看制作清单、所需材料和半成品", DrawCraftingListsPage, false));
+        AddPage(new M3Page(RecipesPageId, "配方", FontAwesomeIcon.BookOpen, SectionCraft,
+            "浏览所有配方，可立即制作或加入清单", Panels(DrawRecipesPage), false));
+        AddPage(new M3Page("workshops", "部队工房", FontAwesomeIcon.Industry, SectionCraft,
+            "查看部队工房项目和所缺材料", Panels(DrawWorkshopsPage), false));
+
+        AddPage(new M3Page(VendorsPageId, "商店", FontAwesomeIcon.Store, SectionBuySell,
+            "查找出售物品的商人并维护购买清单", Panels(DrawVendorsPage), false));
+        AddPage(new M3Page(MarketboardPageId, "市场布告板", FontAwesomeIcon.ChartLine, SectionBuySell,
+            "查看市场布告板价格和成交记录", Panels(DrawMarketboardPage), false));
+
+        AddPage(new M3Page("macros", "宏", FontAwesomeIcon.Scroll, SectionSolvers,
+            "管理你自己的制作宏", Panels(DrawMacrosPage), false));
+        AddPage(new M3Page("standard_solver", "标准求解器", FontAwesomeIcon.Cogs, SectionSolvers,
+            "配置动态标准求解器的行为", DrawStandardSolverPage));
+        AddPage(new M3Page("solutions", "求解方案", FontAwesomeIcon.Lightbulb, SectionSolvers,
+            "查看已保存的 Raphael 求解方案", Panels(DrawSolutionsPage), false));
+
+        AddPage(new M3Page("settings", "设置", FontAwesomeIcon.Cog, SectionSettings,
+            "制作求解器、修理、魔晶石和雇员设置", DrawSettingsPage));
+
+        AddPage(new M3Page("debug", "调试", FontAwesomeIcon.Bug, SectionTools,
+            "查看用于故障排查的制作数据", Panels(DrawDebugPage), false, tool: true));
+    }
+
+    private static System.Action Panels(System.Action draw)
+        => VulcanUiStyle.Panels(draw);
+
     private void OnCraftFinished(Recipe? recipe, bool cancelled)
     {
         if (!cancelled && recipe != null)
@@ -85,70 +124,76 @@ public partial class VulcanWindow : Window, IDisposable
             _craftedStatusDirty = true;
         }
     }
-    
+
     private void MinimizeWindow()
-    {
-        _pendingCollapseState = true;
-    }
+        => Minimize();
 
     public void RestoreWindow()
-    {
-        _pendingCollapseState = false;
-        IsOpen = true;
-    }
+        => OpenAndRestore();
+
     public void OpenToMarketboard()
     {
-        _pendingCollapseState = false;
-        IsOpen                = true;
-        _mbRequestFocus       = true;
+        Restore();
+        IsOpen = true;
+        _mbRequestFocus = true;
     }
 
     public void OpenToMarketboardItem(uint itemId)
     {
         OpenToMarketboard();
-        _mbSelectedItemId   = itemId;
+        _mbSelectedItemId = itemId;
         _mbDetailLastItemId = 0;
     }
+
     public void OpenToRecipes()
     {
-        _pendingCollapseState   = false;
-        IsOpen                  = true;
+        Restore();
+        IsOpen = true;
         _recipesTabRequestFocus = true;
-        _pendingRecipeId        = null;
+        _pendingRecipeId = null;
     }
 
     public void OpenToRecipe(uint recipeId)
     {
         OpenToRecipes();
-        _pendingRecipeId        = recipeId;
+        _pendingRecipeId = recipeId;
         GatherBuddy.Log.Debug($"[VulcanWindow] OpenToRecipe requested for recipe {recipeId}");
     }
 
     public void OpenToVendors()
     {
-        _pendingCollapseState  = false;
-        IsOpen                 = true;
+        Restore();
+        IsOpen = true;
         _vendorsTabRequestFocus = true;
+    }
+
+    public void OpenToCraftingLists()
+    {
+        OpenAndRestore();
+        _craftingListsRequestFocus = true;
     }
 
     public void OpenToList(string argument)
     {
         CraftingListDefinition? list;
         if (int.TryParse(argument, out var listId))
+        {
             list = GatherBuddy.CraftingListManager.GetListByID(listId);
+        }
         else
+        {
             list = GatherBuddy.CraftingListManager.GetListByName(argument);
+        }
 
+        Restore();
+        IsOpen = true;
         if (list == null)
         {
             GatherBuddy.Log.Warning($"[VulcanWindow] OpenToList: No list found matching '{argument}'");
-            _pendingCollapseState = false;
-            IsOpen = true;
             return;
         }
 
-        _pendingCollapseState = false;
-        IsOpen = true;
+        _craftingListsRequestFocus = true;
         OpenCraftingList(list);
     }
 
@@ -162,7 +207,7 @@ public partial class VulcanWindow : Window, IDisposable
         }
 
         PrepareCreateListPopup();
-        _pendingCollapseState = false;
+        Restore();
         IsOpen = true;
         _craftingListsRequestFocus = true;
         _openCreateListPopup = true;
@@ -170,6 +215,7 @@ public partial class VulcanWindow : Window, IDisposable
         _newListRecipeName = recipe.Value.ItemResult.Value.Name.ExtractText();
         GatherBuddy.Log.Debug($"[VulcanWindow] Queued Create List popup for recipe {_newListRecipeName} ({_newListRecipeId.Value})");
     }
+
     private void DisposeListEditor()
     {
         _listEditor?.Dispose();
@@ -182,8 +228,10 @@ public partial class VulcanWindow : Window, IDisposable
     {
         DisposeListEditor();
         _editingList = list;
-        _listEditor = new CraftingListEditor(list);
-        _listEditor.OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); };
+        _listEditor = new CraftingListEditor(list)
+        {
+            OnStartCrafting = (l) => { StartCraftingList(l); MinimizeWindow(); }
+        };
         GatherBuddy.CraftingMaterialsWindow?.SetEditor(_listEditor);
         GatherBuddy.CraftingTreeWindow?.SetEditor(_listEditor);
         _deferEditorDraw = true;
@@ -192,70 +240,15 @@ public partial class VulcanWindow : Window, IDisposable
     internal void RefreshOpenCraftingList(int listId)
     {
         if (_editingList?.ID != listId || _listEditor == null)
+        {
             return;
+        }
 
         _listEditor.RefreshFromExternalListChange();
     }
 
     private static bool DrawSearchInputWithInlineClear(string id, string hint, ref string value, int maxLength)
-    {
-        ImGui.SetNextItemWidth(-1f);
-        var changed = ImGui.InputTextWithHint(id, hint, ref value, maxLength);
-        ImGui.SetItemAllowOverlap();
-        if (string.IsNullOrEmpty(value))
-            return changed;
-
-        var frameMin = ImGui.GetItemRectMin();
-        var frameMax = ImGui.GetItemRectMax();
-        var cursorPos = ImGui.GetCursorPos();
-        var style = ImGui.GetStyle();
-        var drawList = ImGui.GetWindowDrawList();
-        var frameHeight = frameMax.Y - frameMin.Y;
-        var buttonSize = new Vector2(
-            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f),
-            System.Math.Max(1f, frameHeight - style.FramePadding.Y * 2f));
-        var buttonPos = new Vector2(
-            frameMax.X - buttonSize.X - style.FramePadding.X,
-            frameMin.Y + (frameHeight - buttonSize.Y) * 0.5f);
-        var buttonBackgroundMin = new Vector2(buttonPos.X - style.FramePadding.X, frameMin.Y + 1f);
-        var buttonBackgroundMax = new Vector2(frameMax.X - 1f, frameMax.Y - 1f);
-        var frameColor = ImGui.GetColorU32(ImGui.IsItemActive()
-            ? ImGuiCol.FrameBgActive
-            : ImGui.IsItemHovered()
-                ? ImGuiCol.FrameBgHovered
-                : ImGuiCol.FrameBg);
-        drawList.AddRectFilled(buttonBackgroundMin, buttonBackgroundMax, frameColor);
-
-        ImGui.SetCursorScreenPos(buttonPos);
-        bool clearClicked;
-        bool clearHovered;
-        using (ImRaii.PushId(id))
-        {
-            clearClicked = ImGui.InvisibleButton("##clear", buttonSize);
-            clearHovered = ImGui.IsItemHovered();
-        }
-
-        if (clearHovered)
-            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-
-        var iconColor = clearHovered
-            ? ImGui.GetColorU32(ImGuiCol.Text)
-            : ImGui.ColorConvertFloat4ToU32(new Vector4(0.62f, 0.62f, 0.68f, 1f));
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            var iconText = FontAwesomeIcon.Times.ToIconString();
-            var iconSize = ImGui.CalcTextSize(iconText);
-            var iconPos = buttonPos + (buttonSize - iconSize) * 0.5f;
-            drawList.AddText(iconPos, iconColor, iconText);
-        }
-
-        ImGui.SetCursorPos(cursorPos);
-        if (!clearClicked)
-            return changed;
-
-        value = string.Empty;
-        return true;
-    }
+        => M3Widgets.SearchField(id, hint.TrimEnd('.'), ref value, ImGui.GetContentRegionAvail().X, maxLength);
 
     private void PrepareCreateListPopup(string? folderPath = null)
     {
@@ -271,135 +264,138 @@ public partial class VulcanWindow : Window, IDisposable
         GatherBuddy.Log.Debug($"[VulcanWindow] Queued Create Folder popup for parent '{_newFolderParentPath}'");
     }
 
-    public override void PreDraw()
-    {
-        if (!IsOpen)
-            return;
+    protected override M3WindowAction[] WindowActions
+        => VulcanWindowActions;
 
-        if (_pendingCollapseState.HasValue)
+    protected override void OnWindowAction(int index)
+    {
+        switch (index)
         {
-            ImGui.SetNextWindowCollapsed(_pendingCollapseState.Value, ImGuiCond.Always);
-            _pendingCollapseState = null;
+            case 0:
+                if (GatherBuddy.CollectablesWindow == null)
+                {
+                    GatherBuddy.Log.Debug("[VulcanWindow] Collectables action clicked, but the collectables window was unavailable.");
+                    M3Snackbar.Show("收藏品窗口不可用。", severity: M3Severity.Error);
+                }
+                else
+                {
+                    GatherBuddy.Log.Debug("[VulcanWindow] Opening collectables from the Vulcan title bar.");
+                    GatherBuddy.CollectablesWindow.Open();
+                }
+
+                break;
+            case 1:
+                if (GatherBuddy.CraftingStatusWindow?.HasActiveQueue == true)
+                {
+                    GatherBuddy.CraftingStatusWindow.OpenOrRestore();
+                }
+                else
+                {
+                    M3Snackbar.Show("没有正在运行的制作队列。");
+                }
+
+                break;
+        }
+    }
+
+    protected override void PreDrawFold()
+    {
+        if (_recipesTabRequestFocus)
+        {
+            _recipesTabRequestFocus = false;
+            ShowPage(RecipesPageId);
+            ImGui.SetNextWindowFocus();
         }
 
-        if (_recipesTabRequestFocus)
-            ImGui.SetNextWindowFocus();
+        if (_craftingListsRequestFocus)
+        {
+            _craftingListsRequestFocus = false;
+            ShowPage(CraftingListsPageId);
+        }
+
+        if (_vendorsTabRequestFocus)
+        {
+            _vendorsTabRequestFocus = false;
+            ShowPage(VendorsPageId);
+        }
+
+        if (_mbRequestFocus)
+        {
+            _mbRequestFocus = false;
+            ShowPage(MarketboardPageId);
+        }
     }
 
     public override void PreOpenCheck()
     {
         if (_recipesTabHotkeyAvailableAt > DateTime.UtcNow || !Functions.CheckKeyState(GatherBuddy.Config.VulcanRecipesTabHotkey, false))
+        {
             return;
+        }
 
         _recipesTabHotkeyAvailableAt = DateTime.UtcNow.AddMilliseconds(500);
         OpenToRecipes();
     }
 
-    public override void Draw()
+    protected override void BeforeDrawShell()
     {
-        using var theme = VulcanUiStyle.PushTheme();
-        GatherBuddy.ControllerSupport?.TabNavigation.Update(Dalamud.GamepadState, 10);
-        
-        // Track window focus for controller input blocking
-        var isFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-        if (isFocused)
-        {
-            GatherBuddy.ControllerSupport?.UpdateFocusedWindow("Vulcan - 制作###VulcanWindow");
-            _wasFocusedLastFrame = true;
-        }
-        else if (_wasFocusedLastFrame)
-        {
-            // We just lost focus, clear it
-            GatherBuddy.ControllerSupport?.UpdateFocusedWindow(null);
-            _wasFocusedLastFrame = false;
-        }
-        
-        DrawHeader();
-        ImGui.Separator();
-
-            using (var tab = ImRaii.TabBar("VulcanTabs###VulcanTabs", ImGuiTabBarFlags.None))
-            {
-                if (tab)
-                {
-                    DrawCraftingListsTab();
-                    DrawRecipesTab();
-                    DrawWorkshopsTab();
-                    DrawMacrosTab();
-                    DrawStandardSolverConfigTab();
-                    DrawSolutionsTab();
-                    DrawSettingsTab();
-                    DrawDebugTab();
-                    DrawMarketboardTab();
-                    DrawVendorsTab();
-                }
-            }
-        
-        _craftSettingsPopup.Draw();
-        
-        GatherBuddy.ControllerSupport?.UpdateEndOfFrame();
+        _artisanChip = BuildArtisanChip();
     }
 
-    private void DrawHeader()
+    protected override float TopAppBarTrailingWidth
+        => _artisanChip.Label is { } label ? M3Widgets.ChipWidth(label, _artisanChip.Icon) + M3.Space2 : 0f;
+
+    protected override void DrawTopAppBarTrailing(in M3TopAppBar.Scope bar)
     {
-        var artisanToggleState = DalamudPluginToggleHelper.GetPluginToggleState(ArtisanPluginName);
-        var artisanInstalled = artisanToggleState.IsInstalled;
-        var artisanLoaded = artisanToggleState.IsLoaded;
-        var artisanToggleInProgress = UpdatePendingArtisanToggle(artisanInstalled, artisanLoaded);
-        var artisanToggleBlocked = artisanInstalled && !artisanToggleState.CanToggle && !artisanToggleInProgress;
-
-        ImGui.AlignTextToFramePadding();
-        ImGui.Text("制作系统");
-        ImGui.SameLine();
-
-        var buttonLabel = artisanToggleInProgress
-            ? _pendingArtisanEnabledState == true
-                ? "正在启用 Artisan..."
-                : "正在禁用 Artisan..."
-            : artisanInstalled
-                ? artisanLoaded
-                    ? "禁用 Artisan"
-                    : "启用 Artisan"
-                : "未找到 Artisan";
-        using (ImRaii.Disabled(!artisanInstalled || artisanToggleInProgress || artisanToggleBlocked))
+        var chip = _artisanChip;
+        if (chip.Label == null)
         {
-            if (ImGui.SmallButton($"{buttonLabel}##toggleArtisan"))
-                TryToggleArtisan(!artisanLoaded);
+            return;
         }
 
-        ImGui.SameLine();
-        if (ImGui.SmallButton("收藏品##openCollectables"))
+        ImGui.SetCursorScreenPos(bar.TrailingPosition(M3Widgets.ChipHeight));
+        if (M3Widgets.Chip("##vulcan_artisan", chip.Label, chip.Selected, chip.Icon, chip.Tooltip, enabled: chip.Enabled))
         {
-            if (GatherBuddy.CollectablesWindow == null)
-            {
-                GatherBuddy.Log.Debug("[VulcanWindow] Collectables header button clicked, but the collectables window was unavailable.");
-            }
-            else
-            {
-                GatherBuddy.Log.Debug("[VulcanWindow] Opening collectables from the Vulcan header.");
-                GatherBuddy.CollectablesWindow.Open();
-            }
+            TryToggleArtisan(!chip.Loaded);
         }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("打开共享收藏品缴纳与购买自动化窗口");
+    }
 
-        ImGui.SameLine();
-        var hasActiveCraftStatus = GatherBuddy.CraftingStatusWindow?.HasActiveQueue == true;
-        using (ImRaii.Disabled(!hasActiveCraftStatus))
+    private ArtisanChip BuildArtisanChip()
+    {
+        var state = DalamudPluginToggleHelper.GetPluginToggleState(ArtisanPluginName);
+        var installed = state.IsInstalled;
+        var loaded = state.IsLoaded;
+        var inProgress = UpdatePendingArtisanToggle(installed, loaded);
+        var blocked = installed && !state.CanToggle && !inProgress;
+
+        if (!installed)
         {
-            if (ImGui.SmallButton("制作状态##openCraftStatus"))
-                GatherBuddy.CraftingStatusWindow?.OpenOrRestore();
+            return new ArtisanChip("Artisan missing", FontAwesomeIcon.Ban, false, false,
+                "Artisan isn't installed. Once it is installed, Vulcan can turn it on and off for you while crafting.", false);
         }
-        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-            ImGui.SetTooltip(hasActiveCraftStatus
-                ? "重新打开或恢复当前制作队列的状态窗口"
-                : "没有活动的制作队列");
 
+        if (inProgress)
+        {
+            return new ArtisanChip(_pendingArtisanEnabledState == true ? "Enabling Artisan…" : "Disabling Artisan…", FontAwesomeIcon.Sync, loaded, false,
+                "Waiting for Dalamud to finish.", loaded);
+        }
+
+        if (blocked)
+        {
+            return new ArtisanChip(loaded ? "Artisan on" : "Artisan off", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, false,
+                "Artisan can't be turned on or off from here right now.", loaded);
+        }
+
+        return new ArtisanChip(loaded ? "Artisan on" : "Artisan off", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, true,
+            loaded ? "Artisan is enabled. Click to disable it." : "Artisan is disabled. Click to enable it.", loaded);
     }
 
     private bool UpdatePendingArtisanToggle(bool artisanInstalled, bool artisanLoaded)
     {
         if (_pendingArtisanEnabledState == null)
+        {
             return false;
+        }
 
         if (!artisanInstalled)
         {
@@ -411,34 +407,39 @@ public partial class VulcanWindow : Window, IDisposable
         if (_artisanToggleTask is { IsFaulted: true })
         {
             var exception = _artisanToggleTask.Exception?.GetBaseException();
-            GatherBuddy.Log.Error($"[VulcanWindow] 失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan: {exception?.Message ?? "未知错误"}");
+            GatherBuddy.Log.Error($"[VulcanWindow] Failed to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan: {exception?.Message ?? "unknown error"}");
             if (exception != null)
+            {
                 GatherBuddy.Log.Debug($"[VulcanWindow] Artisan toggle exception: {exception}");
-            Communicator.PrintError($"失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan.");
+            }
+
+            Communicator.PrintError($"Failed to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
             ClearPendingArtisanToggle();
             return false;
         }
 
         if (_artisanToggleTask is { IsCanceled: true })
         {
-            GatherBuddy.Log.Warning($"[VulcanWindow] Artisan toggle was cancelled while trying to {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan.");
-            Communicator.PrintError($"失败: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan.");
+            GatherBuddy.Log.Warning($"[VulcanWindow] Artisan toggle was cancelled while trying to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
+            Communicator.PrintError($"Failed to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
             ClearPendingArtisanToggle();
             return false;
         }
 
         if (artisanLoaded == _pendingArtisanEnabledState.Value)
         {
-            GatherBuddy.Log.Debug($"[VulcanWindow] Artisan {(artisanLoaded ? "已启用" : "已禁用")} successfully.");
+            GatherBuddy.Log.Debug($"[VulcanWindow] Artisan {(artisanLoaded ? "enabled" : "disabled")} successfully.");
             ClearPendingArtisanToggle();
             return false;
         }
 
         if ((DateTime.UtcNow - _artisanToggleRequestedAt).TotalSeconds <= ArtisanToggleTimeoutSeconds)
+        {
             return true;
+        }
 
-        GatherBuddy.Log.Warning($"[VulcanWindow] Timed out waiting for Artisan to {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")}.");
-        Communicator.PrintError($"超时: {(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan.");
+        GatherBuddy.Log.Warning($"[VulcanWindow] Timed out waiting for Artisan to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")}.");
+        Communicator.PrintError($"Timed out trying to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
         ClearPendingArtisanToggle();
         return false;
     }
@@ -447,15 +448,15 @@ public partial class VulcanWindow : Window, IDisposable
     {
         if (!DalamudPluginToggleHelper.TrySetPluginEnabled(ArtisanPluginName, enable, out var toggleTask, out var failureReason))
         {
-            GatherBuddy.Log.Warning($"[VulcanWindow] 失败: 调用反射的 Artisan 切换以设置状态 {(enable ? "已启用" : "已禁用")}: {failureReason ?? "未知原因"}。");
-            Communicator.PrintError(failureReason ?? $"失败: {(enable ? "启用" : "禁用")} Artisan.");
+            GatherBuddy.Log.Warning($"[VulcanWindow] Failed to invoke reflected Artisan toggle for state {(enable ? "enabled" : "disabled")}: {failureReason ?? "unknown reason"}.");
+            Communicator.PrintError(failureReason ?? $"Failed to {(enable ? "enable" : "disable")} Artisan.");
             return;
         }
 
         _pendingArtisanEnabledState = enable;
         _artisanToggleRequestedAt = DateTime.UtcNow;
         _artisanToggleTask = toggleTask;
-        GatherBuddy.Log.Debug($"[VulcanWindow] Requested to {(enable ? "启用" : "禁用")} Artisan via reflected Dalamud plugin manager access.");
+        GatherBuddy.Log.Debug($"[VulcanWindow] Requested to {(enable ? "enable" : "disable")} Artisan via reflected Dalamud plugin manager access.");
     }
 
     private void ClearPendingArtisanToggle()
@@ -469,6 +470,6 @@ public partial class VulcanWindow : Window, IDisposable
     {
         CraftingGameInterop.CraftFinished -= OnCraftFinished;
         DisposeListEditor();
+        GC.SuppressFinalize(this);
     }
 }
-

@@ -1,5 +1,7 @@
 ﻿using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
+using System;
+using System.Collections.Generic;
 
 namespace GatherBuddy.Classes;
 
@@ -12,15 +14,15 @@ public class GatheringIcons
         var sheet = gameData.GetExcelSheet<GatheringType>()!;
         _icons = new Dictionary<Enums.GatheringType, (uint, uint)>(Enum.GetValues<Enums.GatheringType>().Length - 2)
         {
-            [Enums.GatheringType.采掘]       = ((uint)sheet.GetRow(0).IconMain, (uint)sheet.GetRow(0).IconOff),
-            [Enums.GatheringType.碎石]    = ((uint)sheet.GetRow(1).IconMain, (uint)sheet.GetRow(1).IconOff),
-            [Enums.GatheringType.采伐]      = ((uint)sheet.GetRow(2).IconMain, (uint)sheet.GetRow(2).IconOff),
-            [Enums.GatheringType.割草]   = ((uint)sheet.GetRow(3).IconMain, (uint)sheet.GetRow(3).IconOff),
-            [Enums.GatheringType.刺鱼] = ((uint)sheet.GetRow(4).IconMain, (uint)sheet.GetRow(4).IconOff),
-            [Enums.GatheringType.捕鱼人]       = (60465, 60466),
+            [Enums.GatheringType.Mining] = ((uint)sheet.GetRow(0).IconMain, (uint)sheet.GetRow(0).IconOff),
+            [Enums.GatheringType.Quarrying] = ((uint)sheet.GetRow(1).IconMain, (uint)sheet.GetRow(1).IconOff),
+            [Enums.GatheringType.Logging] = ((uint)sheet.GetRow(2).IconMain, (uint)sheet.GetRow(2).IconOff),
+            [Enums.GatheringType.Harvesting] = ((uint)sheet.GetRow(3).IconMain, (uint)sheet.GetRow(3).IconOff),
+            [Enums.GatheringType.Spearfishing] = ((uint)sheet.GetRow(4).IconMain, (uint)sheet.GetRow(4).IconOff),
+            [Enums.GatheringType.Fisher] = (60465, 60466),
         };
-        _icons[Enums.GatheringType.采矿工]    = _icons[Enums.GatheringType.采掘];
-        _icons[Enums.GatheringType.园艺工] = _icons[Enums.GatheringType.采伐];
+        _icons[Enums.GatheringType.Miner] = _icons[Enums.GatheringType.Mining];
+        _icons[Enums.GatheringType.Botanist] = _icons[Enums.GatheringType.Logging];
     }
 
     public (uint, uint) this[Enums.GatheringType val]

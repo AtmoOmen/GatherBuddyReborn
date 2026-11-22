@@ -1,17 +1,21 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using GatherBuddy.Classes;
 using GatherBuddy.Config;
 using GatherBuddy.Interfaces;
+using GatherBuddy.RebornUI;
+using GatherBuddy.RebornUI.Tables;
 using GatherBuddy.Time;
-using ElliLib;
-using ElliLib.Table;
-using ElliLib.Text;
-using ImRaii = ElliLib.Raii.ImRaii;
+using GatherBuddy.Utility;
+using RebornMaterial;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Numerics;
+using System.Text;
+using ImRaii = Dalamud.Interface.Utility.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
@@ -19,46 +23,64 @@ public partial class Interface
 {
     internal static bool DrawLocationInput(IGatherable item, ILocation? current, out ILocation? ret)
     {
-        const string noPreferred = "无偏好采集位置";
-        var          width       = SetInputWidth * 0.85f;
+        const string noPreferred = "No preferred location";
+        var width = SetInputWidth * 0.85f;
         ret = current;
         if (item.Locations.Count == 1)
         {
-            using var style = ImRaii.PushStyle(ImGuiStyleVar.ButtonTextAlign, new Vector2(0, 0.5f));
-            ImUtf8.TextFramed(item.Locations[0].Name, ImGui.GetColorU32(ImGuiCol.FrameBg), new Vector2(width, 0));
-            DrawLocationTooltip(item.Locations[0]);
+            var only = 0;
+            M3Widgets.Combo("##Location", ref only, 1, _ => item.Locations[0].Name, width, enabled: false,
+                tooltip: LocationTooltip(item.Locations[0]));
             return false;
         }
 
-        var text = current?.Name ?? noPreferred;
-        ImGui.SetNextItemWidth(width);
-        using var combo = ImUtf8.Combo("##Location"u8, text);
-        DrawLocationTooltip(current);
-        if (!combo)
-            return false;
-
-        var changed = false;
-
-        if (ImGui.Selectable(noPreferred, current == null))
+        var index = current == null ? 0 : item.Locations.IndexOf(l => l.Id == current.Id) + 1;
+        if (!M3Widgets.Combo("##Location", ref index, item.Locations.Count + 1, i => i == 0 ? noPreferred : item.Locations[i - 1].Name, width,
+                noPreferred, item.Locations.Count > 8, tooltip: LocationTooltip(current),
+                itemTooltip: i => i == 0 ? null : LocationTooltip(item.Locations[i - 1])))
         {
-            ret     = null;
-            changed = true;
+            return false;
         }
 
-        var idx = 0;
-        foreach (var loc in item.Locations)
+        ret = index <= 0 ? null : item.Locations[index - 1];
+        return true;
+    }
+
+    private static readonly Dictionary<ILocation, string> LocationTooltips = new(ReferenceEqualityComparer.Instance);
+
+    internal static string? LocationTooltip(ILocation? loc)
+    {
+        if (loc == null)
         {
-            using var id = ImUtf8.PushId(idx++);
-            if (ImUtf8.Selectable(loc.Name, loc.Id == (current?.Id ?? 0)))
+            return null;
+        }
+
+        if (LocationTooltips.TryGetValue(loc, out var tooltip))
+        {
+            return tooltip;
+        }
+
+        var builder = new StringBuilder();
+        if (loc is GatheringNode node)
+        {
+            builder.Append(loc.Territory.Name).Append('\n').Append(loc.GatheringType).Append('\n').Append(node.Times.PrintHours()).Append('\n');
+        }
+
+        var first = true;
+        foreach (var gatherable in loc.Gatherables)
+        {
+            if (!first)
             {
-                ret     = loc;
-                changed = true;
+                builder.Append('\n');
             }
 
-            DrawLocationTooltip(loc);
+            builder.Append(gatherable.Name[GatherBuddy.Language]);
+            first = false;
         }
 
-        return changed;
+        tooltip = builder.ToString();
+        LocationTooltips[loc] = tooltip;
+        return tooltip;
     }
 
     internal static void DrawTimeInterval(TimeInterval uptime, bool uptimeDependency = false, bool rightAligned = true, IGatherable? item = null)
@@ -66,259 +88,275 @@ public partial class Interface
         var active = uptime.ToTimeString(GatherBuddy.Time.ServerTime, false, out var timeString);
         var colorId = (active, uptimeDependency) switch
         {
-            (true, true)   => ColorId.DependentAvailableFish.Value(),
-            (true, false)  => ColorId.AvailableItem.Value(),
-            (false, true)  => ColorId.DependentUpcomingFish.Value(),
+            (true, true) => ColorId.DependentAvailableFish.Value(),
+            (true, false) => ColorId.AvailableItem.Value(),
+            (false, true) => ColorId.DependentUpcomingFish.Value(),
             (false, false) => ColorId.UpcomingItem.Value(),
         };
 
-        using var color = ImRaii.PushColor(ImGuiCol.Text, colorId);
-        if (rightAligned)
-            ImUtf8.TextRightAligned(timeString);
-        else
-            ImUtf8.Text(timeString);
-        color.Pop();
+        using (ImRaii.PushColor(ImGuiCol.Text, colorId))
+        {
+            if (rightAligned)
+            {
+                Ui.RightAligned(timeString);
+            }
+            else
+            {
+                ImGui.TextUnformatted(timeString);
+            }
+        }
 
         DrawTimeIntervalTooltip(uptime, uptimeDependency, item, !char.IsLetter(timeString[0]));
     }
 
+    private static readonly string[] UpcomingUptimeHeaders = ["Day", "Time", "Starts in", "Duration", "Downtime"];
+
     internal static void DrawTimeIntervalTooltip(TimeInterval uptime, bool uptimeDependency = false, IGatherable? item = null, bool displayNextWindow = true)
     {
         if (!uptimeDependency && !displayNextWindow || !ImGui.IsItemHovered())
+        {
             return;
+        }
 
         using var tt = ImRaii.Tooltip();
 
         if (uptimeDependency)
-            ImUtf8.TextFramed("依赖前置鱼"u8, 0xFF202080);
+        {
+            M3Badge.Draw("Depends on another fish's uptime", M3.Scheme.Warning);
+        }
 
         if (!displayNextWindow)
+        {
             return;
+        }
 
         if (item is null || GatherBuddy.Config.UpcomingUptimesCount <= 1)
         {
-            ImUtf8.Text($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}");
+            ImGui.TextUnformatted($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}");
             return;
         }
 
-        var uptimes   = GatherBuddy.UptimeManager.GetUpcomingUptimes(item, GatherBuddy.Config.UpcomingUptimesCount);
+        var uptimes = GatherBuddy.UptimeManager.GetUpcomingUptimes(item, GatherBuddy.Config.UpcomingUptimesCount);
         if (uptimes.Count <= 0)
         {
-            ImUtf8.Text($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}\n\n正在加载接下来的 {GatherBuddy.Config.UpcomingUptimesCount} 个窗口...");
+            ImGui.TextUnformatted($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}\n\nLoading the next {GatherBuddy.Config.UpcomingUptimesCount} windows...");
             return;
         }
 
-        var cellPadding = new Vector2(10 , 5) * ImGuiHelpers.GlobalScale;
-
-        using var style = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, cellPadding);
+        using var tableStyle = M3Table.PushStyle();
+        using var style = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(10, 5) * ImGuiHelpers.GlobalScale);
         using var table = ImRaii.Table("##UpcomingUptimesTable", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.PadOuterX);
         if (!table)
+        {
             return;
+        }
 
-        ImGui.TableSetupColumn("日期"u8);
-        ImGui.TableSetupColumn("时间"u8);
-        ImGui.TableSetupColumn("距开始"u8);
-        ImGui.TableSetupColumn("持续时间"u8);
-        ImGui.TableSetupColumn("间隔"u8);
-        ImGui.TableHeadersRow();
+        foreach (var header in UpcomingUptimeHeaders)
+        {
+            ImGui.TableSetupColumn(header);
+        }
+
+        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        foreach (var header in UpcomingUptimeHeaders)
+        {
+            ImGui.TableNextColumn();
+            M3Table.Header(header, center: false);
+        }
 
         DateTime? previousStartDate = null;
-        var       now     = GatherBuddy.Time.ServerTime;
+        var now = GatherBuddy.Time.ServerTime;
 
-        foreach (var (i, time) in uptimes.Take(GatherBuddy.Config.UpcomingUptimesCount).Index())
+        for (var i = 0; i < uptimes.Count && i < GatherBuddy.Config.UpcomingUptimesCount; i++)
         {
+            var time = uptimes[i];
             var startDate = time.Start.LocalTime;
             ImGui.TableNextColumn();
             if (previousStartDate is null || previousStartDate.Value.Date != startDate.Date)
             {
-                ImUtf8.Text(startDate.ToString("yyyy-MM-dd (ddd)", CultureInfo.InvariantCulture));
+                ImGui.TextUnformatted(startDate.ToString("yyyy-MM-dd (ddd)", CultureInfo.InvariantCulture));
                 previousStartDate = startDate;
             }
 
             ImGui.TableNextColumn();
-            ImUtf8.Text(startDate.ToString("HH:mm", CultureInfo.InvariantCulture));
+            ImGui.TextUnformatted(startDate.ToString("HH:mm", CultureInfo.InvariantCulture));
 
             ImGui.TableNextColumn();
-            if (now < time.Start)
-            {
-                var startsIn = new TimeInterval(now, time.Start);
-                ImUtf8.Text(startsIn.DurationString(true));
-            }
-            else
-            {
-                ImUtf8.Text("进行中"u8);
-            }
+            ImGui.TextUnformatted(now < time.Start ? new TimeInterval(now, time.Start).DurationString(true) : "进行中");
 
             ImGui.TableNextColumn();
-            ImUtf8.Text(time.DurationString(true));
+            ImGui.TextUnformatted(time.DurationString(true));
 
             ImGui.TableNextColumn();
-            if (i < uptimes.Count - 1)
-            {
-                var downtime = new TimeInterval(uptimes[i].End, uptimes[i + 1].Start);
-                ImUtf8.Text(downtime.DurationString(true));
-            }
-            else
-            {
-                ImUtf8.Text("-"u8);
-            }
+            ImGui.TextUnformatted(i < uptimes.Count - 1 ? new TimeInterval(uptimes[i].End, uptimes[i + 1].Start).DurationString(true) : "-");
         }
     }
 
     internal static void HoverTooltip(string text)
     {
         if (!text.StartsWith('\0'))
-            ImUtf8.HoverTooltip(text);
+        {
+            M3Tooltip.Hovered(text);
+        }
     }
 
     public static void AlignTextToSize(string text, Vector2 size)
     {
         var cursor = ImGui.GetCursorPos();
         ImGui.SetCursorPos(cursor + new Vector2(ImGui.GetStyle().ItemSpacing.X / 2, (size.Y - ImGui.GetTextLineHeight()) / 2));
-        ImUtf8.Text(text);
+        ImGui.TextUnformatted(text);
         ImGui.SameLine();
         ImGui.SetCursorPosY(cursor.Y);
         ImGui.NewLine();
     }
 
+    private static float TableFooterHeight
+        => (M3Widgets.ButtonHeight + ImGui.GetStyle().ItemSpacing.Y * 2f + M3.Space1) / ImGuiHelpers.GlobalScale;
 
-    private static void DrawFormatInput(string label, string tooltip, string oldValue, string defaultValue, Action<string> setValue)
+    private void DrawTableFooter<T>(Table<T> table, Func<T, IGatherable> selector, string label, string statusName)
     {
-        var       tmp = oldValue;
-        using var id  = ImRaii.PushId(label);
-
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 50 * Scale);
-        if (ImGui.InputText(string.Empty, ref tmp, 256) && tmp != oldValue)
-        {
-            setValue(tmp);
-            GatherBuddy.Config.Save();
-        }
-
-        ImGuiUtil.HoverTooltip(tooltip);
-
-        if (ImGuiUtil.DrawDisabledButton("默认", Vector2.Zero, defaultValue, defaultValue == oldValue))
-        {
-            setValue(defaultValue);
-            GatherBuddy.Config.Save();
-        }
-
-        ImGui.SameLine();
-        ImGui.AlignTextToFramePadding();
-        ImGui.Text(label);
+        ImGui.Dummy(new Vector2(0, M3.Space1));
+        var rowTop = ImGui.GetCursorScreenPos().Y;
+        var drewButton = DrawAddAllFilteredToAutoGather(table, selector, label);
+        DrawStatusLine(table, statusName, drewButton, rowTop, M3Widgets.ButtonHeight);
     }
 
-    private static void DrawStatusLine<T>(Table<T> table, string name)
+    private static void DrawStatusLine<T>(Table<T> table, string name, bool sameLine, float rowTop, float rowHeight)
     {
         if (!GatherBuddy.Config.ShowStatusLine)
-            return;
-
-        ImGui.SameLine();
-        using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
-        ImGui.NewLine();
-        ImUtf8.Text($"{table.CurrentItems} / {table.TotalItems} {name} 可见");
-        if (table.TotalColumns != table.VisibleColumns)
         {
-            ImGui.SameLine(0, 50 * ImGuiHelpers.GlobalScale);
-            ImUtf8.Text($"{table.TotalColumns - table.VisibleColumns} 列被隐藏");
+            return;
         }
 
-        if (typeof(T) == typeof(ExtendedFish))
+        void Next(float itemHeight)
         {
-            if (File.Exists(GatherBuddy.GameData.OverrideFile))
+            if (sameLine)
             {
-                ImGui.SameLine(0, 50 * ImGuiHelpers.GlobalScale);
-                if (ImUtf8.SmallButton("重新导入鱼类覆盖数据") && GatherBuddy.GameData.ReimportOverrides())
+                ImGui.SameLine(0, M3.Space3);
+            }
+
+            sameLine = true;
+            ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, rowTop + (rowHeight - itemHeight) * 0.5f));
+        }
+
+        Next(ImGui.GetTextLineHeight());
+        M3Text.Draw($"{table.CurrentItems} of {table.TotalItems} {name.ToLowerInvariant()} shown", M3TextStyle.Muted);
+        if (table.TotalColumns != table.VisibleColumns)
+        {
+            Next(ImGui.GetTextLineHeight());
+            var hidden = table.TotalColumns - table.VisibleColumns;
+            M3Text.Draw(hidden == 1 ? "1 column hidden" : $"{hidden} columns hidden", M3TextStyle.Muted);
+        }
+
+        if (typeof(T) != typeof(ExtendedFish))
+        {
+            return;
+        }
+
+        if (File.Exists(GatherBuddy.GameData.OverrideFile))
+        {
+            Next(M3Widgets.ChipHeight);
+            if (M3Widgets.Chip("##reimport", "Reimport fish overrides", false, FontAwesomeIcon.Redo,
+                    "Read the fish data override file again.\nRight-click to move it to a backup instead.")
+             && GatherBuddy.GameData.ReimportOverrides())
+            {
+                GatherBuddy.UptimeManager.ResetModifiedUptimes();
+                LocationTooltips.Clear();
+                foreach (var fish in ExtendedFishList)
                 {
-                    GatherBuddy.UptimeManager.ResetModifiedUptimes();
-                    foreach (var fish in ExtendedFishList.Where(f => f.Data.HasOverridenData))
+                    if (fish.Data.HasOverridenData)
+                    {
                         fish.Update();
+                    }
                 }
             }
-            
-            using (var popup = ImUtf8.PopupContextItem("##Context"u8))
+
+            using var menu = M3Menu.BeginContext("##overrideMenu");
+            if (menu.IsOpen && M3Menu.Item("##backup", "Move to backup", FontAwesomeIcon.Archive))
             {
-                if (popup)
-                    if (ImUtf8.MenuItem("移动到备份"u8))
-                        try
-                        {
-                            File.Move(GatherBuddy.GameData.OverrideFile, Path.ChangeExtension(GatherBuddy.GameData.OverrideFile, ".json.bak"),
-                                true);
-                        }
-                        catch (Exception ex)
-                        {
-                            GatherBuddy.Log.Error($"无法将鱼类数据覆盖文件移动到备份:\n{ex}");
-                        }
+                try
+                {
+                    File.Move(GatherBuddy.GameData.OverrideFile, Path.ChangeExtension(GatherBuddy.GameData.OverrideFile, ".json.bak"), true);
+                }
+                catch (Exception ex)
+                {
+                    GatherBuddy.Log.Error($"无法将鱼类数据覆盖文件移动到备份:\n{ex}");
+                }
             }
-            
-            if (GatherBuddy.GameData.OverriddenFish > 0)
-            {
-                ImGui.SameLine(0, 50 * ImGuiHelpers.GlobalScale);
-                ImUtf8.Text($"{GatherBuddy.GameData.OverriddenFish} 鱼类覆盖已应用");
-            }
+        }
+
+        if (GatherBuddy.GameData.OverriddenFish > 0)
+        {
+            Next(ImGui.GetTextLineHeight());
+            M3Text.Draw($"{GatherBuddy.GameData.OverriddenFish} fish overridden", M3TextStyle.Muted);
         }
     }
 
     private static void DrawClippy()
     {
         const string popupName = "GatherClippy###ClippyPopup";
-        const string text      = "找不到想要的物品？";
+        const string text = "找不到想要的物品？";
         if (GatherBuddy.Config.HideClippy)
+        {
             return;
+        }
 
-        var textSize   = ImGui.CalcTextSize(text).X;
-        var buttonSize = new Vector2(Math.Max(200, textSize) * ImGuiHelpers.GlobalScale, ImGui.GetFrameHeight());
-        var padding    = ImGuiHelpers.ScaledVector2(9, 9);
+        const FontAwesomeIcon icon = FontAwesomeIcon.QuestionCircle;
+        var buttonSize = M3Widgets.PillSize(text, icon);
+        var padding = new Vector2(M3.Space3);
 
         ImGui.SetCursorPos(ImGui.GetWindowSize() - buttonSize - padding);
         using var child = ImRaii.Child("##clippyChild", buttonSize, false, ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration);
         if (!child)
+        {
             return;
+        }
 
-        using var color = ImRaii.PushColor(ImGuiCol.Button, 0xFFA06020);
-
-        if (ImGui.Button(text, buttonSize))
+        if (M3Widgets.Pill("##clippy", text, M3.Scheme.Tertiary, icon,
+                "Click for some help navigating this table.\nControl + Shift + Right-Click to permanently hide this button.", true))
+        {
             ImGui.OpenPopup(popupName);
+        }
+
         if (ImGui.IsItemClicked(ImGuiMouseButton.Right) && ImGui.GetIO().KeyCtrl && ImGui.GetIO().KeyShift)
         {
             GatherBuddy.Config.HideClippy = true;
             GatherBuddy.Config.Save();
         }
 
-        ImGuiUtil.HoverTooltip("单击以打开本表的使用帮助\n"
-          + "按住 Ctrl + Shift 键右键本按钮以永久隐藏");
-
-        color.Pop();
-        var windowSize = new Vector2(1024 * ImGuiHelpers.GlobalScale,
-            ImGui.GetTextLineHeightWithSpacing() * 13 + 2 * ImGui.GetFrameHeightWithSpacing());
-        ImGui.SetNextWindowSize(windowSize);
-        ImGui.SetNextWindowPos((ImGui.GetIO().DisplaySize - windowSize) / 2);
+        var width = 760f * M3.Scale;
+        ImGui.SetNextWindowPos(ImGui.GetIO().DisplaySize / 2, ImGuiCond.Always, new Vector2(0.5f));
         using var popup = ImRaii.Popup(popupName,
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.Modal);
         if (!popup)
+        {
             return;
+        }
 
-        ImGui.BulletText(
-            "可以使用诸如 \"物品名称...\" 之类的文本过滤器，只显示包含指定字符串的条目。它们对大小写不敏感，并且不会保存。");
-        ImGui.BulletText(
-            "文本过滤器还支持正则表达式，例如 \"(blue|green)\" 会匹配所有包含蓝色或绿色的条目。");
-        ImGui.BulletText("类似 \"下次时间\"、\"采集点类型\" 或 \"鱼类类型\" 的按钮过滤器可以通过点击来过滤特定类型。");
-        ImGui.BulletText("这些过滤器会保存。但对于具有活动过滤器的列，过滤按钮会变为红色。");
-        ImGui.NewLine();
-        ImGui.BulletText(
-            "可以点击标题空白处来按该列对表格进行升序或降序排序，这会通过一个向上或向下的小三角形来表示。");
-        ImGui.BulletText(
-            "可以右键点击标题空白处来打开表格上下文菜单，在其中可以隐藏不感兴趣的列。");
-        ImGui.BulletText(
-            "可以通过拖动列的分隔线来调整文本列的大小。调整时会以蓝色高亮显示分隔线。大小会在会话之间保存。");
-        ImGui.BulletText(
-            "可以通过在空白处左键点击并拖动来重新排列大多数列。排列顺序会在会话之间保存。");
-        ImGui.NewLine();
-        ImGui.BulletText(
-            "可以右键点击物品名称和其他一些列（如钓饵和钓鱼地点）来打开带有对象特定选项的右键菜单");
-        ImGui.BulletText("你也可以重新排列标签页，但无法保存");
+        using (ImRaii.PushFont(M3.TitleMedium))
+        {
+            ImGui.TextUnformatted("Getting around the tables");
+        }
 
-        ImGui.SetCursorPosY(windowSize.Y - ImGui.GetFrameHeight() - ImGui.GetStyle().WindowPadding.Y);
-        if (ImGui.Button("明白了", -Vector2.UnitX))
+        ImGui.Dummy(new Vector2(width, M3.Space1));
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
+        M3Widgets.SectionLabel("Filters");
+        M3Text.Bullet("Text filters like \"Filter items\" only show entries that contain the given text. They are case-insensitive and are not kept for your next session.");
+        M3Text.Bullet("文本过滤器还支持正则表达式，例如 \"(blue|green)\" 会匹配所有包含蓝色或绿色的条目。");
+        M3Text.Bullet("Button filters like \"Next Uptime\", \"Node Type\" or \"Fish Type\" open a menu of what to show.");
+        M3Text.Bullet("Those filters are kept across sessions. A column with an active filter shows a tinted button with a filter icon; right-click it to clear the filter.");
+        M3Widgets.SectionLabel("Columns");
+        M3Text.Bullet("Click the blank space of a header to sort the table by that column, ascending or descending. A small triangle shows the direction.");
+        M3Text.Bullet("Right-click the blank space of a header to open the table's context menu, where you can hide columns you are not interested in.");
+        M3Text.Bullet("Resize text columns by dragging the small separators between them. Sizes are kept across sessions.");
+        M3Text.Bullet("Reorder most columns by dragging the blank space of their header. The order is kept across sessions.");
+        M3Widgets.SectionLabel("Items");
+        M3Text.Bullet("Right-click item names and a few other columns (like bait and fishing spot) for menus with more options.");
+        ImGui.PopTextWrapPos();
+
+        ImGui.Dummy(new Vector2(0f, M3.Space2));
+        if (M3Widgets.Button("##clippy_understood", "明白了", M3ButtonStyle.Filled, FontAwesomeIcon.Check, width))
+        {
             ImGui.CloseCurrentPopup();
+        }
     }
 }

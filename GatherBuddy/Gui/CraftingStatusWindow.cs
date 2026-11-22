@@ -1,24 +1,27 @@
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
+using GatherBuddy.Crafting;
+using GatherBuddy.RebornUI;
+using RebornMaterial;
 using System;
 using System.Collections.Generic;
-using Dalamud.Interface.Windowing;
-using Dalamud.Bindings.ImGui;
-using GatherBuddy.Crafting;
+using System.Numerics;
 
 namespace GatherBuddy.Gui;
 
-public class CraftingStatusWindow : Window
+public class CraftingStatusWindow : M3Window
 {
     private CraftingQueueProcessor? _queueProcessor;
     private bool? _pendingCollapseState = null;
     private bool _requestFocus = false;
-    private bool _wasFocusedLastFrame = false;
     private IReadOnlyList<CraftingListItem>? _cachedEstimateQueue = null;
     private CraftingListConsumableSettings? _cachedEstimateConsumables = null;
     private long[] _cachedRemainingEstimatesByIndex = [];
     private int _cachedEstimateQueueCount = -1;
     private int _cachedEstimateActionDelayMs = -1;
 
-    public CraftingStatusWindow() 
+    public CraftingStatusWindow()
         : base("制作状态###GatherBuddyCraftingStatus", ImGuiWindowFlags.AlwaysAutoResize)
     {
         IsOpen = false;
@@ -48,7 +51,9 @@ public class CraftingStatusWindow : Window
     public void OpenOrRestore()
     {
         if (_queueProcessor == null)
+        {
             return;
+        }
 
         IsOpen = true;
         _pendingCollapseState = false;
@@ -60,10 +65,12 @@ public class CraftingStatusWindow : Window
         return _queueProcessor != null && IsOpen;
     }
 
-    public override void PreDraw()
+    protected override void PreDrawThemed()
     {
         if (!IsOpen)
+        {
             return;
+        }
 
         if (_pendingCollapseState.HasValue)
         {
@@ -81,37 +88,46 @@ public class CraftingStatusWindow : Window
     public override void Draw()
     {
         if (_queueProcessor == null)
+        {
             return;
-        
-        var isFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-        if (isFocused)
-        {
-            GatherBuddy.ControllerSupport?.UpdateFocusedWindow("制作状态###GatherBuddyCraftingStatus");
-            _wasFocusedLastFrame = true;
         }
-        else if (_wasFocusedLastFrame)
-        {
-            GatherBuddy.ControllerSupport?.UpdateFocusedWindow(null);
-            _wasFocusedLastFrame = false;
-        }
+
+        ReportFocus();
 
         var currentState = _queueProcessor.CurrentState;
         var currentIndex = _queueProcessor.CurrentQueueIndex;
         var totalCount = _queueProcessor.QueueCount;
         var currentItem = _queueProcessor.CurrentRecipeItem;
+        var complete = currentState == CraftingQueueProcessor.QueueState.Complete;
+        var paused = _queueProcessor.Paused;
 
-        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.8f, 1.0f), "制作队列运行中");
-        ImGui.Separator();
-        ImGui.Spacing();
+        var scale = M3.Scale;
+        var width = 300f * scale;
+        using var wrap = ImRaii.TextWrapPos(ImGui.GetCursorPosX() + width);
 
-        ImGui.Text($"状态: {GetStateDisplayName(currentState)}");
-        ImGui.Text($"进度: {Math.Min(currentIndex + 1, totalCount)} / {totalCount}");
-
-        if (_queueProcessor.Paused && !string.IsNullOrWhiteSpace(_queueProcessor.PauseReason))
+        var (stateLabel, stateTone, stateIcon) = DescribeState(currentState, paused);
+        var pillSize = M3Widgets.PillSize(stateLabel, stateIcon);
+        float titleHeight;
+        using (ImRaii.PushFont(M3.TitleMedium))
         {
-            ImGui.PushTextWrapPos();
-            ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.82f, 0.24f, 1.0f), _queueProcessor.PauseReason);
-            ImGui.PopTextWrapPos();
+            titleHeight = MathF.Max(ImGui.GetTextLineHeight(), pillSize.Y);
+            Ui.RowText("制作队列", titleHeight);
+        }
+
+        ImGui.SameLine(width - pillSize.X + ImGui.GetStyle().WindowPadding.X);
+        Ui.CenterInRow(titleHeight, pillSize.Y);
+        M3Widgets.Pill("##craft_state", stateLabel, stateTone, stateIcon);
+
+        ImGui.Dummy(new Vector2(0f, M3.Space1));
+        var done = Math.Min(currentIndex + 1, totalCount);
+        var fraction = complete ? 1f : totalCount > 0 ? Math.Clamp((float)currentIndex / totalCount, 0f, 1f) : 0f;
+        M3Widgets.LinearProgress(new Vector2(width, 6f * scale), fraction);
+        M3Text.Draw(complete ? $"已完成全部 {totalCount} 次制作" : $"制作进度：{done} / {totalCount}", M3TextStyle.Muted);
+
+        if (paused && !string.IsNullOrWhiteSpace(_queueProcessor.PauseReason))
+        {
+            ImGui.Dummy(new Vector2(0f, M3.Space1));
+            M3Text.Draw(_queueProcessor.PauseReason, M3TextStyle.Warning, true);
         }
 
         if (currentItem != null)
@@ -120,90 +136,93 @@ public class CraftingStatusWindow : Window
             if (recipeSheet != null && recipeSheet.TryGetRow(currentItem.RecipeId, out var recipe))
             {
                 var itemName = recipe.ItemResult.Value.Name.ExtractText();
-                ImGui.Text($"当前配方: {itemName}");
+                ImGui.Dummy(new Vector2(0f, M3.Space1));
+                M3Text.Draw("当前配方", M3TextStyle.Label);
+                M3Text.Draw(itemName, M3TextStyle.Body, true);
             }
         }
 
         if (ShouldShowRemainingEstimate(currentState))
         {
             var remainingMs = GetRemainingEstimate(currentIndex);
-            ImGui.Text($"预计剩余时间: ~{CraftingTimeEstimator.FormatDuration(remainingMs)}");
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("根据队列各项制作路径估算。宏、标准求解器和仅推进度通过模拟计算，Raphael 在有缓存方案时使用方案长度，否则暂用默认值。不含采集、修理和切换职业的耗时。");
+            M3Text.Draw($"预计剩余约 {CraftingTimeEstimator.FormatDuration(remainingMs)}", M3TextStyle.Muted);
+            M3Tooltip.Hovered("根据队列各项的制作方式估算。宏、标准求解器和仅推进度通过模拟计算；"
+              + "Raphael 有缓存方案时使用方案长度，否则暂用默认值。"
+              + "不含采集、修理和切换职业的耗时。");
         }
         else if (!ShouldRetainRemainingEstimateCache(currentState))
         {
             ResetRemainingEstimateCache();
         }
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+        ImGui.Dummy(new Vector2(width, M3.Space2));
 
-        if (currentState == CraftingQueueProcessor.QueueState.Complete)
+        if (complete)
         {
-            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), "队列完成!");
-            ImGui.Spacing();
-            if (ImGui.Button("关闭"))
+            M3Text.Draw("制作队列已完成！", M3TextStyle.Success);
+            ImGui.Dummy(new Vector2(0f, M3.Space1));
+            if (M3Widgets.Button("##craft_close", "关闭", M3ButtonStyle.Filled, FontAwesomeIcon.Check))
             {
                 IsOpen = false;
                 _queueProcessor = null;
             }
+
+            return;
         }
-        else
+
+        if (paused)
         {
-            ImGui.TextDisabled(_queueProcessor.Paused ? "队列已暂停" : "队列处理中...");
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            
-            if (!_queueProcessor.Paused)
+            if (M3Widgets.Button("##craft_resume", "继续", M3ButtonStyle.Filled, FontAwesomeIcon.Play))
             {
-                if (ImGui.Button("暂停"))
-                {
-                    _queueProcessor.Pause();
-                }
-            }
-            else
-            {
-                if (ImGui.Button("继续"))
-                {
-                    _queueProcessor.Resume();
-                }
-            }
-            
-            ImGui.SameLine();
-            if (ImGui.Button("停止"))
-            {
-                CraftingGatherBridge.StopQueue();
-            }
-            
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
-            ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(150f));
-            if (ImGui.SliderInt("操作延迟 (ms)", ref delay, 0, 1000))
-            {
-                GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);
-                GatherBuddy.Config.Save();
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("每个制作操作之间的延迟时间");
-
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            
-            if (ImGui.Button("打开 Vulcan 窗口"))
-            {
-                if (GatherBuddy.VulcanWindow != null)
-                {
-                    GatherBuddy.VulcanWindow.IsOpen = true;
-                }
+                _queueProcessor.Resume();
             }
         }
+        else if (M3Widgets.Button("##craft_pause", "暂停", M3ButtonStyle.Tonal, FontAwesomeIcon.Pause))
+        {
+            _queueProcessor.Pause();
+        }
+
+        ImGui.SameLine();
+        if (M3Widgets.Button("##craft_stop", "停止", M3ButtonStyle.Danger, FontAwesomeIcon.Stop, tooltip: "停止制作队列。"))
+        {
+            CraftingGatherBridge.StopQueue();
+        }
+
+        ImGui.Dummy(new Vector2(0f, M3.Space1));
+        M3Text.Draw("操作延迟", M3TextStyle.Label);
+        var delay = GatherBuddy.Config.VulcanExecutionDelayMs;
+        var gutter = M3Widgets.SliderValueGutter("1000 ms");
+        if (M3Widgets.SliderInt("##craft_action_delay", ref delay, 0, 1000, $"{delay} ms", width - gutter))
+        {
+            GatherBuddy.Config.VulcanExecutionDelayMs = Math.Clamp(delay, 0, 1000);
+            GatherBuddy.Config.Save();
+        }
+
+        M3Tooltip.Hovered("每个制作操作之间的延迟。");
+
+        ImGui.Dummy(new Vector2(0f, M3.Space1));
+        if (M3Widgets.Button("##craft_open_vulcan", "打开 Vulcan", M3ButtonStyle.Text, FontAwesomeIcon.Hammer))
+        {
+            GatherBuddy.VulcanWindow?.RestoreWindow();
+        }
+    }
+
+    private static (string Label, Vector4 Tone, FontAwesomeIcon Icon) DescribeState(CraftingQueueProcessor.QueueState state, bool paused)
+    {
+        if (paused && state != CraftingQueueProcessor.QueueState.Complete)
+        {
+            return ("已暂停", M3.Severity(M3Severity.Warning), FontAwesomeIcon.Pause);
+        }
+
+        var label = GetStateDisplayName(state);
+        return state switch
+        {
+            CraftingQueueProcessor.QueueState.Complete => (label, M3.Severity(M3Severity.Success), FontAwesomeIcon.CheckCircle),
+            CraftingQueueProcessor.QueueState.Crafting => (label, M3.Scheme.Primary, FontAwesomeIcon.Hammer),
+            CraftingQueueProcessor.QueueState.ReadyForCraft => (label, M3.Scheme.Primary, FontAwesomeIcon.Hammer),
+            CraftingQueueProcessor.QueueState.Idle => (label, M3.Scheme.Outline, FontAwesomeIcon.None),
+            _ => (label, M3.Severity(M3Severity.Info), FontAwesomeIcon.HourglassHalf),
+        };
     }
 
     private void ResetRemainingEstimateCache()
@@ -218,7 +237,9 @@ public class CraftingStatusWindow : Window
     private long GetRemainingEstimate(int currentIndex)
     {
         if (_queueProcessor == null)
+        {
             return 0;
+        }
 
         var queue = _queueProcessor.Queue;
         var consumables = _queueProcessor.ListConsumables;
@@ -227,7 +248,9 @@ public class CraftingStatusWindow : Window
          && ReferenceEquals(_cachedEstimateConsumables, consumables)
          && _cachedEstimateQueueCount == queue.Count
          && _cachedEstimateActionDelayMs == actionDelayMs)
+        {
             return GetCachedRemainingEstimateAtIndex(currentIndex);
+        }
 
         _cachedEstimateQueue = queue;
         _cachedEstimateConsumables = consumables;
@@ -240,7 +263,9 @@ public class CraftingStatusWindow : Window
     private long GetCachedRemainingEstimateAtIndex(int currentIndex)
     {
         if (_cachedRemainingEstimatesByIndex.Length == 0)
+        {
             return 0;
+        }
 
         var safeIndex = Math.Clamp(currentIndex, 0, _cachedRemainingEstimatesByIndex.Length - 1);
         return _cachedRemainingEstimatesByIndex[safeIndex];
@@ -249,7 +274,9 @@ public class CraftingStatusWindow : Window
     private static long[] BuildRemainingEstimates(IReadOnlyList<CraftingListItem> queue, int actionDelayMs, CraftingListConsumableSettings? consumables)
     {
         if (queue.Count == 0)
+        {
             return [];
+        }
 
         var remainingByIndex = new long[queue.Count];
         long remainingMs = 0;
@@ -294,47 +321,60 @@ public class CraftingStatusWindow : Window
             _ => "未知"
         };
     }
-    
+
     private (int currentCraft, int totalCrafts) GetCurrentRecipeCraftNumbers()
     {
         if (_queueProcessor == null)
+        {
             return (0, 0);
-        
+        }
+
         var currentItem = _queueProcessor.CurrentRecipeItem;
         if (currentItem == null)
+        {
             return (0, 0);
-        
+        }
+
         var currentIndex = _queueProcessor.CurrentQueueIndex;
         var currentRecipeId = currentItem.RecipeId;
-        
-        int firstIndex = currentIndex;
+
+        var firstIndex = currentIndex;
         while (firstIndex > 0)
         {
             var prevItem = GetQueueItemAt(firstIndex - 1);
             if (prevItem == null || prevItem.RecipeId != currentRecipeId)
+            {
                 break;
+            }
+
             firstIndex--;
         }
-        
-        int lastIndex = currentIndex;
+
+        var lastIndex = currentIndex;
         while (lastIndex < _queueProcessor.QueueCount - 1)
         {
             var nextItem = GetQueueItemAt(lastIndex + 1);
             if (nextItem == null || nextItem.RecipeId != currentRecipeId)
+            {
                 break;
+            }
+
             lastIndex++;
         }
-        
-        int currentCraftNumber = currentIndex - firstIndex + 1;
-        int totalCrafts = lastIndex - firstIndex + 1;
-        
+
+        var currentCraftNumber = currentIndex - firstIndex + 1;
+        var totalCrafts = lastIndex - firstIndex + 1;
+
         return (currentCraftNumber, totalCrafts);
     }
-    
+
     private CraftingListItem? GetQueueItemAt(int index)
     {
         if (_queueProcessor == null || index < 0 || index >= _queueProcessor.QueueCount)
+        {
             return null;
+        }
+
         return _queueProcessor.Queue[index];
     }
 }

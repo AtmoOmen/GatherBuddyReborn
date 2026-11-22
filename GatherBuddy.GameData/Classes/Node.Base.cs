@@ -1,4 +1,3 @@
-using System.Numerics;
 using GatherBuddy.Data;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
@@ -6,6 +5,8 @@ using GatherBuddy.Structs;
 using GatherBuddy.Time;
 using GatherBuddy.Utility;
 using Lumina.Excel.Sheets;
+using System;
+using System.Collections.Generic;
 using GatheringType = GatherBuddy.Enums.GatheringType;
 using Weather = GatherBuddy.Structs.Weather;
 
@@ -13,11 +14,11 @@ namespace GatherBuddy.Classes;
 
 public partial class GatheringNode : IComparable<GatheringNode>, ILocation
 {
-    public NodeType           NodeType     { get; init; }
+    public NodeType NodeType { get; init; }
     public GatheringPointBase BaseNodeData { get; init; }
-    public string             Name         { get; init; }
-    public WaymarkSet         Markers      { get; set; } = WaymarkSet.None;
-    public BitfieldUptime     Times        { get; init; }
+    public string Name { get; init; }
+    public WaymarkSet Markers { get; set; } = WaymarkSet.None;
+    public BitfieldUptime Times { get; init; }
 
     public uint Id
         => BaseNodeData.RowId;
@@ -35,10 +36,10 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
         => (GatheringType)BaseNodeData.GatheringType.RowId;
 
     public bool IsMiner
-        => GatheringType.ToGroup() == GatheringType.采矿工;
+        => GatheringType.ToGroup() == GatheringType.Miner;
 
     public bool IsBotanist
-        => GatheringType.ToGroup() == GatheringType.园艺工;
+        => GatheringType.ToGroup() == GatheringType.Botanist;
     public uint FolkloreId { get; init; }
     public bool IsLeveling { get; init; }
 
@@ -53,9 +54,9 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
         BaseNodeData = node;
 
         // Obtain the territory from the first node that has this as a base.
-        var nodes    = data.DataManager.GetExcelSheet<GatheringPoint>()!;
-        var nodeList = gatheringPoint.TryGetValue(node.RowId, out var nl) ? (IReadOnlyList<uint>)nl : Array.Empty<uint>();
-        var nodeRow  = nodeList.Count > 0 ? nodes.GetRowOrDefault(nodeList[0]) : null;
+        var nodes = data.DataManager.GetExcelSheet<GatheringPoint>()!;
+        var nodeList = gatheringPoint.TryGetValue(node.RowId, out var nl) ? (List<uint>)nl : [];
+        var nodeRow = nodeList.Count > 0 ? nodes.GetRowOrDefault(nodeList[0]) : null;
         Territory = data.FindOrAddTerritory(nodeRow?.TerritoryType.Value) ?? Territory.Invalid;
         if (nodeRow?.PlaceName.RowId == 0 && Territory.Id == 939)
         {
@@ -67,14 +68,14 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
             Name = MultiString.ParseSeStringLumina(nodeRow?.PlaceName.ValueNullable?.Name);
         }
         // Obtain the center of the coordinates. We do not care for the radius.
-        var coords   = data.DataManager.GetExcelSheet<ExportedGatheringPoint>();
+        var coords = data.DataManager.GetExcelSheet<ExportedGatheringPoint>();
         var coordRow = coords.GetRowOrDefault(node.RowId);
         IntegralXCoord = coordRow != null ? Maps.NodeToMap(coordRow.Value.X, Territory.SizeFactor) : 100;
         IntegralYCoord = coordRow != null ? Maps.NodeToMap(coordRow.Value.Y, Territory.SizeFactor) : 100;
-        
+
         foreach (var nodeRow2 in nodeList)
         {
-            var worldCoords = data.WorldCoords.TryGetValue(nodeRow2, out var wc) ? wc : new List<Vector3>();
+            var worldCoords = data.WorldCoords.TryGetValue(nodeRow2, out var wc) ? wc : [];
             WorldPositions[nodeRow2] = worldCoords;
         }
 
@@ -84,10 +85,10 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
             ? Territory.Aetherytes.ArgMin(a => a.WorldDistance(Territory.Id, IntegralXCoord, IntegralYCoord))
             : null;
 
-        DefaultXCoord    = IntegralXCoord;
-        DefaultYCoord    = IntegralYCoord;
+        DefaultXCoord = IntegralXCoord;
+        DefaultYCoord = IntegralYCoord;
         DefaultAetheryte = ClosestAetheryte;
-        DefaultRadius    = Radius;
+        DefaultRadius = Radius;
 
         // Obtain additional information.
         var subCategory = nodeRow?.GatheringSubCategory.ValueNullable;
@@ -96,40 +97,71 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
         IsLeveling = subCategoryItemId == 0;
         Folklore = MultiString.ParseSeStringLumina(subCategory?.FolkloreBook);
         var extendedRow = nodeRow == null ? null : data.DataManager.GetExcelSheet<GatheringPointTransient>()?.GetRow(nodeRow.Value.RowId);
-        (Times, NodeType) = nodeRow?.Type == 8 ? (BitfieldUptime.AllHours, Clouded: NodeType.梦幻) : GetTimes(extendedRow);
-        if (Folklore.Length > 0 && NodeType == NodeType.未知 && subCategoryItemId != 0)
-            NodeType = NodeType.传说;
+        (Times, NodeType) = nodeRow?.Type == 8 ? (BitfieldUptime.AllHours, NodeType.Clouded) : GetTimes(extendedRow);
+        if (Folklore.Length > 0 && NodeType == NodeType.Unspoiled && subCategoryItemId != 0)
+        {
+            NodeType = NodeType.Legendary;
+        }
 
-        if (NodeType == NodeType.梦幻)
-            UmbralWeather = data.Weathers[(uint)UmbralNodes.UmbralNodeData.First(data => data.BaseNodeId == node.RowId).Weather];
+        if (NodeType == NodeType.Clouded)
+        {
+            UmbralWeather = data.Weathers[(uint)GetUmbralWeather(node.RowId)];
+        }
 
         // Obtain the items and add the node to their individual lists.
-        Items = node.Item
-            .Select(i => data.GatherablesByGatherId.GetValueOrDefault(i.RowId))
-            .OfType<Gatherable>()
-            .ToList();
+        Items = [];
+        foreach (var itemRef in node.Item)
+        {
+            if (data.GatherablesByGatherId.GetValueOrDefault(itemRef.RowId) is { } itemGatherable)
+            {
+                Items.Add(itemGatherable);
+            }
+        }
 
         foreach (var n in nodeList)
         {
             if (!gatheringItemPoint.TryGetValue(n, out var gatherableList))
+            {
                 break;
+            }
+
             foreach (var g in gatherableList)
             {
                 if (data.GatherablesByGatherId.TryGetValue(g, out var gatherable)
                  && !Items.Contains(gatherable))
                 {
-                    if (NodeType == NodeType.限时 && gatherable.IsCrystal)
+                    if (NodeType == NodeType.Ephemeral && gatherable.IsCrystal)
+                    {
                         continue;
+                    }
+
                     Items.Add(gatherable);
                 }
             }
         }
 
         if (Territory.Id <= 0)
+        {
             return;
+        }
 
         foreach (var item in Items)
+        {
             AddNodeToItem(item);
+        }
+    }
+
+    private static UmbralNodes.UmbralWeatherType GetUmbralWeather(uint baseNodeId)
+    {
+        foreach (var (nodeId, weather) in UmbralNodes.UmbralNodeData)
+        {
+            if (nodeId == baseNodeId)
+            {
+                return weather;
+            }
+        }
+
+        throw new InvalidOperationException($"No umbral weather is known for clouded node {baseNodeId}.");
     }
 
     public int CompareTo(GatheringNode? obj)
@@ -139,19 +171,21 @@ public partial class GatheringNode : IComparable<GatheringNode>, ILocation
     private static (BitfieldUptime, NodeType) GetTimes(GatheringPointTransient? row)
     {
         if (row == null)
-            return (BitfieldUptime.AllHours, NodeType.常规);
+        {
+            return (BitfieldUptime.AllHours, NodeType.Regular);
+        }
 
         // Check for ephemeral nodes
         if (row.Value.GatheringRarePopTimeTable.RowId == 0)
         {
             var time = new BitfieldUptime(row.Value.EphemeralStartTime, row.Value.EphemeralEndTime);
-            return time.AlwaysUp() ? (time, Regular: NodeType.常规) : (time, Ephemeral: NodeType.限时);
+            return time.AlwaysUp() ? (time, NodeType.Regular) : (time, NodeType.Ephemeral);
         }
         // and for unspoiled
         else
         {
             var time = new BitfieldUptime(row.Value.GatheringRarePopTimeTable.Value);
-            return time.AlwaysUp() ? (time, Regular: NodeType.常规) : (time, Unspoiled: NodeType.未知);
+            return time.AlwaysUp() ? (time, NodeType.Regular) : (time, NodeType.Unspoiled);
         }
     }
 }

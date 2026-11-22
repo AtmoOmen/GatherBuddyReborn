@@ -1,0 +1,37 @@
+<Project>
+  <Import Project="build-configuration/DalamudCnReferences.props" Condition="'$(UsingDalamudNETSdk)' == 'true'" />
+
+  <Target Name="VerifyGbrDalamudCnInput" BeforeTargets="PrepareForBuild;ResolveAssemblyReferences" Condition="'$(UsingDalamudNETSdk)' == 'true'">
+    <Error Condition="'$(GbrDalamudCnPath)' == ''"
+           Text="Set GbrDalamudCnPath to the extracted, pinned Ottercorp Dalamud CN distribution. No international fallback is allowed." />
+    <PropertyGroup>
+      <_GbrExpectedCnDirectory>$([MSBuild]::NormalizeDirectory('$(GbrDalamudCnPath)'))</_GbrExpectedCnDirectory>
+      <_GbrActualCnDirectory Condition="'$(DalamudLibPath)' != ''">$([MSBuild]::NormalizeDirectory('$(DalamudLibPath)'))</_GbrActualCnDirectory>
+    </PropertyGroup>
+    <Error Condition="'$(_GbrActualCnDirectory)' != '$(_GbrExpectedCnDirectory)'"
+           Text="Dalamud.NET.Sdk selected '$(DalamudLibPath)' instead of the configured CN directory '$(GbrDalamudCnPath)'. Remove DALAMUD_HOME/DalamudLibPath command-line overrides." />
+    <Error Condition="!Exists('$(GbrDalamudCnPath)/%(GbrDalamudCnBinary.Identity).dll')"
+           Text="Missing CN reference %(GbrDalamudCnBinary.Identity).dll in '$(GbrDalamudCnPath)'. Extract the pinned Ottercorp archive with scripts/install-dalamud-cn.ps1." />
+    <ItemGroup>
+      <_GbrDalamudCnBinary Include="@(GbrDalamudCnBinary->'$(GbrDalamudCnPath)/%(Identity).dll')" />
+    </ItemGroup>
+    <GetFileHash Files="@(_GbrDalamudCnBinary)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_GbrDalamudCnHashed" />
+    </GetFileHash>
+    <Error Condition="'%(_GbrDalamudCnHashed.FileHash)' != '%(_GbrDalamudCnHashed.Sha256)'"
+           Text="CN reference %(_GbrDalamudCnHashed.Filename).dll does not match the pinned Ottercorp distribution. Use scripts/install-dalamud-cn.ps1." />
+  </Target>
+
+  <Target Name="VerifyGbrDalamudCnResolution" AfterTargets="ResolveAssemblyReferences" DependsOnTargets="VerifyGbrDalamudCnInput" Condition="'$(UsingDalamudNETSdk)' == 'true'">
+    <ItemGroup>
+      <_GbrHostedReference Include="@(ReferencePath)"
+        Condition="$([System.String]::Copy(';@(GbrDalamudCnBinary);').Contains(';%(ReferencePath.Filename);'))">
+        <ExpectedCnPath>$(_GbrExpectedCnDirectory)%(ReferencePath.Filename).dll</ExpectedCnPath>
+      </_GbrHostedReference>
+      <_GbrResolvedOutsideCn Include="@(_GbrHostedReference)"
+        Condition="'%(_GbrHostedReference.FullPath)' != '%(_GbrHostedReference.ExpectedCnPath)'" />
+    </ItemGroup>
+    <Error Condition="'@(_GbrResolvedOutsideCn)' != ''"
+           Text="MSBuild resolved a game/framework reference outside the pinned CN directory: @(_GbrResolvedOutsideCn)." />
+  </Target>
+</Project>
