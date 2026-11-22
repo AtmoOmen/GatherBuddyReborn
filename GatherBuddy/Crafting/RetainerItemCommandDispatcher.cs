@@ -35,7 +35,7 @@ internal static unsafe class RetainerItemCommandDispatcher
         }
 
         void* contextEventPtr = (byte*)agent + InventoryContextEventOffset;
-        void** vtable = *(void***)contextEventPtr;
+        var vtable = *(void***)contextEventPtr;
         var sendCommand = (delegate* unmanaged<void*, uint, InventoryType, ulong, RetainerItemCommand, void>)vtable[0];
 
         GatherBuddy.Log.Debug($"[RetainerItemCommandDispatcher] 正在为 {container} 的栏位 {slot} 分派 {command}");

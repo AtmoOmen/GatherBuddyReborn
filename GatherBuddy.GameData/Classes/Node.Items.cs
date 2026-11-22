@@ -1,5 +1,9 @@
 using Dalamud.Game;
 using GatherBuddy.Enums;
+using GatherBuddy.Utility;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GatherBuddy.Classes;
 
@@ -8,7 +12,7 @@ public partial class GatheringNode
     public List<Gatherable> Items { get; init; }
 
     // Print all items separated by '|' or the given separator.
-    public string PrintItems(string separator = "|", ClientLanguage lang = ClientLanguage.ChineseSimplified)
+    public string PrintItems(string separator = "|", ClientLanguage lang = MultiString.SimplifiedChinese)
         => string.Join(separator, Items.Select(it => it.Name[lang]));
 
     // Node contains any of the given items (in english names).
@@ -18,12 +22,17 @@ public partial class GatheringNode
     private void AddNodeToItem(Gatherable item)
     {
         item.NodeList.Add(this);
-        if (item.NodeType == NodeType.无)
+        if (item.NodeType == NodeType.Unknown)
+        {
             item.NodeType = NodeType;
-        else if (item.NodeType != NodeType.常规 && NodeType == NodeType.常规)
-            item.NodeType = NodeType.常规;
+        }
+        else if (item.NodeType != NodeType.Regular && NodeType == NodeType.Regular)
+        {
+            item.NodeType = NodeType.Regular;
+        }
+
         item.GatheringType = item.GatheringType.Add(GatheringType);
-        item.ExpansionIdx  = Math.Min(item.ExpansionIdx, Territory.Data.ExVersion.RowId);
+        item.ExpansionIdx = Math.Min(item.ExpansionIdx, Territory.Data.ExVersion.RowId);
     }
 
     public bool AddItem(Gatherable item)
@@ -31,7 +40,9 @@ public partial class GatheringNode
         if (Items.Contains(item))
         {
             if (item.NodeList.Contains(this))
+            {
                 return false;
+            }
 
             AddNodeToItem(item);
             return true;

@@ -2,6 +2,8 @@ using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Utility;
 using Lumina.Excel.Sheets;
+using System;
+using System.Collections.Generic;
 using GatheringType = GatherBuddy.Enums.GatheringType;
 using Weather = GatherBuddy.Structs.Weather;
 
@@ -9,10 +11,10 @@ namespace GatherBuddy.Classes;
 
 public class Gatherable : IComparable<Gatherable>, IGatherable
 {
-    public Item                 ItemData      { get; }
-    public GatheringItem        GatheringData { get; }
-    public MultiString          Name          { get; }
-    public List<GatheringNode> NodeList      { get; } = new List<GatheringNode>();
+    public Item ItemData { get; }
+    public GatheringItem GatheringData { get; }
+    public MultiString Name { get; }
+    public List<GatheringNode> NodeList { get; } = [];
 
     public int InternalLocationId { get; internal set; }
 
@@ -25,14 +27,14 @@ public class Gatherable : IComparable<Gatherable>, IGatherable
     public ObjectType Type
         => ObjectType.Gatherable;
 
-    public bool IsCrystal     => ItemData.FilterGroup == 11;
+    public bool IsCrystal => ItemData.FilterGroup == 11;
     public bool IsTreasureMap => ItemData.FilterGroup == 18;
 
     public uint GatheringId
         => GatheringData.RowId;
 
-    public NodeType      NodeType      { get; internal set; } = NodeType.无;
-    public GatheringType GatheringType { get; internal set; } = GatheringType.未知;
+    public NodeType NodeType { get; internal set; } = NodeType.Unknown;
+    public GatheringType GatheringType { get; internal set; } = GatheringType.Unknown;
 
     public uint ExpansionIdx { get; internal set; } = uint.MaxValue;
 
@@ -44,11 +46,13 @@ public class Gatherable : IComparable<Gatherable>, IGatherable
         var itemSheet = gameData.DataManager.GetExcelSheet<Item>();
         ItemData = itemSheet.GetRowOrDefault(gatheringData.Item.RowId) ?? new Item();
         if (ItemData.RowId == 0)
+        {
             gameData.Log.Error("无效物品");
+        }
 
         var levelData = gatheringData.GatheringItemLevel.ValueNullable;
         _levelStars = levelData == null ? 0 : (levelData.Value.GatheringItemLevel << 3) + levelData.Value.Stars;
-        Name        = MultiString.FromItem(gameData.DataManager, gatheringData.Item.RowId);
+        Name = MultiString.FromItem(gameData.DataManager, gatheringData.Item.RowId);
     }
 
     public int Level
@@ -72,11 +76,11 @@ public class Gatherable : IComparable<Gatherable>, IGatherable
     private readonly int _levelStars;
 
     private static readonly string[] StarsArray =
-    {
+    [
         "",
         "*",
         "**",
         "***",
         "****",
-    };
+    ];
 }

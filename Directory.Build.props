@@ -1,0 +1,9 @@
+<Project>
+  <!-- Dalamud.NET.Sdk imports Microsoft.NET.Sdk (and therefore this file) before
+       evaluating DALAMUD_HOME and populating AssemblySearchPaths. Use a distinct
+       repository setting, not an inherited environment variable from another launcher. -->
+  <PropertyGroup Condition="'$(UsingDalamudNETSdk)' == 'true'">
+    <GbrDalamudCnPath Condition="'$(GbrDalamudCnPath)' == '' and $([MSBuild]::IsOSPlatform('Windows')) and '$(APPDATA)' != ''">$(APPDATA)\XIVLauncherCN\addon\Hooks\dev</GbrDalamudCnPath>
+    <DALAMUD_HOME Condition="'$(GbrDalamudCnPath)' != ''">$(GbrDalamudCnPath)</DALAMUD_HOME>
+  </PropertyGroup>
+</Project>

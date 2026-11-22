@@ -1,0 +1,13 @@
+GatherBuddy Reborn uses RebornMaterial as a separate, replaceable library.
+The included RebornMaterial.dll is built without source modifications from
+RebornMaterial 7.5.8.4 for the pinned Ottercorp Dalamud CN framework.
+
+RebornMaterial is licensed under LGPL-3.0-or-later. See
+LICENSE.RebornMaterial-LGPL-3.0.txt and LICENSE.RebornMaterial-GPL-3.0.txt.
+
+Corresponding source (fixed commit, including upstream build files):
+https://github.com/LTS-FFXIV/RebornMaterial/archive/0c74204ecfd6785c27ac53213950c3ad08337e63.tar.gz
+
+To use a modified interface-compatible RebornMaterial, build it against
+the same Dalamud CN reference set and replace RebornMaterial.dll in the
+GatherBuddy Reborn plugin directory.

@@ -8,10 +8,8 @@ using GatherBuddy.AutoGather.Helpers;
 using GatherBuddy.AutoGather.Lists;
 using GatherBuddy.Classes;
 using GatherBuddy.Helpers;
-using GatherBuddy.Plugin;
 using GatherBuddy.Utilities;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -26,17 +24,19 @@ namespace GatherBuddy.AutoGather
             Dalamud.ToastGui.ErrorToast += HandleNodeInteractionErrorToast;
 
             if (targetSystem == null)
+            {
                 return;
+            }
 
             // Delay interaction by one frame after stopping movement to avoid the "Unable to execute command while in flight" error.
             TaskManager.Enqueue(() =>
             {
                 _lastNodeInteractionTime = Environment.TickCount64;
                 targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
-                GatherBuddy.Log.Debug($"与采集点交互中，" +
-                    $"水平距离: {Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2())}，" +
-                    $"垂直距离: {Player.Position.Y - gameObject.Position.Y}，" +
-                    $"条件: {string.Join(' ', Dalamud.Conditions.AsReadOnlySet())}");
+                GatherBuddy.Log.Debug($"与采集点交互中，"
+                    + $"水平距离: {Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2())}， "
+                    + $"垂直距离: {Player.Position.Y - gameObject.Position.Y}， "
+                    + $"条件: {string.Join(' ', Dalamud.Conditions.AsReadOnlySet())}");
             });
 
             // If flying, it takes up to 600 ms for the Mounted condition to fade and up to 500 ms more for the Gathering condition to appear.
@@ -72,20 +72,28 @@ namespace GatherBuddy.AutoGather
             GatherBuddy.Log.Debug($"检测到采集点交互错误提示: {text}");
             TaskManager.Abort();
             if (Dalamud.Conditions[ConditionFlag.InFlight])
+            {
                 ForceLandAndDismount();
+            }
             else
+            {
                 TaskManager.DelayNext(400);
+            }
         }
 
         private void EnqueueSpearfishingNodeInteraction(IGameObject gameObject, Classes.Fish targetFish, FishingSpot expectedSpot)
         {
             if (!gameObject.IsTargetable)
+            {
                 return;
+            }
 
             if (!TryGetSpearfishingNodeState(gameObject, out var nodeState)
              || nodeState.RemainingCount == 0
              || !MatchesSpearfishingSpot(expectedSpot, nodeState))
+            {
                 return;
+            }
 
             var gatheringPrerequisites = targetFish.Predators.Any() && !expectedSpot.IsShadowNode;
             var shouldUseCollectorsGlove = !gatheringPrerequisites && targetFish.ItemData.IsCollectable;
@@ -99,10 +107,13 @@ namespace GatherBuddy.AutoGather
 
             TaskManager.Enqueue(() => InteractWithCurrentSpearfishingNode(expectedSpot));
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Gathering], 500);
-            
-            TaskManager.Enqueue(() => {
+
+            TaskManager.Enqueue(() =>
+            {
                 if (!Dalamud.Conditions[ConditionFlag.Gathering])
+                {
                     InteractWithCurrentSpearfishingNode(expectedSpot);
+                }
             });
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Gathering], 500);
         }
@@ -119,11 +130,15 @@ namespace GatherBuddy.AutoGather
                     && !IsVisitedSpearfishingNode(state))
                 .MinBy(candidate => Vector3.Distance(Player.Position, candidate.Position));
             if (gameObject == null || gameObject.Address == nint.Zero)
+            {
                 return;
+            }
 
             var targetSystem = TargetSystem.Instance();
             if (targetSystem == null)
+            {
                 return;
+            }
 
             targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
         }
@@ -134,7 +149,9 @@ namespace GatherBuddy.AutoGather
             {
                 // Since it's possible that we are not gathering the top item in the list,
                 // we need to remember what we are going to gather inside MasterpieceAddon
-                CurrentCollectableRotation = new CollectableRotation(MatchConfigPreset(slot.Item), slot.Item, _activeItemList.FirstOrDefault(x => x.Item == slot.Item).Quantity);
+                CurrentCollectableRotation = new CollectableRotation(MatchConfigPreset(slot.Item), slot.Item,
+                    _activeItemList.FirstOrDefault(x => x.Item == slot.Item).Quantity,
+                    _plugin.AutoGatherListsManager.UsesRetainerInventory(slot.Item));
             }
 
             EnqueueActionWithDelay(slot.Gather);
@@ -157,7 +174,10 @@ namespace GatherBuddy.AutoGather
             System.Diagnostics.Debug.Assert(gatherTarget == default || gatherTarget.Gatherable != null && gatherTarget.Node != null);
 
             if (GatheringWindowReader == null)
+            {
                 throw new InvalidOperationException("GatheringWindowReader 为空");
+            }
+
             var available = GatheringWindowReader.ItemSlots
                 .Where(i => !i.IsEmpty)
                 .Where(CheckItemOvercap)
@@ -177,7 +197,9 @@ namespace GatherBuddy.AutoGather
             {
                 var crystal = GetAnyCrystalInNode();
                 if (crystal != null)
+                {
                     return (true, crystal);
+                }
             }
 
             if (target != null && target.Item.GetTotalCount(_plugin.AutoGatherListsManager.UsesRetainerInventory(gatherTarget.Item)) < gatherTarget.Quantity)
@@ -235,7 +257,9 @@ namespace GatherBuddy.AutoGather
 
             //Check if we should and can abandon the node
             if (GatherBuddy.Config.AutoGatherConfig.AbandonNodes)
+            {
                 throw new NoGatherableItemsInNodeException();
+            }
 
             if (target != null)
             {
@@ -262,26 +286,36 @@ namespace GatherBuddy.AutoGather
         private bool CheckItemOvercap(ItemSlot s)
         {
             if (s.Item == null)
+            {
                 return false;
+            }
             //If it's a treasure map, we can have only one in the inventory
             if (s.Item.IsTreasureMap && GetInventoryItemCount(s.Item.ItemId) != 0)
+            {
                 return false;
+            }
             //If it's a crystal, we can't have more than 9999
             if (s.Item.IsCrystal && GetInventoryItemCount(s.Item.ItemId) > 9999 - s.Yield)
+            {
                 return false;
+            }
+
             return true;
         }
-        
+
         private ItemSlot? GetAnyCrystalInNode()
         {
             if (GatheringWindowReader == null)
+            {
                 throw new InvalidOperationException("GatheringWindowReader 为空");
+            }
+
             return GatheringWindowReader.ItemSlots
                 .Where(s => !s.IsEmpty)
                 .Where(s => s.Item.IsCrystal)
                 .Where(CheckItemOvercap)
                 //Prioritize crystals in the gathering list
-                .GroupJoin(_activeItemList.Where(i => i.Gatherable?.IsCrystal ?? false), s => s.Item, i => i.Item, (s, x) => (Slot: s, Order: x.Any()?1:0))
+                .GroupJoin(_activeItemList.Where(i => i.Gatherable?.IsCrystal ?? false), s => s.Item, i => i.Item, (s, x) => (Slot: s, Order: x.Any() ? 1 : 0))
                 .OrderBy(x => x.Order)
                 //Prioritize crystals with a lower amount in the inventory
                 .ThenBy(x => x.Slot.Item.GetInventoryCount())

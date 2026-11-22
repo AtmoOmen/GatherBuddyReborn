@@ -1,10 +1,7 @@
-using System.Collections.Generic;
-using System.Linq;
-using GatherBuddy.Helpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Plugin;
-using System.Collections.Immutable;
+using System;
 
 namespace GatherBuddy.AutoGather.Extensions;
 
@@ -13,23 +10,17 @@ namespace GatherBuddy.AutoGather.Extensions;
 /// </summary>
 public static class GatherableExtensions
 {
-    private static readonly ImmutableArray<InventoryType> _inventoryTypes =
+    private static readonly uint[] _retainerInventoryTypes =
         [
-            InventoryType.RetainerCrystals,
-            InventoryType.RetainerPage1,
-            InventoryType.RetainerPage2,
-            InventoryType.RetainerPage3,
-            InventoryType.RetainerPage4,
-            InventoryType.RetainerPage5,
-            InventoryType.RetainerPage6,
-            InventoryType.RetainerPage7,
-            InventoryType.Inventory1,
-            InventoryType.Inventory2,
-            InventoryType.Inventory3,
-            InventoryType.Inventory4,
-            InventoryType.Crystals
+            (uint)InventoryType.RetainerCrystals,
+            (uint)InventoryType.RetainerPage1,
+            (uint)InventoryType.RetainerPage2,
+            (uint)InventoryType.RetainerPage3,
+            (uint)InventoryType.RetainerPage4,
+            (uint)InventoryType.RetainerPage5,
+            (uint)InventoryType.RetainerPage6,
+            (uint)InventoryType.RetainerPage7
         ];
-    private static readonly uint[] _inventoryTypesArray = [.. _inventoryTypes.Cast<uint>()];
 
     /// <summary>
     /// Gets the inventory count for a gatherable item.
@@ -43,7 +34,9 @@ public static class GatherableExtensions
         var count = inventory->GetInventoryItemCount(gatherable.ItemId, false, false, false, 0);
 
         if (gatherable.ItemData.IsCollectable)
+        {
             count += inventory->GetInventoryItemCount(gatherable.ItemId, false, false, false, 1);
+        }
 
         return count;
     }
@@ -53,11 +46,25 @@ public static class GatherableExtensions
 
     public static int GetTotalCount(this IGatherable gatherable, bool useRetainerInventory)
     {
-        if (useRetainerInventory && GatherBuddy.Config.AutoGatherConfig.CheckRetainers && AllaganTools.Enabled)
+        var localCount = gatherable.GetInventoryCount();
+        if (!useRetainerInventory || !GatherBuddy.Config.AutoGatherConfig.CheckRetainers || !AllaganTools.Enabled)
         {
-            return (int)AllaganTools.ItemCountOwned(gatherable.ItemId, true, _inventoryTypesArray);
+            return localCount;
         }
 
-        return gatherable.GetInventoryCount();
+        try
+        {
+            if (!AllaganTools.IsInitialized())
+            {
+                return localCount;
+            }
+
+            var retainerCount = AllaganTools.ItemCountOwned(gatherable.ItemId, true, _retainerInventoryTypes);
+            return (int)Math.Min((long)localCount + retainerCount, int.MaxValue);
+        }
+        catch
+        {
+            return localCount;
+        }
     }
 }

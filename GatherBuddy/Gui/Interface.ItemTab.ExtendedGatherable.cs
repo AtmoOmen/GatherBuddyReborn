@@ -1,11 +1,11 @@
-﻿using System;
-using System.Linq;
-using Dalamud.Interface.Textures;
+﻿using Dalamud.Interface.Textures;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GatherBuddy.Classes;
 using GatherBuddy.Enums;
 using GatherBuddy.Interfaces;
 using GatherBuddy.Time;
+using System;
+using System.Linq;
 
 namespace GatherBuddy.Gui;
 
@@ -20,18 +20,18 @@ public partial class Interface
             Ungathered,
             Gathered,
         }
-        public Gatherable              Data;
+        public Gatherable Data;
         public ISharedImmediateTexture Icon;
-        public string                  Territories;
-        public string                  Uptimes;
-        public string                  Folklore;
-        public string                  Level;
-        public string                  NodeNames;
-        public string                  Expansion;
-        public string                  Aetherytes;
-        public LogState                GatheredState;
-        public bool                    Leveling;
-        public bool                    NotTrackedByGatheringLog;
+        public string Territories;
+        public string Uptimes;
+        public string Folklore;
+        public string Level;
+        public string NodeNames;
+        public string Expansion;
+        public string Aetherytes;
+        public LogState GatheredState;
+        public bool Leveling;
+        public bool NotTrackedByGatheringLog;
 
         private bool _gatheredStatusFailureLogged;
 
@@ -45,49 +45,49 @@ public partial class Interface
 
             Territories = string.Join("\n", data.NodeList.Select(n => n.Territory.Name).Distinct());
             if (!Territories.Contains('\n'))
+            {
                 Territories = '\0' + Territories;
+            }
 
             Folklore = data.NodeList.Count == 0 || data.NodeList.Any(n => n.Folklore.Length == 0)
                 ? string.Empty
                 : data.NodeList.First().Folklore;
             Uptimes = data.NodeType switch
             {
-                NodeType.常规 => "常规",
-                NodeType.无 => "未知",
-                _                => data.NodeList.Select(n => n.Times).Aggregate(BitfieldUptime.Combine).PrintHours(true),
+                NodeType.Regular => "常规",
+                NodeType.Unknown => "未知",
+                _ => data.NodeList.Select(n => n.Times).Aggregate(BitfieldUptime.Combine).PrintHours(true),
             };
-            Level     = Data.LevelString();
+            Level = Data.LevelString();
             NodeNames = string.Join("\n", data.NodeList.Select(n => n.Name).Distinct());
             if (!NodeNames.Contains('\n'))
+            {
                 NodeNames = '\0' + NodeNames;
+            }
 
             Expansion = data.ExpansionIdx switch
             {
-                0 => "2.0",
-                1 => "3.0",
-                2 => "4.0",
-                3 => "5.0",
-                4 => "6.0",
-                5 => "7.0",
+                0 => "ARR",
+                1 => "HW",
+                2 => "SB",
+                3 => "ShB",
+                4 => "EW",
+                5 => "DT",
                 _ => "未知",
-
-                /*0 => "重生之境",
-                1 => "苍穹之禁城",
-                2 => "红莲之狂潮",
-                3 => "暗影之逆焰",
-                4 => "晓月之终途",
-                5 => "金曦之遗辉",
-                _ => "未知",*/
             };
             Aetherytes = string.Join("\n",
                 data.NodeList.Where(n => n.ClosestAetheryte != null).Select(n => n.ClosestAetheryte!.Name).Distinct());
             if (!Aetherytes.Contains('\n'))
+            {
                 Aetherytes = '\0' + Aetherytes;
+            }
 
             var levelingStates = data.NodeList.Select(n => n.IsLeveling).Distinct().ToList();
             Leveling = levelingStates.Contains(true);
             if (levelingStates.Count > 1)
+            {
                 GatherBuddy.Log.Debug($"[GatherablesTab] Gatherable {Data.ItemId} has mixed leveling classification across nodes.");
+            }
 
             NotTrackedByGatheringLog = Data.ItemData.IsCollectable
              || Data.ItemData.AlwaysCollectable

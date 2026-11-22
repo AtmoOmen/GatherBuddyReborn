@@ -1,109 +1,106 @@
+using Dalamud.Game;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface;
+using GatherBuddy.Alarms;
+using GatherBuddy.AutoGather.Lists;
+using GatherBuddy.Classes;
+using GatherBuddy.GatherHelper;
+using GatherBuddy.Interfaces;
+using GatherBuddy.Plugin;
+using GatherBuddy.RebornUI.Tables;
+using GatherBuddy.Structs;
+using RebornMaterial;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dalamud.Bindings.ImGui;
-using Dalamud.Game;
-using Dalamud.Game.Text.SeStringHandling;
-using GatherBuddy.Alarms;
-using GatherBuddy.AutoGather.Lists;
-using GatherBuddy.Classes;
-using GatherBuddy.Config;
-using GatherBuddy.GatherHelper;
-using GatherBuddy.Interfaces;
-using GatherBuddy.Plugin;
-using GatherBuddy.Structs;
-using ElliLib.Table;
-using ImRaii  = ElliLib.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
 public partial class Interface
 {
-    private const string AutomaticallyGenerated = "自动生成";
+    private const string AutomaticallyGenerated = "由右键菜单自动生成。";
 
     private void DrawAddAlarm(IGatherable item)
     {
         // Only timed items.
         if (item.InternalLocationId <= 0)
-            return;
-
-        var current = _alarmCache.Selector.EnsureCurrent();
-        if (ImGui.Selectable("添加至闹钟预设"))
         {
-            if (current == null)
-            {
-                _plugin.AlarmManager.AddGroup(new AlarmGroup()
-                {
-                    Description = AutomaticallyGenerated,
-                    Enabled     = true,
-                    Alarms      = new List<Alarm> { new(item) { Enabled = true } },
-                });
-                current = _alarmCache.Selector.EnsureCurrent();
-            }
-            else
-            {
-                _plugin.AlarmManager.AddAlarm(current, new Alarm(item));
-            }
+            return;
         }
 
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(
-                $"添加 {item.Name[GatherBuddy.Language]} 至 {(current == null ? "一个新的闹钟预设" : CheckUnnamed(current.Name))}");
+        var current = _alarmCache.Selector.EnsureCurrent();
+        if (!M3Menu.Item("##addAlarm", "添加到闹钟预设", FontAwesomeIcon.Bell,
+                tooltip: $"将 {item.Name[GatherBuddy.Language]} 添加到{(current == null ? "新的闹钟预设" : CheckUnnamed(current.Name))}。"))
+        {
+            return;
+        }
+
+        if (current == null)
+        {
+            _plugin.AlarmManager.AddGroup(new AlarmGroup()
+            {
+                Description = AutomaticallyGenerated,
+                Enabled = true,
+                Alarms = [new(item) { Enabled = true }],
+            });
+            _alarmCache.Selector.EnsureCurrent();
+        }
+        else
+        {
+            _plugin.AlarmManager.AddAlarm(current, new Alarm(item));
+        }
     }
 
     private void DrawAddToGatherGroup(IGatherable item)
     {
-        var       current = _gatherGroupCache.Selector.EnsureCurrent();
-        using var color   = ImRaii.PushColor(ImGuiCol.Text, ColorId.DisabledText.Value(), current == null);
-        if (ImGui.Selectable("添加至采集列表") && current != null)
-            if (_plugin.GatherGroupManager.ChangeGroupNode(current, current.Nodes.Count, item, null, null, null, false))
-                _plugin.GatherGroupManager.Save();
-
-        color.Pop();
-
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(current == null
-                ? "需要任一采集列表被选中"
-                : $"添加 {item.Name[GatherBuddy.Language]} 至 {current.Name}");
+        var current = _gatherGroupCache.Selector.EnsureCurrent();
+        if (M3Menu.Item("##addGroup", "添加到采集分组", FontAwesomeIcon.LayerGroup, current != null,
+                tooltip: current == null
+                    ? "请先设置并选中一个采集分组。"
+                    : $"将 {item.Name[GatherBuddy.Language]} 添加到 {current.Name}。")
+         && current != null
+         && GatherGroup.GatherGroupManager.ChangeGroupNode(current, current.Nodes.Count, item, null, null, null, false))
+        {
+            _plugin.GatherGroupManager.Save();
+        }
     }
 
     private void DrawAddGatherWindow(IGatherable item)
     {
         var current = _gatherWindowCache.Selector.EnsureCurrent();
-
-        if (ImGui.Selectable("添加至采集窗口预设"))
+        if (!M3Menu.Item("##addWindow", "添加到采集窗口预设", FontAwesomeIcon.ListUl,
+                tooltip: $"将 {item.Name[GatherBuddy.Language]} 添加到{(current == null ? "新的采集窗口预设" : CheckUnnamed(current.Name))}。"))
         {
-            if (current == null)
-                _plugin.GatherWindowManager.AddPreset(new GatherWindowPreset
-                {
-                    Enabled     = true,
-                    Items       = new List<IGatherable> { item },
-                    Description = AutomaticallyGenerated,
-                });
-            else
-                _plugin.GatherWindowManager.AddItem(current, item);
+            return;
         }
 
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(
-                $"添加 {item.Name[GatherBuddy.Language]} 至 {(current == null ? "一个新的采集窗口预设" : CheckUnnamed(current.Name))}");
+        if (current == null)
+        {
+            _plugin.GatherWindowManager.AddPreset(new GatherWindowPreset
+            {
+                Enabled = true,
+                Items = [item],
+                Description = AutomaticallyGenerated,
+            });
+        }
+        else
+        {
+            _plugin.GatherWindowManager.AddItem(current, item);
+        }
     }
 
     private static string TeamCraftAddressEnd(string type, uint id)
     {
         var lang = GatherBuddy.Language switch
         {
-            ClientLanguage.English  => "en",
-            ClientLanguage.German   => "de",
-            ClientLanguage.French   => "fr",
+            ClientLanguage.English => "en",
+            ClientLanguage.German => "de",
+            ClientLanguage.French => "fr",
             ClientLanguage.Japanese => "ja",
-            (ClientLanguage)4 => "cn", // Todo：不知道teamcraft的实际用哪个，需要确认
-            _                       => "cn",
+            _ => "en",
         };
 
         return $"db/{lang}/{type}/{id}";
@@ -112,18 +109,25 @@ public partial class Interface
     private static string TeamCraftAddressEnd(FishingSpot s)
         => s.Spearfishing
             ? TeamCraftAddressEnd("spearfishing-spot", s.SpearfishingSpotData!.Value.GatheringPointBase.RowId)
-            : TeamCraftAddressEnd("fishing-spot",      s.Id);
+            : TeamCraftAddressEnd("fishing-spot", s.Id);
 
     private static string GarlandToolsItemAddress(uint itemId)
         => $"https://www.garlandtools.org/db/#item/{itemId}";
 
+    private static void DrawCreateLink(uint itemId)
+    {
+        if (M3Menu.Item("##link", "在聊天栏发送物品链接", FontAwesomeIcon.Link))
+        {
+            Communicator.Print(SeString.CreateItemLink(itemId));
+        }
+    }
+
     private static void DrawOpenInGarlandTools(uint itemId)
     {
-        if (itemId == 0)
+        if (itemId == 0 || !M3Menu.Item("##garland", "在 GarlandTools 中打开", FontAwesomeIcon.ExternalLinkAlt))
+        {
             return;
-
-        if (!ImGui.Selectable("查询 GarlandTools"))
-            return;
+        }
 
         try
         {
@@ -135,43 +139,59 @@ public partial class Interface
         }
     }
 
-    private static void DrawOpenInTeamCraft(uint itemId)
-    {
-        if (itemId == 0)
-            return;
-
-        if (ImGui.Selectable("在 TeamCraft 中打开 (浏览器)"))
-            OpenInTeamCraftWeb(TeamCraftAddressEnd("item", itemId));
-
-        if (ImGui.Selectable("在 TeamCraft 中打开 (App)"))
-            OpenInTeamCraftLocal(TeamCraftAddressEnd("item", itemId));
-    }
-
     private static void DrawOpenInFFMomola(IGatherable item)
     {
-        if (item.ItemId == 0)
-            return;
-
-        var (location, _) = GatherBuddy.UptimeManager.BestLocation(item);
-        if (location is not FishingSpot spot)
-            return;
-
-        if (ImGui.Selectable("查询鱼糕"))
+        if (item.ItemId == 0 || GatherBuddy.UptimeManager.BestLocation(item).Location is not FishingSpot spot
+         || !M3Menu.Item("##ffmomola", "查询鱼糕", FontAwesomeIcon.ExternalLinkAlt))
         {
-            try
-            {
-                var spotType = spot.Spearfishing ? "spearfishing" : "fishing";
-                var spotId = spot.Spearfishing ? spot.SpearfishingSpotData!.Value.GatheringPointBase.RowId : spot.Id;
-                var url = $"https://fish.ffmomola.com/ng/#/wiki/{spotType}/spot/{spotId}/fish/{item.ItemId}";
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch (Exception e)
-            {
-                GatherBuddy.Log.Error($"无法打开鱼糕:\n{e.Message}");
-            }
+            return;
+        }
+
+        var spotType = spot.SpearfishingSpotData is null ? "fishing" : "spearfishing";
+        var spotId = spot.SpearfishingSpotData?.GatheringPointBase.RowId ?? spot.Id;
+        try
+        {
+            var url = $"https://fish.ffmomola.com/ng/#/wiki/{spotType}/spot/{spotId}/fish/{item.ItemId}";
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception e)
+        {
+            GatherBuddy.Log.Error($"无法打开鱼糕:\n{e.Message}");
         }
     }
 
+    private static void DrawOpenInTeamCraft(uint itemId)
+    {
+        if (itemId == 0)
+        {
+            return;
+        }
+
+        DrawOpenInTeamCraft(TeamCraftAddressEnd("item", itemId));
+    }
+
+    private static void DrawOpenInTeamCraft(FishingSpot fs)
+    {
+        if (fs.Id == 0)
+        {
+            return;
+        }
+
+        DrawOpenInTeamCraft(TeamCraftAddressEnd(fs));
+    }
+
+    private static void DrawOpenInTeamCraft(string addressEnd)
+    {
+        if (M3Menu.Item("##tcWeb", "在浏览器中打开 TeamCraft", FontAwesomeIcon.Globe))
+        {
+            OpenInTeamCraftWeb(addressEnd);
+        }
+
+        if (M3Menu.Item("##tcApp", "在 TeamCraft 应用中打开", FontAwesomeIcon.Desktop))
+        {
+            OpenInTeamCraftLocal(addressEnd);
+        }
+    }
 
     private static void OpenInTeamCraftWeb(string addressEnd)
     {
@@ -187,7 +207,7 @@ public partial class Interface
         {
             try
             {
-                using var request  = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:14500/{addressEnd}");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:14500/{addressEnd}");
                 using var response = GatherBuddy.HttpClient.Send(request);
             }
             catch
@@ -195,10 +215,12 @@ public partial class Interface
                 try
                 {
                     if (Directory.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ffxiv-teamcraft")))
+                    {
                         Process.Start(new ProcessStartInfo($"teamcraft:///{addressEnd}")
                         {
                             UseShellExecute = true,
                         });
+                    }
                 }
                 catch
                 {
@@ -208,36 +230,24 @@ public partial class Interface
         });
     }
 
-    private static void DrawOpenInTeamCraft(FishingSpot fs)
-    {
-        if (fs.Id == 0)
-            return;
-
-        if (ImGui.Selectable("在 TeamCraft 中打开 (浏览器)"))
-            OpenInTeamCraftWeb(TeamCraftAddressEnd(fs));
-
-        if (ImGui.Selectable("在 TeamCraft 中打开 (App)"))
-            OpenInTeamCraftLocal(TeamCraftAddressEnd(fs));
-    }
-
     public void CreateContextMenu(IGatherable item)
     {
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            ImGui.OpenPopup(item.Name[GatherBuddy.Language]);
-
-        using var popup = ImRaii.Popup(item.Name[GatherBuddy.Language]);
-        if (!popup)
+        using var menu = M3Menu.BeginContext(item.Name[GatherBuddy.Language]);
+        if (!menu.IsOpen)
+        {
             return;
+        }
 
+        M3Menu.Heading(item.Name[GatherBuddy.Language]);
         DrawAddAlarm(item);
         DrawAddToGatherGroup(item);
         DrawAddGatherWindow(item);
         DrawAddToAutoGather(item);
-        if (ImGui.Selectable("创建物品链接"))
-            Communicator.Print(SeString.CreateItemLink(item.ItemId));
-        DrawOpenInFFMomola(item);
+        M3Menu.Divider();
+        DrawCreateLink(item.ItemId);
         DrawOpenInGarlandTools(item.ItemId);
         DrawOpenInTeamCraft(item.ItemId);
+        DrawOpenInFFMomola(item);
     }
 
     private const string PresetName = "来自可采集物品列表";
@@ -245,69 +255,84 @@ public partial class Interface
     private void DrawAddToAutoGather(IGatherable item)
     {
         var current = _autoGatherListsCache.Selector.Selected;
-
-        if (ImGui.Selectable("添加至自动采集列表"))
+        if (!M3Menu.Item("##addAutoGather", "添加到自动采集清单", FontAwesomeIcon.Robot,
+                tooltip: $"将 {item.Name[GatherBuddy.Language]} 添加到{(current == null ? "新的自动采集清单" : CheckUnnamed(current.Name))}。"))
         {
-            if (current == null)
-                CreateAndAddPreset(item);
-            else
-                _plugin.AutoGatherListsManager.AddItem(current, item);
+            return;
         }
 
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(
-                $"添加 {item.Name[GatherBuddy.Language]} 至 {(current == null ? "添加" : CheckUnnamed(current.Name))}");
+        if (current == null)
+        {
+            CreateAndAddPreset(item);
+        }
+        else
+        {
+            _plugin.AutoGatherListsManager.AddItem(current, item);
+        }
     }
 
-    private void DrawAddAllFilteredToAutoGather<T>(Table<T> table, Func<T, IGatherable> selector, string label)
+    private static bool DrawAddAllFilteredToAutoGather<T>(Table<T> table, Func<T, IGatherable> selector, string label)
     {
-        var lists = _plugin.AutoGatherListsManager.Lists.ToList();
+        var lists = new List<AutoGatherList>(_plugin.AutoGatherListsManager.Lists);
         if (lists.Count == 0)
-            return;
+        {
+            return false;
+        }
 
         var popupId = $"##AddAllFiltered{label}Popup";
-        if (ImGui.Button($"将筛选出的{label}加入自动采集列表..."))
-            ImGui.OpenPopup(popupId);
-
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"将当前可见的所有{label}加入选择的自动采集列表\n"
-              + "列表中已存在的物品会被跳过");
-
-        using var popup = ImRaii.Popup(popupId);
-        if (!popup)
-            return;
-
-        foreach (var list in lists)
+        var itemType = label == "Fish" ? "鱼类" : "采集物品";
+        if (M3Widgets.Button($"##addAllFiltered{label}", $"将筛选出的{itemType}加入清单", M3ButtonStyle.Tonal, FontAwesomeIcon.Robot,
+                enabled: table.CurrentItems > 0,
+                tooltip: $"将当前显示的所有{itemType}加入自动采集清单。\n清单中已有的物品会被跳过。"))
         {
-            if (!ImGui.Selectable(CheckUnnamed(list.Name)))
+            M3Menu.Open(popupId);
+        }
+
+        using var menu = M3Menu.Begin(popupId);
+        if (!menu.IsOpen)
+        {
+            return true;
+        }
+
+        M3Menu.Heading("添加到自动采集清单");
+        for (var index = 0; index < lists.Count; ++index)
+        {
+            var list = lists[index];
+            if (!M3Menu.Item($"##list{index}", CheckUnnamed(list.Name), list.Enabled ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.Circle))
+            {
                 continue;
+            }
 
             var added = 0;
             foreach (var (row, _) in table.GetFilteredItems())
             {
                 var item = selector(row);
-                if (!item.Locations.Any())
-                    continue;
-
-                if (list.Add(item))
+                if (item.Locations.Count > 0 && list.Add(item))
+                {
                     added++;
+                }
             }
 
             _plugin.AutoGatherListsManager.Save();
             if (list.Enabled)
+            {
                 _plugin.AutoGatherListsManager.SetActiveItems();
+            }
 
-            GatherBuddy.Log.Information($"[GatherUI] 已将 {added} 个{label}加入自动采集列表 '{list.Name}'");
+            GatherBuddy.Log.Information($"[GatherUI] Added {added} {label.ToLowerInvariant()} to auto-gather list '{list.Name}'.");
+            M3Snackbar.Show($"已将 {added} 项添加到 {CheckUnnamed(list.Name)}。");
         }
+
+        return true;
     }
 
     private static AutoGatherList CreateAndAddPreset(IGatherable item)
     {
         var preset = new AutoGatherList
         {
-            Enabled     = true,
+            Enabled = true,
             Description = AutomaticallyGenerated,
-            Name        = PresetName
+            Name = PresetName
         };
         preset.Add(item);
         _plugin.AutoGatherListsManager.AddList(preset);
@@ -318,14 +343,17 @@ public partial class Interface
     public static void CreateGatherWindowContextMenu(IGatherable item, bool clicked)
     {
         if (clicked)
-            ImGui.OpenPopup(item.Name[GatherBuddy.Language]);
+        {
+            M3Menu.Open(item.Name[GatherBuddy.Language]);
+        }
 
-        using var popup = ImRaii.Popup(item.Name[GatherBuddy.Language]);
-        if (!popup)
+        using var menu = M3Menu.Begin(item.Name[GatherBuddy.Language]);
+        if (!menu.IsOpen)
+        {
             return;
+        }
 
-        if (ImGui.Selectable("创建物品链接"))
-            Communicator.Print(SeString.CreateItemLink(item.ItemId));
+        DrawCreateLink(item.ItemId);
         DrawOpenInGarlandTools(item.ItemId);
         DrawOpenInTeamCraft(item.ItemId);
     }
@@ -333,17 +361,17 @@ public partial class Interface
     public static void CreateContextMenu(Bait bait)
     {
         if (bait.Id == 0)
+        {
             return;
+        }
 
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            ImGui.OpenPopup(bait.Name);
-
-        using var popup = ImRaii.Popup(bait.Name);
-        if (!popup)
+        using var menu = M3Menu.BeginContext(bait.Name);
+        if (!menu.IsOpen)
+        {
             return;
+        }
 
-        if (ImGui.Selectable("创建物品链接"))
-            Communicator.Print(SeString.CreateItemLink(bait.Id));
+        DrawCreateLink(bait.Id);
         DrawOpenInGarlandTools(bait.Id);
         DrawOpenInTeamCraft(bait.Id);
     }
@@ -351,14 +379,15 @@ public partial class Interface
     public static void CreateContextMenu(FishingSpot? spot)
     {
         if (spot == null)
+        {
             return;
+        }
 
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            ImGui.OpenPopup(spot.Name);
-
-        using var popup = ImRaii.Popup(spot.Name);
-        if (!popup)
+        using var menu = M3Menu.BeginContext(spot.Name);
+        if (!menu.IsOpen)
+        {
             return;
+        }
 
         DrawOpenInTeamCraft(spot);
     }

@@ -1,135 +1,105 @@
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using GatherBuddy.Marketboard;
+using GatherBuddy.RebornUI;
+using RebornMaterial;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
-using Dalamud.Interface.Textures;
-using ElliLib;
-using ElliLib.Raii;
-using GatherBuddy.Marketboard;
-using ImRaii = ElliLib.Raii.ImRaii;
+using ImRaii = Dalamud.Interface.Utility.Raii.ImRaii;
 
 namespace GatherBuddy.Gui;
 
 public partial class VulcanWindow
 {
-    private uint         _mbSelectedItemId    = 0;
-    private uint         _mbDetailLastItemId  = 0;
-    private int          _mbDetailScopeIndex  = 0;
-    private bool         _mbRequestFocus      = false;
-    private List<uint>   _mbHistorySnapshot   = new();
-    private List<uint>   _mbFilteredSnapshot  = new();
-    private string       _mbSearch            = string.Empty;
-    private bool         _mbFilterDirty       = true;
-    private DateTime     _mbHistoryRefresh    = DateTime.MinValue;
-    private List<string> _mbScopeOptions      = new();
-    private List<bool>   _mbScopeIsDc         = new();
-    private DateTime     _mbScopeRefresh      = DateTime.MinValue;
+    private uint _mbSelectedItemId = 0;
+    private uint _mbDetailLastItemId = 0;
+    private int _mbDetailScopeIndex = 0;
+    private bool _mbRequestFocus = false;
+    private List<uint> _mbHistorySnapshot = [];
+    private List<uint> _mbFilteredSnapshot = [];
+    private string _mbSearch = string.Empty;
+    private bool _mbFilterDirty = true;
+    private DateTime _mbHistoryRefresh = DateTime.MinValue;
+    private List<string> _mbScopeOptions = [];
+    private List<bool> _mbScopeIsDc = [];
+    private DateTime _mbScopeRefresh = DateTime.MinValue;
 
-    private void DrawMarketboardTab()
+    private void DrawMarketboardPage()
     {
-        IDisposable tabItem;
-        bool        tabOpen;
-
-        if (GatherBuddy.ControllerSupport != null && !_mbRequestFocus)
+        var svc = GatherBuddy.MarketboardService;
+        if (svc == null)
         {
-            var handle = GatherBuddy.ControllerSupport.TabNavigation.TabItem("市场板##marketboardTab", 8, 9);
-            tabItem = handle;
-            tabOpen = handle;
-        }
-        else
-        {
-            ImRaii.IEndObject handle;
-            if (_mbRequestFocus)
-            {
-                bool dummy = true;
-                handle = ImRaii.TabItem("市场板##marketboardTab", ref dummy, ImGuiTabItemFlags.SetSelected);
-            }
-            else
-            {
-                handle = ImRaii.TabItem("市场板##marketboardTab");
-            }
-            tabItem = handle;
-            tabOpen = handle.Success;
-            if (tabOpen) _mbRequestFocus = false;
+            M3Widgets.EmptyState("##mbUnavailable", "市场板服务不可用", "市场板服务未能启动。", FontAwesomeIcon.ChartLine);
+            return;
         }
 
-        using (tabItem)
+        if ((DateTime.UtcNow - _mbHistoryRefresh).TotalSeconds > 0.5)
         {
-            if (!tabOpen)
-                return;
+            _mbHistorySnapshot = svc.GetHistorySnapshot();
+            _mbHistoryRefresh = DateTime.UtcNow;
+            _mbFilterDirty = true;
+        }
 
-            var svc = GatherBuddy.MarketboardService;
-            if (svc == null)
+        if ((DateTime.UtcNow - _mbScopeRefresh).TotalMinutes > 5 || _mbScopeOptions.Count == 0)
+        {
+            RefreshScopeOptions(svc);
+        }
+
+        if (M3Widgets.Button("##mbRefreshAll", "全部刷新", M3ButtonStyle.Tonal, FontAwesomeIcon.Sync, enabled: _mbHistorySnapshot.Count > 0,
+                tooltip: "Look up the prices of every item in the history again."))
+        {
+            svc.RefreshAll();
+        }
+
+        ImGui.SameLine(0, M3.Space2);
+        if (M3Widgets.Button("##mbClear", "清除历史", M3ButtonStyle.Text, FontAwesomeIcon.Trash, enabled: _mbHistorySnapshot.Count > 0))
+        {
+            svc.Clear();
+            _mbSelectedItemId = 0;
+            _mbDetailLastItemId = 0;
+            _mbDetailScopeIndex = 0;
+            _mbHistorySnapshot = [];
+            _mbFilteredSnapshot = [];
+        }
+
+        ImGui.Dummy(new Vector2(0, M3.Space1));
+        var avail = ImGui.GetContentRegionAvail();
+        var leftWidth = VulcanUiScaling.Scaled(290f);
+        using (var left = M3Panel.Begin("##mbLeftPanel", new Vector2(leftWidth, avail.Y), false, VulcanUiStyle.PanelBackground))
+        {
+            if (left)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "市场板服务不可用");
-                return;
-            }
-
-            if ((DateTime.UtcNow - _mbHistoryRefresh).TotalSeconds > 0.5)
-            {
-                _mbHistorySnapshot = svc.GetHistorySnapshot();
-                _mbHistoryRefresh  = DateTime.UtcNow;
-                _mbFilterDirty     = true;
-            }
-
-            if ((DateTime.UtcNow - _mbScopeRefresh).TotalMinutes > 5 || _mbScopeOptions.Count == 0)
-                RefreshScopeOptions(svc);
-
-            if (ImGui.SmallButton("全部清空##mbclear"))
-            {
-                svc.Clear();
-                _mbSelectedItemId   = 0;
-                _mbDetailLastItemId = 0;
-                _mbDetailScopeIndex = 0;
-                _mbHistorySnapshot  = new();
-                _mbFilteredSnapshot = new();
-            }
-            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
-            if (ImGui.SmallButton("全部刷新##mbrefreshall"))
-                svc.RefreshAll();
-
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            var avail     = ImGui.GetContentRegionAvail();
-            var leftWidth = VulcanUiScaling.Scaled(270f);
-
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
-            {
-                ImGui.BeginChild("##mbLeftPanel", new Vector2(leftWidth, avail.Y), true);
                 DrawMarketboardHistoryList(svc);
-                ImGui.EndChild();
             }
+        }
 
-            ImGui.SameLine();
-
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.10f, 1.00f)))
-            {
-                ImGui.BeginChild("##mbRightPanel", new Vector2(0, avail.Y), true);
-                DrawMarketboardDetail(svc);
-                ImGui.EndChild();
-            }
+        ImGui.SameLine(0, M3.Space2);
+        using var right = M3Panel.Begin("##mbRightPanel", new Vector2(0, avail.Y));
+        if (right)
+        {
+            DrawMarketboardDetail(svc);
         }
     }
-
     private void RefreshScopeOptions(MarketboardService svc)
     {
-        var dc       = svc.GetDataCenter();
-        var worlds   = svc.GetDcWorlds();
+        var dc = MarketboardService.GetDataCenter();
+        var worlds = MarketboardService.GetDcWorlds();
         var otherDcs = svc.GetOtherDcs();
 
         var opts = new List<string>(1 + worlds.Count + otherDcs.Count);
         var isDc = new List<bool>(opts.Capacity);
 
-        if (!string.IsNullOrEmpty(dc)) { opts.Add(dc); isDc.Add(true); }
-        foreach (var w in worlds)      { opts.Add(w);  isDc.Add(false); }
-        foreach (var d in otherDcs)    { opts.Add(d);  isDc.Add(true); }
+        if (!string.IsNullOrEmpty(dc))
+        { opts.Add(dc); isDc.Add(true); }
+        foreach (var w in worlds)
+        { opts.Add(w); isDc.Add(false); }
+        foreach (var d in otherDcs)
+        { opts.Add(d); isDc.Add(true); }
 
         _mbScopeOptions = opts;
-        _mbScopeIsDc    = isDc;
+        _mbScopeIsDc = isDc;
         _mbScopeRefresh = DateTime.UtcNow;
     }
 
@@ -138,287 +108,235 @@ public partial class VulcanWindow
         _mbFilterDirty = false;
         if (string.IsNullOrWhiteSpace(_mbSearch))
         {
-            _mbFilteredSnapshot = new List<uint>(_mbHistorySnapshot);
+            _mbFilteredSnapshot = [with(_mbHistorySnapshot)];
             return;
         }
         var search = _mbSearch;
-        _mbFilteredSnapshot = _mbHistorySnapshot
-            .Where(id => svc.GetItemName(id).Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        _mbFilteredSnapshot = _mbHistorySnapshot.FindAll(id => svc.GetItemName(id).Contains(search, StringComparison.OrdinalIgnoreCase));
     }
 
     private void DrawMarketboardHistoryList(MarketboardService svc)
     {
-        ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextWithHint("##mbsearch", "搜索...", ref _mbSearch, 128))
+        if (M3Widgets.SearchField("##mbsearch", "搜索", ref _mbSearch, ImGui.GetContentRegionAvail().X))
+        {
             _mbFilterDirty = true;
+        }
 
-        ImGui.Spacing();
-
+        ImGui.Dummy(new Vector2(0, M3.Space1));
         if (_mbHistorySnapshot.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "还没有任何查询");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "在材料窗口中右键物品");
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "即可查询市场板");
+            M3Widgets.EmptyState("##mbEmpty", "还没有查询记录", "右键点击材料窗口中的物品即可查询价格。",
+                FontAwesomeIcon.Search);
             return;
         }
 
-        if (_mbFilterDirty) UpdateFilteredHistory(svc);
+        if (_mbFilterDirty)
+        {
+            UpdateFilteredHistory(svc);
+        }
 
         if (_mbFilteredSnapshot.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有符合搜索条件的结果");
+            M3Text.Draw("没有符合搜索条件的物品。", M3TextStyle.Faint);
             return;
         }
 
-        var iconSize   = VulcanUiScaling.Scaled(28f, 28f);
-        var itemHeight = iconSize.Y + ImGui.GetStyle().ItemSpacing.Y;
-        var maxX       = ImGui.GetContentRegionMax().X;
-        var dcScope    = _mbScopeOptions.Count > 0 ? _mbScopeOptions[0] : svc.GetDataCenter();
-        var spacing    = ImGui.GetStyle().ItemSpacing.X;
-
-        ImGuiClip.ClippedDraw(_mbFilteredSnapshot, itemId =>
+        var iconSize = VulcanUiScaling.Scaled(28f);
+        var dcScope = _mbScopeOptions.Count > 0 ? _mbScopeOptions[0] : MarketboardService.GetDataCenter();
+        using var rows = ImRaii.Child("##mbRows", new Vector2(-1, -1));
+        if (!rows)
         {
-            var name      = svc.GetItemName(itemId);
-            var iconId    = svc.GetItemIcon(itemId);
-            var pending   = svc.IsPending(itemId, dcScope);
-            var hasErr    = svc.HasError(itemId, dcScope);
-            var data      = svc.GetCached(itemId, dcScope);
-            var isSelected = _mbSelectedItemId == itemId;
+            return;
+        }
 
-            if (iconId > 0)
-            {
-                var wrap = Icons.DefaultStorage.TextureProvider
-                    .GetFromGameIcon(new GameIconLookup(iconId))
-                    .GetWrapOrDefault();
-                if (wrap != null)
-                    ImGui.Image(wrap.Handle, iconSize);
-                else
-                    ImGui.Dummy(iconSize);
-            }
-            else
-            {
-                ImGui.Dummy(iconSize);
-            }
+        Ui.ClippedDraw(_mbFilteredSnapshot, itemId =>
+        {
+            var name = svc.GetItemName(itemId);
+            var data = svc.GetCached(itemId, dcScope);
+            var (status, statusColor) = svc.IsPending(itemId, dcScope)
+                ? ("...", M3.Scheme.Warning)
+                : svc.HasError(itemId, dcScope) || data == null
+                    ? ("N/A", M3Text.ColorOf(M3TextStyle.Faint))
+                    : ($"{data.MinPrice:N0}g", M3.Scheme.Success);
 
-            ImGui.SameLine(0, VulcanUiScaling.Scaled(6f));
-            var textRowY = ImGui.GetCursorPosY() + (iconSize.Y - ImGui.GetTextLineHeight()) / 2f;
-            ImGui.SetCursorPosY(textRowY);
-
-            string statusLabel;
-            Vector4 statusColor;
-            if (pending)
+            if (Ui.IconListRow($"##mb_{itemId}", svc.GetItemIcon(itemId), name, _mbSelectedItemId == itemId, iconSize, status, statusColor))
             {
-                statusLabel = " [...]";
-                statusColor = ImGuiColors.DalamudOrange;
-            }
-            else if (hasErr || data == null)
-            {
-                statusLabel = " [无数据]";
-                statusColor = ImGuiColors.DalamudGrey;
-            }
-            else
-            {
-                statusLabel = $"  {data.MinPrice:N0} 金币";
-                statusColor = new Vector4(0.4f, 1f, 0.4f, 1f);
-            }
-
-            var statusW = ImGui.CalcTextSize(statusLabel).X + spacing;
-            if (ImGui.Selectable($"{name}##mb_{itemId}", isSelected, ImGuiSelectableFlags.None,
-                    new Vector2(maxX - ImGui.GetCursorPosX() - statusW, 0)))
                 _mbSelectedItemId = itemId;
-
-            var isCtxOpen = GatherBuddy.ControllerSupport != null
-                ? GatherBuddy.ControllerSupport.ContextMenu.BeginPopupContextItemWithGamepad($"##mbctx_{itemId}", Dalamud.GamepadState)
-                : ImGui.BeginPopupContextItem($"##mbctx_{itemId}");
-            if (isCtxOpen)
-            {
-                if (ImGui.Selectable("从历史记录中移除"))
-                {
-                    svc.RemoveFromHistory(itemId);
-                    if (_mbSelectedItemId == itemId) { _mbSelectedItemId = 0; _mbDetailLastItemId = 0; }
-                    _mbHistorySnapshot.Remove(itemId);
-                    _mbFilterDirty = true;
-                }
-                ImGui.EndPopup();
             }
 
-            ImGui.SameLine(0, spacing);
-            ImGui.SetCursorPosY(textRowY);
-            ImGui.TextColored(statusColor, statusLabel);
-        }, itemHeight);
+            using var menu = M3Menu.BeginContext($"##mbctx_{itemId}");
+            if (menu.IsOpen && M3Menu.Item("##remove", "从历史记录中移除", FontAwesomeIcon.Trash))
+            {
+                svc.RemoveFromHistory(itemId);
+                if (_mbSelectedItemId == itemId)
+                {
+                    _mbSelectedItemId = 0;
+                    _mbDetailLastItemId = 0;
+                }
+
+                _mbHistorySnapshot.Remove(itemId);
+                _mbFilterDirty = true;
+            }
+        }, iconSize + M3.Space2 + ImGui.GetStyle().ItemSpacing.Y);
     }
 
     private void DrawMarketboardDetail(MarketboardService svc)
     {
         if (_mbSelectedItemId == 0)
         {
-            var h = ImGui.GetContentRegionAvail().Y;
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + h / 2f - ImGui.GetTextLineHeight());
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + VulcanUiScaling.Scaled(8f));
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "选择一个物品查看价格信息");
+            M3Widgets.EmptyState("##mbNoItem", "未选择物品", "在左侧选择物品查看价格。", FontAwesomeIcon.ChartLine);
             return;
         }
 
         var itemId = _mbSelectedItemId;
-
         if (itemId != _mbDetailLastItemId)
         {
             _mbDetailLastItemId = itemId;
             _mbDetailScopeIndex = 0;
         }
 
-        var scope     = _mbScopeOptions.Count > _mbDetailScopeIndex ? _mbScopeOptions[_mbDetailScopeIndex] : svc.GetDataCenter();
+        var scope = _mbScopeOptions.Count > _mbDetailScopeIndex ? _mbScopeOptions[_mbDetailScopeIndex] : MarketboardService.GetDataCenter();
         var isDcScope = _mbDetailScopeIndex < _mbScopeIsDc.Count && _mbScopeIsDc[_mbDetailScopeIndex];
+        var name = svc.GetItemName(itemId);
+        var iconId = svc.GetItemIcon(itemId);
+        var data = svc.GetCached(itemId, scope);
 
-        var name    = svc.GetItemName(itemId);
-        var iconId  = svc.GetItemIcon(itemId);
-        var pending = svc.IsPending(itemId, scope);
-        var hasErr  = svc.HasError(itemId, scope);
-        var data    = svc.GetCached(itemId, scope);
-
-        var largeIcon = VulcanUiScaling.Scaled(48f, 48f);
-
+        var largeIcon = VulcanUiScaling.Scaled(48f);
+        var start = ImGui.GetCursorScreenPos();
         if (iconId > 0)
         {
-            var wrap = Icons.DefaultStorage.TextureProvider
-                .GetFromGameIcon(new GameIconLookup(iconId))
-                .GetWrapOrDefault();
-            if (wrap != null)
-            {
-                ImGui.Image(wrap.Handle, largeIcon);
-                ImGui.SameLine(0, VulcanUiScaling.Scaled(10f));
-            }
+            M3Widgets.GameIcon(iconId, largeIcon);
+            ImGui.SameLine(0, M3.Space3);
         }
 
-        var lineH = ImGui.GetTextLineHeightWithSpacing();
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (largeIcon.Y - lineH * 2f) / 2f);
-        ImGui.TextColored(ImGuiColors.ParsedGold, name);
-
-        var currentScopeLabel = (isDcScope ? $"数据中心: " : string.Empty) + scope;
-        ImGui.SetNextItemWidth(VulcanUiScaling.Scaled(160f));
-        if (ImGui.BeginCombo("##mbdetailscope", currentScopeLabel))
+        using (ImRaii.Group())
         {
-            for (var i = 0; i < _mbScopeOptions.Count; i++)
+            ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, start.Y + (largeIcon - M3.FitText(19f, 0f)) * 0.5f));
+            using (ImRaii.PushFont(M3.TitleMedium))
             {
-                var isdc = i < _mbScopeIsDc.Count && _mbScopeIsDc[i];
-                var lbl  = isdc ? $"数据中心: {_mbScopeOptions[i]}" : _mbScopeOptions[i];
-                if (ImGui.Selectable(lbl, _mbDetailScopeIndex == i) && _mbDetailScopeIndex != i)
-                {
-                    _mbDetailScopeIndex = i;
-                    svc.QueueLookup(itemId, name, iconId, _mbScopeOptions[i]);
-                }
+                ImGui.TextUnformatted(name);
             }
-            ImGui.EndCombo();
         }
 
-        ImGui.SameLine(0, VulcanUiScaling.Scaled(8f));
-        if (ImGui.SmallButton("刷新##mbrefresh"))
+        ImGui.Dummy(new Vector2(0, M3.Space2));
+        var scopeIndex = _mbDetailScopeIndex;
+        var row = new Ui.Row(M3Widgets.ComboHeight);
+        if (M3Widgets.Combo("##mbdetailscope", ref scopeIndex, _mbScopeOptions.Count,
+                i => i < _mbScopeIsDc.Count && _mbScopeIsDc[i] ? $"Data center: {_mbScopeOptions[i]}" : _mbScopeOptions[i], VulcanUiScaling.Scaled(220f),
+                (isDcScope ? "Data center: " : string.Empty) + scope)
+         && scopeIndex != _mbDetailScopeIndex)
+        {
+            _mbDetailScopeIndex = scopeIndex;
+            svc.QueueLookup(itemId, name, iconId, _mbScopeOptions[scopeIndex]);
+        }
+
+        row.Next(M3Widgets.IconButtonSize, M3.Space2);
+        if (M3Widgets.IconButton("##mbrefresh", FontAwesomeIcon.Sync, "重新查询价格"))
+        {
             svc.ForceRefresh(itemId, scope);
-        ImGui.SameLine(0, VulcanUiScaling.Scaled(4f));
-        if (ImGui.SmallButton("Universalis##mbweb"))
-        {
-            try { Process.Start(new ProcessStartInfo($"https://universalis.app/market/{itemId}") { UseShellExecute = true }); }
-            catch (Exception ex) { GatherBuddy.Log.Warning($"[市场板] 打开 Universalis 失败: {ex.Message}"); }
         }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"打开 https://universalis.app/market/{itemId}");
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        if (pending)
+        row.Next(M3Widgets.IconButtonSize, M3.Space1);
+        if (M3Widgets.IconButton("##mbweb", FontAwesomeIcon.ExternalLinkAlt, $"打开 https://universalis.app/market/{itemId}"))
         {
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "正在获取市场数据...");
+            try
+            {
+                Process.Start(new ProcessStartInfo($"https://universalis.app/market/{itemId}") { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                GatherBuddy.Log.Warning($"[Marketboard] Failed to open Universalis URL: {ex.Message}");
+            }
+        }
+
+        ImGui.Dummy(new Vector2(0, M3.Space2));
+        if (svc.IsPending(itemId, scope))
+        {
+            M3Widgets.LinearProgressIndeterminate(new Vector2(ImGui.GetContentRegionAvail().X, 4f * M3.Scale));
+            M3Text.Draw("正在获取市场数据…", M3TextStyle.Muted);
             return;
         }
 
-        if (hasErr || data == null)
+        if (svc.HasError(itemId, scope) || data == null)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "没有可用的市场数据");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "物品可能不可交易,");
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, "或请求失败");
+            M3Widgets.Banner("##mbNoData", "没有市场数据：物品可能不可交易，或请求未成功。", M3Severity.Warning,
+                FontAwesomeIcon.ExclamationTriangle);
+            return;
         }
-        else
-        {
-            DrawListingTable(data.Listings, isDcScope);
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            var fetchTime = svc.GetFetchTime(itemId, scope);
-            var age       = DateTime.UtcNow - fetchTime;
-            var ageText   = age.TotalSeconds < 60 ? "刚刚更新"
-                : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} 分钟前"
-                : $"{(int)age.TotalHours} 小时前";
-
-            ImGui.TextColored(ImGuiColors.DalamudGrey3, $"更新时间: {ageText}");
-        }
+        DrawListingTable(data.Listings, isDcScope);
+        var age = DateTime.UtcNow - svc.GetFetchTime(itemId, scope);
+        var ageText = age.TotalSeconds < 60 ? "刚刚更新"
+            : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} minutes ago"
+            : $"{(int)age.TotalHours} hours ago";
+        ImGui.Dummy(new Vector2(0, M3.Space1));
+        M3Text.Draw($"Updated {ageText}", M3TextStyle.Faint);
     }
-
-    private static readonly Vector4 ColGold  = new(1.00f, 0.85f, 0.30f, 1f);
-    private static readonly Vector4 ColWhite = new(1.00f, 1.00f, 1.00f, 1f);
-    private static readonly Vector4 ColBlue  = new(0.50f, 0.85f, 1.00f, 1f);
-    private static readonly Vector4 ColGrey  = ImGuiColors.DalamudGrey3;
 
     private static void DrawListingTable(List<MarketListing> listings, bool showWorld)
     {
-        var nq = new List<MarketListing>();
+        var nq = new List<MarketListing>(listings.Count);
         var hq = new List<MarketListing>();
-        foreach (var l in listings)
+        foreach (var listing in listings)
         {
-            if (l.IsHq) hq.Add(l);
-            else        nq.Add(l);
+            (listing.IsHq ? hq : nq).Add(listing);
         }
 
-        var maxNq = hq.Count > 0 ? 10 : 20;
-        DrawListingSection("NQ", nq, maxNq, showWorld, ColWhite);
+        DrawListingSection("Normal quality", nq, hq.Count > 0 ? 10 : 20, showWorld, M3.Scheme.OnSurface);
         if (hq.Count > 0)
         {
-            ImGui.Spacing();
-            DrawListingSection("HQ", hq, 10, showWorld, ColBlue);
+            DrawListingSection("High quality", hq, 10, showWorld, M3.Scheme.Info);
         }
     }
 
     private static void DrawListingSection(string label, List<MarketListing> items, int maxCount, bool showWorld, Vector4 priceColor)
     {
-        ImGui.TextColored(ColGrey, label);
-        ImGui.Separator();
-
+        M3Widgets.SectionLabel(label);
         if (items.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "  暂无上架记录");
+            M3Text.Draw("暂无挂单。", M3TextStyle.Faint);
             return;
         }
 
-        var colCount   = showWorld ? 3 : 2;
-        var tableFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg;
-        if (!ImGui.BeginTable($"##mb{label}tbl", colCount, tableFlags, new Vector2(-1, 0)))
+        using var style = M3Table.PushStyle();
+        using var table = ImRaii.Table($"##mb{label}tbl", showWorld ? 3 : 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.PadOuterX,
+            new Vector2(-1, 0));
+        if (!table)
+        {
             return;
+        }
 
-        ImGui.TableSetupColumn("价格", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(120f));
-        ImGui.TableSetupColumn("数量", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(55f));
+        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(130f));
+        ImGui.TableSetupColumn("Quantity", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(70f));
         if (showWorld)
-            ImGui.TableSetupColumn("服务器", ImGuiTableColumnFlags.WidthStretch, 1f);
-        ImGui.TableHeadersRow();
+        {
+            ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthStretch, 1f);
+        }
+
+        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        ImGui.TableNextColumn();
+        M3Table.Header("价格", center: false);
+        ImGui.TableNextColumn();
+        M3Table.Header("Quantity", center: false);
+        if (showWorld)
+        {
+            ImGui.TableNextColumn();
+            M3Table.Header("服务器", center: false);
+        }
 
         var count = Math.Min(items.Count, maxCount);
         for (var i = 0; i < count; i++)
         {
             var l = items[i];
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-            ImGui.TextColored(i == 0 ? ColGold : priceColor, $"{l.PricePerUnit:N0} 金币");
-            ImGui.TableSetColumnIndex(1);
-            ImGui.TextColored(ColGrey, $"\u00d7{l.Quantity}");
+            ImGui.TableNextColumn();
+            Ui.Text($"{l.PricePerUnit:N0} 金币", i == 0 ? M3.Scheme.Tertiary : priceColor);
+            ImGui.TableNextColumn();
+            Ui.Text($"×{l.Quantity}", M3.Scheme.OnSurfaceVariant);
             if (showWorld)
             {
-                ImGui.TableSetColumnIndex(2);
-                ImGui.TextColored(ColGrey, l.WorldName);
+                ImGui.TableNextColumn();
+                Ui.Text(l.WorldName, M3.Scheme.OnSurfaceVariant);
             }
         }
-
-        ImGui.EndTable();
     }
 }

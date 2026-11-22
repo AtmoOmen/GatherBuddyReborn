@@ -1,5 +1,5 @@
-using System;
 using GatherBuddy.Enums;
+using System;
 
 namespace GatherBuddy.SeFunctions;
 
@@ -11,5 +11,5 @@ public sealed class SeTugType : SeAddressBase
     { }
 
     public unsafe BiteType Bite
-        => Address != IntPtr.Zero ? *(BiteType*)Address : BiteType.未知;
+        => Address != IntPtr.Zero ? *(BiteType*)Address : BiteType.Unknown;
 }

@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
-using Dalamud.Memory;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.Sheets;
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
 using ValueType = FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType;
 
 namespace GatherBuddy.Automation;
@@ -19,7 +15,10 @@ public static unsafe class Callback
 
     private static void Initialize()
     {
-        if (_fireCallbackPtr != null) return;
+        if (_fireCallbackPtr != null)
+        {
+            return;
+        }
 
         _fireCallbackPtr = AtkUnitBase.MemberFunctionPointers.FireCallback;
         GatherBuddy.Log.Debug($"[Callback] Initialized using ClientStructs MemberFunctionPointers");
@@ -34,7 +33,9 @@ public static unsafe class Callback
         }
 
         if (_fireCallbackPtr == null)
+        {
             Initialize();
+        }
 
         var atkValues = (AtkValue*)Marshal.AllocHGlobal(values.Length * sizeof(AtkValue));
         if (atkValues == null)
@@ -67,15 +68,15 @@ public static unsafe class Callback
                         atkValues[i].Byte = (byte)(boolValue ? 1 : 0);
                         break;
                     case string stringValue:
-                    {
-                        atkValues[i].Type = ValueType.String;
-                        var stringBytes = Encoding.UTF8.GetBytes(stringValue);
-                        var stringAlloc = Marshal.AllocHGlobal(stringBytes.Length + 1);
-                        Marshal.Copy(stringBytes, 0, stringAlloc, stringBytes.Length);
-                        Marshal.WriteByte(stringAlloc, stringBytes.Length, 0);
-                        atkValues[i].String = (byte*)stringAlloc;
-                        break;
-                    }
+                        {
+                            atkValues[i].Type = ValueType.String;
+                            var stringBytes = Encoding.UTF8.GetBytes(stringValue);
+                            var stringAlloc = Marshal.AllocHGlobal(stringBytes.Length + 1);
+                            Marshal.Copy(stringBytes, 0, stringAlloc, stringBytes.Length);
+                            Marshal.WriteByte(stringAlloc, stringBytes.Length, 0);
+                            atkValues[i].String = (byte*)stringAlloc;
+                            break;
+                        }
                     case AtkValue rawValue:
                         atkValues[i] = rawValue;
                         break;
@@ -119,8 +120,11 @@ public static unsafe class Chat
 
     private static void InitializeSanitizeString()
     {
-        if (_sanitizeString != null) return;
-        
+        if (_sanitizeString != null)
+        {
+            return;
+        }
+
         var addr = (IntPtr)Dalamud.SigScanner.ScanText(SanitizeStringSignature);
         _sanitizeString = Marshal.GetDelegateForFunctionPointer<SanitizeStringDelegate>(addr);
         GatherBuddy.Log.Debug($"[Chat] SanitizeString initialized at 0x{addr:X16}");

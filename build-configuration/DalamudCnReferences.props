@@ -1,0 +1,15 @@
+<Project>
+  <!-- Host-specific managed references from the pinned Ottercorp archive.
+       Hashes distinguish builds that use the same version number. Update with the installer pin. -->
+  <ItemGroup>
+    <GbrDalamudCnBinary Include="Dalamud" Sha256="e5ffe79c8565ee6a58426ec9041647c1847d7fe1d8732414ee58c5beb1f888c1" Version="15.0.4.0" />
+    <GbrDalamudCnBinary Include="Dalamud.Common" Sha256="1c82c5f3b916443416f96a7272ed7da66806c80393acf215de291998586ae32f" Version="1.0.0.0" />
+    <GbrDalamudCnBinary Include="Dalamud.Bindings.ImGui" Sha256="58bae9d668f359c7dea148063f2870a8fe01f39e2ab087b39435004f792b2b21" Version="1.0.0.0" />
+    <GbrDalamudCnBinary Include="Dalamud.Bindings.ImGuizmo" Sha256="e5aad4ca35914838af04c9c2095d3d0c018a0efa586835edb2fc9b736b523184" Version="1.0.0.0" />
+    <GbrDalamudCnBinary Include="Dalamud.Bindings.ImPlot" Sha256="4f7270ad649c5d71e18e878c716dc0e2a5a1b8cee22d44f96d8c7ca6a2061f50" Version="1.0.0.0" />
+    <GbrDalamudCnBinary Include="FFXIVClientStructs" Sha256="c42ee1515ff546909a7e739f25c8e7bdefaede913bd5d8b42aba51c2bb832b27" Version="7.57.0.9568" />
+    <GbrDalamudCnBinary Include="InteropGenerator.Runtime" Sha256="3fa15e74a5fff2ec93745fb91e6706541845f2d586620eab9e02e463c8d89c3f" Version="1.0.0.0" />
+    <GbrDalamudCnBinary Include="Lumina" Sha256="f16cf0942595c4749b774a666e5e392579b7bb0a06fcd17062b879ca0d01511d" Version="7.0.0.0" />
+    <GbrDalamudCnBinary Include="Lumina.Excel" Sha256="e33ed902a04dd9c7ffa81c88bf99a0196c93834f19873db032401123323e0fd4" Version="7.0.0.0" />
+  </ItemGroup>
+</Project>
