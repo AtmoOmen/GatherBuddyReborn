@@ -36,7 +36,8 @@ public class RaphaelSolveCoordinator
         }
     }
 
-    private const string CacheFileName = "raphael_solution_cache.json";
+    // The old cache contains results solved from the bundled international recipe catalog.
+    private const string CacheFileName = "raphael_solution_cache_cn_v2.json";
 
     public RaphaelSolveCoordinator(RaphaelSolveCoordinatorConfig? config = null)
     {
@@ -253,7 +254,7 @@ public class RaphaelSolveCoordinator
                 CP: stats.CP,
                 Manipulation: stats.Manipulation,
                 Specialist: stats.Specialist,
-                InitialQuality: CalculateInitialQuality(item, recipe)
+                InitialQuality: CalculateInitialQuality(item, recipe, stats.Level)
             );
 
             var key = request.GetKey();
@@ -293,7 +294,7 @@ public class RaphaelSolveCoordinator
                 continue;
             }
 
-            var initialQuality = CalculateInitialQuality(item, recipe.Value);
+            var initialQuality = CalculateInitialQuality(item, recipe.Value, stats.Level);
 
             var request = new RaphaelSolveRequest(
                 RecipeId: stats.RecipeId,
@@ -618,7 +619,7 @@ public class RaphaelSolveCoordinator
                 CP: playerCP,
                 Manipulation: manipulationUnlocked,
                 Specialist: isSpecialist,
-                InitialQuality: CalculateInitialQuality(item, recipe.Value)
+                InitialQuality: CalculateInitialQuality(item, recipe.Value, playerLevel)
             );
 
             var key = request.GetKey();
@@ -628,7 +629,7 @@ public class RaphaelSolveCoordinator
         return [.. uniqueCrafts.Values];
     }
 
-    private static int CalculateInitialQuality(CraftingListItem item, Recipe recipe)
+    private static int CalculateInitialQuality(CraftingListItem item, Recipe recipe, int jobLevel)
     {
         item.QualityPolicy ??= CraftingQualityPolicyResolver.Resolve(recipe, item.CraftSettings);
         if (item.IngredientPreferences.Count == 0)
@@ -636,7 +637,7 @@ public class RaphaelSolveCoordinator
             item.IngredientPreferences = item.QualityPolicy.BuildGuaranteedHQPreferences();
         }
 
-        return item.QualityPolicy.CalculateGuaranteedInitialQuality(recipe);
+        return item.QualityPolicy.CalculateGuaranteedInitialQuality(recipe, jobLevel);
     }
 
     private void ProcessPendingQueue()
@@ -831,10 +832,52 @@ public class RaphaelSolveCoordinator
 
     private string BuildRaphaelArguments(RaphaelSolveRequest request)
     {
+        if (request.Level is < 1 or > 100
+            || request.Craftsmanship is < 1 or > ushort.MaxValue
+            || request.Control is < 0 or > ushort.MaxValue
+            || request.CP is < 0 or > ushort.MaxValue)
+        {
+            throw new InvalidOperationException("Invalid CN crafting stats for Raphael.");
+        }
+
+        var recipe = RecipeManager.GetRecipe(request.RecipeId)
+            ?? throw new InvalidOperationException($"CN recipe {request.RecipeId} was not found.");
+        if (!CraftingStateBuilder.TryResolveRecipeParameters(recipe, request.Level, out var level, out var progress, out var quality, out var durability)
+            || level.ClassJobLevel > 100)
+        {
+            throw new InvalidOperationException($"国服配方 {request.RecipeId} 的制作等级数据缺失或无效，无法使用 Raphael。请改用已验证的自定义宏，或手动制作。");
+        }
+
+        // Use the same flooring and level-dependent modifiers as Vulcan's CN simulator.
+        var craft = new CraftState
+        {
+            StatLevel = request.Level,
+            StatCraftsmanship = request.Craftsmanship,
+            StatControl = request.Control,
+            CraftLevel = level.ClassJobLevel,
+            CraftProgressDivider = level.ProgressDivider,
+            CraftProgressModifier = level.ProgressModifier,
+            CraftQualityDivider = level.QualityDivider,
+            CraftQualityModifier = level.QualityModifier,
+        };
+        quality = CraftingStateBuilder.GetRecipeQualityTarget(recipe, quality, recipe.ItemResult.Value.AlwaysCollectable);
+        var baseProgress = Simulator.BaseProgress(craft);
+        var baseQuality = Simulator.BaseQuality(craft);
+        if (progress is < 1 or > ushort.MaxValue || quality is < 0 or > ushort.MaxValue
+            || durability is < 1 or > ushort.MaxValue || baseProgress is < 1 or > ushort.MaxValue
+            || baseQuality is < 0 or > ushort.MaxValue)
+        {
+            throw new InvalidOperationException($"CN recipe values are outside Raphael's input range for recipe {request.RecipeId}.");
+        }
+
+        // With base increases overridden, Raphael uses its level map only for action
+        // eligibility (Trained Eye); the custom-recipe RLVL placeholder is unused.
+        // Never pass recipe, item, food or potion IDs to the built-in international catalog.
         var args = new StringBuilder();
-        args.Append($"solve --recipe-id {request.RecipeId} ");
-        args.Append($"--level {request.Level} ");
-        args.Append($"--stats {request.Craftsmanship} {request.Control} {request.CP} ");
+        args.Append(System.FormattableString.Invariant($"solve --custom-recipe 0 {progress} {quality} {durability} {(recipe.IsExpert ? 1 : 0)} "));
+        args.Append(System.FormattableString.Invariant($"--override-base-increases {level.ClassJobLevel} {baseProgress} {baseQuality} "));
+        args.Append(System.FormattableString.Invariant($"--level {request.Level} "));
+        args.Append(System.FormattableString.Invariant($"--stats {request.Craftsmanship} {request.Control} {request.CP} "));
 
         if (request.Manipulation)
         {
@@ -843,7 +886,7 @@ public class RaphaelSolveCoordinator
 
         if (request.InitialQuality > 0)
         {
-            args.Append($"--initial {request.InitialQuality} ");
+            args.Append(System.FormattableString.Invariant($"--initial-quality {Math.Min(request.InitialQuality, quality)} "));
         }
 
         if (_config.RaphaelBackloadProgress)

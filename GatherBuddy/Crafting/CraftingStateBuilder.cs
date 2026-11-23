@@ -207,16 +207,74 @@ public static class CraftingStateBuilder
         }
     }
 
-    public static GameStateBuilder.RecipeInfo BuildRecipeInfo(Recipe recipe)
+    // Resolve fixed and adjustable recipes from the live CN sheets before applying
+    // their percentage factors. Adjustable recipes have an 80-point durability
+    // basis, as in Raphael 9311b0d's raphael-data::get_game_settings.
+    internal static bool TryResolveRecipeParameters(
+        Recipe recipe, int jobLevel, out RecipeLevelTable level, out int difficulty, out int quality, out int durability)
     {
-        var lt = recipe.RecipeLevelTable.Value;
-        var difficulty = (int)(lt.Difficulty * recipe.DifficultyFactor / 100);
-        var qualityMax = (int)(lt.Quality * recipe.QualityFactor / 100);
-        var durability = (int)(lt.Durability * recipe.DurabilityFactor / 100);
+        level = default;
+        difficulty = quality = durability = 0;
+        if (jobLevel <= 0)
+        {
+            return false;
+        }
+
+        var levelRowId = recipe.RecipeLevelTable.RowId;
+        var maxAdjustableLevel = recipe.MaxAdjustableJobLevel.RowId;
+        var effectiveJobLevel = 0u;
+        if (maxAdjustableLevel != 0)
+        {
+            var adjustments = Dalamud.GameData.GetExcelSheet<GathererCrafterLvAdjustTable>();
+            effectiveJobLevel = Math.Min((uint)jobLevel, maxAdjustableLevel);
+            if (adjustments == null || !adjustments.TryGetRow(effectiveJobLevel, out var adjustment))
+            {
+                return false;
+            }
+
+            levelRowId = adjustment.RecipeLevel.RowId;
+        }
+
+        var levels = Dalamud.GameData.GetExcelSheet<RecipeLevelTable>();
+        if (levels == null || !levels.TryGetRow(levelRowId, out level)
+            || level.ClassJobLevel == 0 || level.ProgressDivider == 0 || level.QualityDivider == 0
+            || (effectiveJobLevel != 0 && level.ClassJobLevel != effectiveJobLevel))
+        {
+            return false;
+        }
+
+        var scaledDifficulty = (long)level.Difficulty * recipe.DifficultyFactor / 100;
+        var scaledQuality = (long)level.Quality * recipe.QualityFactor / 100;
+        var scaledDurability = (long)(maxAdjustableLevel != 0 ? 80 : level.Durability) * recipe.DurabilityFactor / 100;
+        if (scaledDifficulty is < 1 or > int.MaxValue || scaledQuality is < 0 or > int.MaxValue
+            || scaledDurability is < 1 or > int.MaxValue)
+        {
+            return false;
+        }
+
+        difficulty = (int)scaledDifficulty;
+        quality = (int)scaledQuality;
+        durability = (int)scaledDurability;
+        return true;
+    }
+
+    // Preserve the simulator's explicit quality target for non-collectibles.
+    internal static int GetRecipeQualityTarget(Recipe recipe, int scaledQuality, bool isCollectible)
+        => !isCollectible && recipe.RequiredQuality > 0 ? checked((int)recipe.RequiredQuality) : scaledQuality;
+
+    public static bool TryBuildRecipeInfo(Recipe recipe, int jobLevel, out GameStateBuilder.RecipeInfo info)
+    {
+        info = null!;
+        if (!TryResolveRecipeParameters(recipe, jobLevel, out var lt, out var difficulty, out var qualityMax, out var durability))
+        {
+            return false;
+        }
+
         var qualityMin1 = 0;
         var qualityMin2 = 0;
         var qualityMin3 = 0;
         var isCollectible = recipe.ItemResult.Value.AlwaysCollectable;
+        qualityMax = GetRecipeQualityTarget(recipe, qualityMax, isCollectible);
 
         if (isCollectible)
         {
@@ -358,7 +416,6 @@ public static class CraftingStateBuilder
         }
         else if (recipe.RequiredQuality > 0)
         {
-            qualityMax = (int)recipe.RequiredQuality;
             qualityMin1 = qualityMax;
             qualityMin2 = qualityMax;
             qualityMin3 = qualityMax;
@@ -368,7 +425,7 @@ public static class CraftingStateBuilder
             qualityMin3 = qualityMax;
         }
 
-        return new GameStateBuilder.RecipeInfo(
+        info = new GameStateBuilder.RecipeInfo(
             RecipeId: recipe.RowId,
             Level: lt.ClassJobLevel,
             Difficulty: difficulty,
@@ -387,13 +444,20 @@ public static class CraftingStateBuilder
             ConditionFlags: (ConditionFlags)lt.ConditionsFlag,
             HasMaterialMiracle: false
         );
+        return true;
     }
 
-    public static CraftState BuildCraftState(Recipe recipe)
+    public static bool TryBuildCraftState(Recipe recipe, out CraftState craft)
     {
+        craft = null!;
         var playerStats = GetCurrentPlayerStats();
-        var recipeInfo = BuildRecipeInfo(recipe);
-        return GameStateBuilder.BuildCraftState(recipeInfo, playerStats);
+        if (!TryBuildRecipeInfo(recipe, playerStats.Level, out var recipeInfo))
+        {
+            return false;
+        }
+
+        craft = GameStateBuilder.BuildCraftState(recipeInfo, playerStats);
+        return true;
     }
 
     public static StepState BuildInitialStepState(CraftState craft)

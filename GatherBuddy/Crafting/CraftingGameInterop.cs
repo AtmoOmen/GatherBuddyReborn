@@ -1536,16 +1536,21 @@ public static class CraftingGameInterop
             return CraftState.InvalidState;
         }
 
-        _currentRecipe = recipe;
-        CraftStarted?.Invoke(recipe, _currentRecipeId.Value);
-
         var actualRecipe = recipe.Value;
         GatherBuddy.Log.Debug($"[Crafting] Building craft state for recipe {_currentRecipeId}");
-        _vulcanCraftState = CraftingStateBuilder.BuildCraftState(actualRecipe);
+        if (!CraftingStateBuilder.TryBuildCraftState(actualRecipe, out var craft))
+        {
+            GatherBuddy.Log.Warning($"[Crafting] Missing or invalid CN recipe data for recipe {_currentRecipeId}; no automatic actions will be sent.");
+            return CraftState.InvalidState;
+        }
+
+        _currentRecipe = recipe;
+        CraftStarted?.Invoke(recipe, _currentRecipeId.Value);
+        _vulcanCraftState = craft;
         var qualityPolicy = GetActiveQualityPolicy();
         if (qualityPolicy != null)
         {
-            var iq = qualityPolicy.CalculateGuaranteedInitialQuality(actualRecipe);
+            var iq = qualityPolicy.CalculateGuaranteedInitialQuality(actualRecipe, craft.StatLevel);
             if (iq > 0)
             {
                 GatherBuddy.Log.Debug($"[Crafting] Setting guaranteed InitialQuality={iq} from quality policy for Raphael key");

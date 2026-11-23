@@ -165,8 +165,8 @@ public sealed class CraftingQualityPolicy
         return guaranteed;
     }
 
-    public int CalculateGuaranteedInitialQuality(Recipe recipe)
-        => QualityCalculator.CalculateInitialQuality(recipe, BuildGuaranteedHQPreferences());
+    public int CalculateGuaranteedInitialQuality(Recipe recipe, int? jobLevel = null)
+        => QualityCalculator.CalculateInitialQuality(recipe, BuildGuaranteedHQPreferences(), jobLevel);
 
     public bool TryResolveIngredientSelection(
         uint itemId,

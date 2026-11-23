@@ -124,16 +124,10 @@ public class Identificator
         return ret != null;
     }
 
-    public Gatherable? IdentifyGatherable(string itemName)
+    private static T? SearchExact<T>(FrozenDictionary<string, T>[] dictionaries, string itemNameLower) where T : class
     {
-        if (itemName.Length == 0)
-        {
-            return null;
-        }
-
-        // Check for full matches in current language first, by initialization order.
-        var itemNameLower = itemName.ToLowerInvariant();
-        foreach (var dict in _gatherableFromLanguage)
+        // The current language is first, followed by the available query aliases.
+        foreach (var dict in dictionaries)
         {
             if (dict.TryGetValue(itemNameLower, out var item))
             {
@@ -141,6 +135,38 @@ public class Identificator
             }
         }
 
+        return null;
+    }
+
+    // Generic IPC lookup must consider exact fish names before approximate gathering item matches.
+    internal uint IdentifyItem(string itemName)
+    {
+        if (itemName.Length == 0)
+        {
+            return 0;
+        }
+
+        var itemNameLower = itemName.ToLowerInvariant();
+        return SearchExact(_gatherableFromLanguage, itemNameLower)?.ItemId
+            ?? SearchExact(_fishFromLanguage, itemNameLower)?.ItemId
+            ?? IdentifyGatherableApproximate(itemNameLower)?.ItemId
+            ?? IdentifyFishApproximate(itemNameLower)?.ItemId
+            ?? 0;
+    }
+
+    public Gatherable? IdentifyGatherable(string itemName)
+    {
+        if (itemName.Length == 0)
+        {
+            return null;
+        }
+
+        var itemNameLower = itemName.ToLowerInvariant();
+        return SearchExact(_gatherableFromLanguage, itemNameLower) ?? IdentifyGatherableApproximate(itemNameLower);
+    }
+
+    private Gatherable? IdentifyGatherableApproximate(string itemNameLower)
+    {
         // Search for the shortest object in the current language that starts with the given string.
         // If none does, use the shortest object that contains the given string.
         if (SearchContains(_gatherableFromLanguage[0], itemNameLower, out var ret))
@@ -159,16 +185,12 @@ public class Identificator
             return null;
         }
 
-        // Same as for gatherables.
         var itemNameLower = itemName.ToLowerInvariant();
-        foreach (var dict in _fishFromLanguage)
-        {
-            if (dict.TryGetValue(itemNameLower, out var item))
-            {
-                return item;
-            }
-        }
+        return SearchExact(_fishFromLanguage, itemNameLower) ?? IdentifyFishApproximate(itemNameLower);
+    }
 
+    private Fish? IdentifyFishApproximate(string itemNameLower)
+    {
         if (SearchContains(_fishFromLanguage[0], itemNameLower, out var ret))
         {
             return ret;
