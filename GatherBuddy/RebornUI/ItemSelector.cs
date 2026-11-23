@@ -397,7 +397,7 @@ public class ItemSelector<T>
     private void OpenNameDialog(NameAction action)
     {
         _nameAction = action;
-        _newName = action == NameAction.Duplicate && Current != null ? $"{NameOf(Current)} (copy)" : string.Empty;
+        _newName = action == NameAction.Duplicate && Current != null ? $"{NameOf(Current)} （副本）" : string.Empty;
         M3Dialog.Open("##name");
     }
 

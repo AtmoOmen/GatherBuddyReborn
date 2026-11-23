@@ -278,7 +278,7 @@ public class CraftingMaterialsWindow : M3PanelWindow
             const string refreshLabel = "刷新雇员";
             flow.Next(M3Widgets.ChipWidth(refreshLabel, FontAwesomeIcon.Sync));
             if (M3Widgets.Chip("##materials_refresh_retainers", refreshLabel, false, FontAwesomeIcon.Sync,
-                    "刷新雇员的 NQ/HQ 数量。为避免界面卡顿，此处不会自动刷新。"))
+                    "刷新雇员持有的 NQ 和 HQ 物品数量。"))
             {
                 _editor.InvalidateRetainerSnapshot();
                 InvalidateMaterialView();
@@ -770,7 +770,7 @@ public class CraftingMaterialsWindow : M3PanelWindow
         float headerWidth;
         using (ImRaii.PushFont(M3.LabelSmall))
         {
-            headerWidth = ImGui.CalcTextSize("雇员 HQ").X;
+            headerWidth = ImGui.CalcTextSize(mode == RetainerColumnMode.Split ? "雇员 NQ" : "雇员").X;
         }
 
         var numberWidth = MathF.Max(headerWidth, ImGui.CalcTextSize("9999").X) + 4f * M3.Scale;
@@ -785,20 +785,20 @@ public class CraftingMaterialsWindow : M3PanelWindow
         }
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Have", ImGuiTableColumnFlags.WidthFixed, numberWidth);
+        ImGui.TableSetupColumn("物品", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("持有", ImGuiTableColumnFlags.WidthFixed, numberWidth);
         switch (mode)
         {
             case RetainerColumnMode.Total:
-                ImGui.TableSetupColumn("Ret", ImGuiTableColumnFlags.WidthFixed, numberWidth);
+                ImGui.TableSetupColumn("雇员", ImGuiTableColumnFlags.WidthFixed, numberWidth);
                 break;
             case RetainerColumnMode.Split:
-                ImGui.TableSetupColumn("RNQ", ImGuiTableColumnFlags.WidthFixed, numberWidth);
-                ImGui.TableSetupColumn("RHQ", ImGuiTableColumnFlags.WidthFixed, numberWidth);
+                ImGui.TableSetupColumn("雇员 NQ", ImGuiTableColumnFlags.WidthFixed, numberWidth);
+                ImGui.TableSetupColumn("雇员 HQ", ImGuiTableColumnFlags.WidthFixed, numberWidth);
                 break;
         }
 
-        ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, numberWidth);
+        ImGui.TableSetupColumn("所需", ImGuiTableColumnFlags.WidthFixed, numberWidth);
         ImGui.TableSetupColumn("%", ImGuiTableColumnFlags.WidthFixed, barWidth);
 
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
@@ -814,9 +814,9 @@ public class CraftingMaterialsWindow : M3PanelWindow
                 break;
             case RetainerColumnMode.Split:
                 ImGui.TableNextColumn();
-                M3Table.Header("雇员 NQ", "雇员库存 NQ 数量（通过 Allagan Tools）");
+                M3Table.Header("雇员 NQ", "通过 Allagan Tools 查看雇员持有的 NQ 数量");
                 ImGui.TableNextColumn();
-                M3Table.Header("雇员 HQ", "雇员库存 HQ 数量（通过 Allagan Tools）");
+                M3Table.Header("雇员 HQ", "通过 Allagan Tools 查看雇员持有的 HQ 数量");
                 break;
         }
 

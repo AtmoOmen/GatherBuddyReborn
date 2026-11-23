@@ -77,12 +77,12 @@ public partial class Interface
     {
         DebugCell(n.Id.ToString());
         DebugCell(n.Name);
-        DebugCell(n.GatheringType.ToString());
+        DebugCell(EnumLocalization.Get(n.GatheringType));
         DebugCell(n.Level.ToString());
-        DebugCell(n.NodeType.ToString());
+        DebugCell(EnumLocalization.Get(n.NodeType));
         DebugCell($"{n.Territory.Name} ({n.Territory.Id})");
         DebugCell($"{n.IntegralXCoord}-{n.IntegralYCoord}");
-        DebugCell(n.ClosestAetheryte?.Name ?? "Unknown");
+        DebugCell(n.ClosestAetheryte?.Name ?? "未知");
         DebugCell(n.Folklore);
         DebugCell(n.Times.PrintHours(true));
         DebugCell(n.PrintItems());
@@ -190,7 +190,7 @@ public partial class Interface
         var dataCount = _fishingSpotDataCounts.GetValueOrDefault((ushort)s.Id, 0);
         DebugCell(dataCount.ToString());
         DebugCell($"{s.Territory.Name} ({s.Territory.Id})");
-        DebugCell(s.ClosestAetheryte?.Name ?? "Unknown");
+        DebugCell(s.ClosestAetheryte?.Name ?? "未知");
         DebugCell($"{s.IntegralXCoord / 100f:00.00}-{s.IntegralYCoord / 100f:00.00}");
         DebugCell($"{s.SpearfishingSpotData?.IsShadowNode ?? false}");
         DebugCell(JoinCell("|", s.Items, static fish => fish.Name.ToString()));
@@ -201,7 +201,7 @@ public partial class Interface
         var name = node.TotalWord.ToString();
         if (name.Length == 0)
         {
-            name = "Root";
+            name = "根目录";
         }
 
         if (node.Children.Count == 0)
@@ -381,28 +381,28 @@ public partial class Interface
         }
 
         var fw = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
-        DebugCell("Framework Timestamp");
+        DebugCell("客户端框架时间戳");
         DebugCell(fw == null ? "NULL" : fw->UtcTime.Timestamp.ToString());
-        DebugCell("Framework Eorzea");
+        DebugCell("框架的艾欧泽亚时间");
         DebugCell(fw == null ? "NULL" : fw->ClientTime.EorzeaTime.ToString());
-        DebugCell("Framework Func");
+        DebugCell("框架函数返回值");
         DebugCell(FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.GetServerTime().ToString());
         DebugCell("DateTimeOffset");
         DebugCell(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-        DebugCell("GatherBuddy TimeStamp");
+        DebugCell("GBR 时间戳");
         DebugCell(GatherBuddy.Time.ServerTime.Time.ToString());
-        DebugCell("GatherBuddy EorzeaTime");
+        DebugCell("GBR 艾欧泽亚时间");
         DebugCell(GatherBuddy.Time.EorzeaTime.Time.ToString());
-        DebugCell("Current Computed Weather");
+        DebugCell("当前计算天气");
         DebugCell(Dalamud.ClientState.TerritoryType != 0
             ? GatherBuddy.WeatherManager.FindLastCurrentNextWeather(Dalamud.ClientState.TerritoryType).Current.Name
             : "无");
-        DebugCell("Current True Weather");
+        DebugCell("当前实际天气");
         DebugCell(Dalamud.ClientState.TerritoryType != 0
          && GatherBuddy.GameData.Weathers.TryGetValue(WeatherManager.Instance()->GetCurrentWeather(), out var w)
                 ? w.Name
                 : "无");
-        DebugCell("Enhanced Weather (ClientStructs)");
+        DebugCell("客户端天气（ClientStructs）");
         var enhancedId = EnhancedCurrentWeather.GetCurrentWeatherId();
         DebugCell(Dalamud.ClientState.TerritoryType != 0
          && GatherBuddy.GameData.Weathers.TryGetValue(enhancedId, out var ew)
@@ -429,73 +429,73 @@ public partial class Interface
             return;
         }
 
-        DebugCell("Current Save Changes");
+        DebugCell("当前待保存更改");
         DebugCell(_plugin.FishRecorder.Changes.ToString());
-        DebugCell("Next Timed Save");
+        DebugCell("下次定时保存");
         DebugCell(_plugin.FishRecorder.SaveTime == TimeStamp.MaxValue
             ? "永不"
             : TimeInterval.DurationString(_plugin.FishRecorder.SaveTime, TimeStamp.UtcNow, false));
-        DebugCell("UiState Address");
+        DebugCell("UiState 地址");
         DebugCell($"{(IntPtr)FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance():X}");
-        DebugCell("FishingEventHandler Address");
+        DebugCell("钓鱼事件处理器地址");
         DebugCell($"0x{(nint)GatherBuddy.EventFramework.FishingEventHandler:X}");
-        DebugCell("Fishing State");
+        DebugCell("钓鱼状态");
         DebugCell(GatherBuddy.EventFramework.FishingState.ToString());
-        DebugCell("Num SwimBait");
+        DebugCell("泳饵数量");
         DebugCell(GatherBuddy.EventFramework.NumSwimBait.ToString());
-        DebugCell("Selected SwimBait");
+        DebugCell("选中的泳饵");
         DebugCell(GatherBuddy.EventFramework.CurrentSwimBait?.ToString() ?? "NULL");
-        DebugCell("SwimBait 1");
+        DebugCell("泳饵 1");
         DebugCell(GatherBuddy.EventFramework.SwimBait(0)?.ToString() ?? "NULL");
-        DebugCell("SwimBait 2");
+        DebugCell("泳饵 2");
         DebugCell(GatherBuddy.EventFramework.SwimBait(1)?.ToString() ?? "NULL");
-        DebugCell("SwimBait 3");
+        DebugCell("泳饵 3");
         DebugCell(GatherBuddy.EventFramework.SwimBait(2)?.ToString() ?? "NULL");
-        DebugCell("Bite Type Address");
+        DebugCell("咬钩类型地址");
         DebugCell(GatherBuddy.TugType.Address.ToString("X"));
-        DebugCell("Bite Type");
-        DebugCell(GatherBuddy.TugType.Bite.ToString());
+        DebugCell("咬钩类型");
+        DebugCell(EnumLocalization.Get(GatherBuddy.TugType.Bite));
 
         var record = _plugin.FishRecorder.Record;
-        DebugCell("Last Fishing State");
+        DebugCell("上次钓鱼状态");
         DebugCell(_plugin.FishRecorder.LastState.ToString());
-        DebugCell("Current Step");
+        DebugCell("当前步骤");
         DebugCell(_plugin.FishRecorder.Step.ToString());
-        DebugCell("Gathering");
+        DebugCell("获得力");
         DebugCell(record.Gathering.ToString());
-        DebugCell("Perception");
+        DebugCell("鉴别力");
         DebugCell(record.Perception.ToString());
-        DebugCell("Start Time");
+        DebugCell("开始时间");
         DebugCell((record.TimeStamp / 1000).ToString());
-        DebugCell("Current Spot");
-        DebugCell($"{record.FishingSpot?.Name ?? "Unknown"} ({record.FishingSpot?.Id ?? 0})");
+        DebugCell("当前钓场");
+        DebugCell($"{record.FishingSpot?.Name ?? "未知"} ({record.FishingSpot?.Id ?? 0})");
         if (CosmicMissionRegex().Match(record.FishingSpot?.Name ?? string.Empty).Groups["Id"] is { Success: true, Value: { } mission })
         {
             var id = uint.Parse(mission);
             if (Dalamud.GameData.GetExcelSheet<WKSMissionUnit>().TryGetRow(id, out var row))
             {
-                DebugCell("Current Mission");
+                DebugCell("当前任务");
                 DebugCell($"{row.Name.ExtractText()} ({id})");
             }
         }
 
-        DebugCell("Selected Bait");
+        DebugCell("选中的鱼饵");
         var baitId = GatherBuddy.CurrentBait.Current;
         DebugCell($"{GatherBuddy.GameData.Bait.GetValueOrDefault(baitId, Bait.Unknown).Name} ({baitId})");
-        DebugCell("Current Bait");
+        DebugCell("当前鱼饵");
         DebugCell($"{record.Bait.Name} ({record.Bait.Id})");
-        DebugCell("Duration");
+        DebugCell("持续时间");
         DebugCell(_plugin.FishRecorder.Timer.ElapsedMilliseconds.ToString());
-        DebugCell("BiteType");
+        DebugCell("咬钩类型");
         DebugCell(record.Tug.ToString());
-        DebugCell("HookSet");
+        DebugCell("提钩方式");
         DebugCell(record.Hook.ToString());
-        DebugCell("Last Catch");
+        DebugCell("上次捕获");
         DebugCell(
-            $"{_plugin.FishRecorder.LastCatch?.Name[ClientLanguage.English] ?? "None"} ({_plugin.FishRecorder.LastCatch?.ItemId ?? 0} - {_plugin.FishRecorder.LastCatch?.FishId ?? 0})");
-        DebugCell("Current Catch");
+            $"{_plugin.FishRecorder.LastCatch?.Name[GatherBuddy.Language] ?? "无"} ({_plugin.FishRecorder.LastCatch?.ItemId ?? 0} - {_plugin.FishRecorder.LastCatch?.FishId ?? 0})");
+        DebugCell("当前捕获");
         DebugCell(
-            $"{record.Catch?.Name[ClientLanguage.English] ?? "None"} ({record.Catch?.ItemId ?? 0} - {record.Catch?.FishId ?? 0}) - of size {record.Size / 10f} times {record.Amount}");
+            $"{record.Catch?.Name[GatherBuddy.Language] ?? "无"} ({record.Catch?.ItemId ?? 0} - {record.Catch?.FishId ?? 0}）· 鱼长 {record.Size / 10f}，捕获 {record.Amount} 次");
         foreach (var flag in Enum.GetValues<Effects>())
         {
             DebugCell(flag.ToString());
@@ -518,8 +518,8 @@ public partial class Interface
 
         foreach (var (fishId, data) in _plugin.FishRecorder.Times)
         {
-            DebugCell(GatherBuddy.GameData.Fishes[fishId].Name[ClientLanguage.English]);
-            DebugCell("Overall");
+            DebugCell(GatherBuddy.GameData.Fishes[fishId].Name[GatherBuddy.Language]);
+            DebugCell("总计");
             DebugCell(data.All.Min.ToString());
             DebugCell(data.All.Max.ToString());
             DebugCell(data.All.MinChum.ToString());
@@ -560,7 +560,7 @@ public partial class Interface
             }
 
             DebugCell(Math.Abs(item.InternalLocationId).ToString("0000"));
-            DebugCell(item.Name[ClientLanguage.English]);
+            DebugCell(item.Name[GatherBuddy.Language]);
             DebugCell(item.NodeList.Count.ToString());
             var (loc, time) = GatherBuddy.UptimeManager.BestLocation(item);
             DebugCell(loc.Name);
@@ -568,12 +568,12 @@ public partial class Interface
             {
                 if (time == TimeInterval.Invalid)
                 {
-                    DebugCell("Invalid");
+                    DebugCell("无效");
                     DebugCell(string.Empty);
                 }
                 else if (time == TimeInterval.Never)
                 {
-                    DebugCell("Never");
+                    DebugCell("永不");
                     DebugCell(string.Empty);
                 }
                 else
@@ -584,7 +584,7 @@ public partial class Interface
             }
             else
             {
-                DebugCell("Always");
+                DebugCell("始终");
                 ImGui.TableNextColumn();
             }
         }
@@ -597,7 +597,7 @@ public partial class Interface
             }
 
             DebugCell(Math.Abs(fish.InternalLocationId).ToString("0000"));
-            DebugCell(fish.Name[ClientLanguage.English]);
+            DebugCell(fish.Name[GatherBuddy.Language]);
             DebugCell(fish.FishingSpots.Count.ToString());
             var (loc, time) = GatherBuddy.UptimeManager.BestLocation(fish);
             DebugCell(loc.Name);
@@ -605,12 +605,12 @@ public partial class Interface
             {
                 if (time == TimeInterval.Invalid)
                 {
-                    DebugCell("Invalid");
+                    DebugCell("无效");
                     DebugCell(string.Empty);
                 }
                 else if (time == TimeInterval.Never)
                 {
-                    DebugCell("Never");
+                    DebugCell("永不");
                     DebugCell(string.Empty);
                 }
                 else
@@ -621,7 +621,7 @@ public partial class Interface
             }
             else
             {
-                DebugCell("Always");
+                DebugCell("始终");
                 ImGui.TableNextColumn();
             }
         }
@@ -646,13 +646,13 @@ public partial class Interface
                 TimeInterval.DurationString(nextAlarm, GatherBuddy.Time.ServerTime, false))
             : ("永不", "永不");
 
-        DebugCell("Enabled");
+        DebugCell("已启用");
         DebugCell(GatherBuddy.Config.AlarmsEnabled.ToString());
-        DebugCell("Dirty");
+        DebugCell("有待保存的更改");
         DebugCell(_plugin.AlarmManager.Dirty.ToString());
-        DebugCell("Next Change (Absolute)");
+        DebugCell("下次变化的时间");
         DebugCell(abs);
-        DebugCell("Next Change (Relative)");
+        DebugCell("距下次变化");
         DebugCell(rel);
         DebugCell("#Alarm Groups");
         DebugCell(_plugin.AlarmManager.Alarms.Count.ToString());
@@ -660,7 +660,7 @@ public partial class Interface
         DebugCell(_plugin.AlarmManager.ActiveAlarms.Count.ToString());
         foreach (var (alarm, state) in _plugin.AlarmManager.ActiveAlarms)
         {
-            DebugCell(alarm.Name.Length != 0 ? alarm.Name : alarm.Item.Name[ClientLanguage.English]);
+            DebugCell(alarm.Name.Length != 0 ? alarm.Name : alarm.Item.Name[GatherBuddy.Language]);
             DebugCell($"{state} ({TimeInterval.DurationString(state, GatherBuddy.Time.ServerTime, false)})");
         }
     }
@@ -729,15 +729,15 @@ public partial class Interface
         {
             if (table)
             {
-                ImGui.TableSetupColumn("Route"u8);
-                ImGui.TableSetupColumn("Time"u8);
-                ImGui.TableSetupColumn("Area"u8);
-                ImGui.TableSetupColumn("Spot 1 Normal"u8);
-                ImGui.TableSetupColumn("Spot 1 Spectral"u8);
-                ImGui.TableSetupColumn("Spot 2 Normal"u8);
-                ImGui.TableSetupColumn("Spot 2 Spectral"u8);
-                ImGui.TableSetupColumn("Spot 3 Normal"u8);
-                ImGui.TableSetupColumn("Spot 3 Spectral"u8);
+                ImGui.TableSetupColumn("航线"u8);
+                ImGui.TableSetupColumn("时间"u8);
+                ImGui.TableSetupColumn("区域"u8);
+                ImGui.TableSetupColumn("钓场 1"u8);
+                ImGui.TableSetupColumn("钓场 1 幻海流"u8);
+                ImGui.TableSetupColumn("钓场 2"u8);
+                ImGui.TableSetupColumn("钓场 2 幻海流"u8);
+                ImGui.TableSetupColumn("钓场 3"u8);
+                ImGui.TableSetupColumn("钓场 3 幻海流"u8);
                 ImGui.TableHeadersRow();
                 foreach (var route in GatherBuddy.GameData.OceanRoutes)
                 {
@@ -760,14 +760,14 @@ public partial class Interface
             if (table)
             {
                 ImGui.TableSetupColumn("#"u8);
-                ImGui.TableSetupColumn("Aldenard"u8);
-                ImGui.TableSetupColumn("Spot 1###A"u8);
-                ImGui.TableSetupColumn("Spot 2###A"u8);
-                ImGui.TableSetupColumn("Spot 3###A"u8);
-                ImGui.TableSetupColumn("Othard"u8);
-                ImGui.TableSetupColumn("Spot 1###O"u8);
-                ImGui.TableSetupColumn("Spot 2###O"u8);
-                ImGui.TableSetupColumn("Spot 3###O"u8);
+                ImGui.TableSetupColumn("阿尔迪纳德"u8);
+                ImGui.TableSetupColumn("钓场 1###A"u8);
+                ImGui.TableSetupColumn("钓场 2###A"u8);
+                ImGui.TableSetupColumn("钓场 3###A"u8);
+                ImGui.TableSetupColumn("奥萨德"u8);
+                ImGui.TableSetupColumn("钓场 1###O"u8);
+                ImGui.TableSetupColumn("钓场 2###O"u8);
+                ImGui.TableSetupColumn("钓场 3###O"u8);
                 ImGui.TableHeadersRow();
                 for (var idx = 0; idx < GatherBuddy.GameData.OceanTimeline.Count; ++idx)
                 {
@@ -913,9 +913,9 @@ public partial class Interface
 
         var territories = _debugTerritories;
         M3Widgets.Combo("##Territory", ref _debugTerritoryIdx, territories.Count, i => $"{territories[i].Name} ({territories[i].Id})", 300 * M3.Scale,
-            "Choose a territory", true);
+            "选择区域", true);
         ImGui.SameLine(0, M3.Space2);
-        M3Widgets.Combo("##Weather", ref _debugWeatherIdx, _debugWeathers, 180 * M3.Scale, "Choose a weather", true);
+        M3Widgets.Combo("##Weather", ref _debugWeatherIdx, _debugWeathers, 180 * M3.Scale, "选择天气", true);
         if (_debugTerritoryIdx >= 0 && _debugWeatherIdx >= 0)
         {
             var territory = territories[_debugTerritoryIdx];
@@ -933,22 +933,22 @@ public partial class Interface
             if (weathers.Count > 0)
             {
                 var weatherIds = string.Join(", ", weathers);
-                M3Widgets.CopyButton("##weatherIds", weatherIds, weatherIds, "Copied", M3ButtonStyle.Text, tooltip: "Copy the weather IDs");
+                M3Widgets.CopyButton("##weatherIds", weatherIds, weatherIds, "已复制", M3ButtonStyle.Text, tooltip: "复制天气 ID");
             }
             else
             {
-                Ui.RowText("This territory does not have that weather.", M3Widgets.ComboHeight, M3TextStyle.Muted);
+                Ui.RowText("该区域没有这种天气。", M3Widgets.ComboHeight, M3TextStyle.Muted);
             }
         }
 
         var fishBait = _debugFishBait;
-        M3Widgets.Combo("##fish", ref _debugFishBaitIdx, fishBait.Count, i => fishBait[i].Name, 300 * M3.Scale, "Choose a fish or bait", true);
+        M3Widgets.Combo("##fish", ref _debugFishBaitIdx, fishBait.Count, i => fishBait[i].Name, 300 * M3.Scale, "选择鱼类或鱼饵", true);
         if (_debugFishBaitIdx >= 0)
         {
             var fish = fishBait[_debugFishBaitIdx];
             ImGui.SameLine(0, M3.Space2);
-            M3Widgets.CopyButton("##fishId", fish.Id.ToString(), fish.Mooch ? $"{fish.Id} (mooch)" : fish.Id.ToString(), "Copied", M3ButtonStyle.Text,
-                tooltip: "Copy the item ID");
+            M3Widgets.CopyButton("##fishId", fish.Id.ToString(), fish.Mooch ? $"{fish.Id} （以小钓大）" : fish.Id.ToString(), "已复制", M3ButtonStyle.Text,
+                tooltip: "复制物品 ID");
         }
     }
 
@@ -979,23 +979,23 @@ public partial class Interface
         DrawAlarmDebug();
         DrawAutoGatherDebug();
         DrawReflectionDebug();
-        DrawTabbedTable($"Aetherytes ({GatherBuddy.GameData.Aetherytes.Count})", GatherBuddy.GameData.Aetherytes.Values,
+        DrawTabbedTable($"以太之光（{GatherBuddy.GameData.Aetherytes.Count})", GatherBuddy.GameData.Aetherytes.Values,
             DrawDebugAetheryte, flags, "Id", "名称", "区域", "坐标", "以太流");
-        DrawTabbedTable($"Territories ({GatherBuddy.GameData.WeatherTerritories.Length})", GatherBuddy.GameData.WeatherTerritories,
+        DrawTabbedTable($"区域（{GatherBuddy.GameData.WeatherTerritories.Length})", GatherBuddy.GameData.WeatherTerritories,
             DrawDebugTerritory, flags, "Id", "名称", "尺寸系数", "天气数", "天气");
-        DrawTabbedTable($"Bait ({GatherBuddy.GameData.Bait.Count})", GatherBuddy.GameData.Bait.Values,
+        DrawTabbedTable($"鱼饵（{GatherBuddy.GameData.Bait.Count})", GatherBuddy.GameData.Bait.Values,
             DrawDebugBait, flags, "Id", "名称");
         var sortedGatherables = new List<Gatherable>(GatherBuddy.GameData.Gatherables.Values);
         sortedGatherables.Sort(static (lhs, rhs) => lhs.ItemId.CompareTo(rhs.ItemId));
-        DrawTabbedTable($"Gatherables ({GatherBuddy.GameData.Gatherables.Count})",
+        DrawTabbedTable($"采集品（{GatherBuddy.GameData.Gatherables.Count})",
             sortedGatherables,
             DrawGatherableDebug, flags, "物品Id", "采集Id", "名称", "等级", "采集点数");
-        DrawTabbedTable($"Gathering Nodes ({GatherBuddy.GameData.GatheringNodes.Count})", GatherBuddy.GameData.GatheringNodes.Values,
+        DrawTabbedTable($"采集点（{GatherBuddy.GameData.GatheringNodes.Count})", GatherBuddy.GameData.GatheringNodes.Values,
             DrawGatheringNodeDebug, flags, "Id", "名称", "职业", "等级", "类型", "区域", "坐标", "以太之光", "传承录", "时间",
             "物品", "世界坐标");
-        DrawTabbedTable($"Fish ({GatherBuddy.GameData.Fishes.Count})", GatherBuddy.GameData.Fishes.Values,
+        DrawTabbedTable($"鱼类（{GatherBuddy.GameData.Fishes.Count})", GatherBuddy.GameData.Fishes.Values,
             DrawFishDebug, flags, "物品Id", "鱼Id", "名称", "限制", "传承录", "已记录", "大鱼", "渔场");
-        DrawTabbedTable($"Fishing Spots ({GatherBuddy.GameData.FishingSpots.Count})", GatherBuddy.GameData.FishingSpots.Values,
+        DrawTabbedTable($"钓场（{GatherBuddy.GameData.FishingSpots.Count})", GatherBuddy.GameData.FishingSpots.Values,
             DrawFishingSpotDebug, flags, "Id", "名称", "数据", "区域", "以太之光", "坐标", "阴影", "鱼");
         DrawUptimeManagerTable();
         DrawOceanTab();
@@ -1102,7 +1102,7 @@ public partial class Interface
                 var secondsSinceWaiting = _lastAutoGatherWaitingTime > 0
                     ? (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _lastAutoGatherWaitingTime)
                     : -1;
-                ImGui.Text($"{(secondsSinceWaiting >= 0 ? $"{secondsSinceWaiting}s ago" : "Never")}");
+                ImGui.Text($"{(secondsSinceWaiting >= 0 ? $"{secondsSinceWaiting}秒前" : "永不")}");
 
                 // AutoGatherEnabledChanged event
                 ImGui.TableNextRow();
@@ -1132,7 +1132,7 @@ public partial class Interface
                 var secondsSinceEnabled = _lastAutoGatherEnabledChangedTime > 0
                     ? (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _lastAutoGatherEnabledChangedTime)
                     : -1;
-                ImGui.Text($"{(secondsSinceEnabled >= 0 ? $"{secondsSinceEnabled}s ago (value: {_lastAutoGatherEnabledValue})" : "Never")}");
+                ImGui.Text($"{(secondsSinceEnabled >= 0 ? $"{secondsSinceEnabled}秒前（值 {_lastAutoGatherEnabledValue})" : "永不")}");
             }
         }
 
@@ -1149,7 +1149,7 @@ public partial class Interface
 
                 ImGui.PushID(obj.GameObjectId.ToString());
                 var node = GatherBuddy.GameData.GatheringNodes.TryGetValue((uint)obj.GameObjectId, out var n) ? n : null;
-                ImGui.Text($"{obj.GameObjectId}: {obj.Name ?? "Unknown"} - BaseId: {obj.BaseId}");
+                ImGui.Text($"{obj.GameObjectId}: {obj.Name ?? "未知"} · 基础 ID {obj.BaseId}");
                 ImGui.SameLine();
                 if (ImGui.SmallButton("导航至###NavTo"))
                 {
@@ -1253,7 +1253,7 @@ public partial class Interface
         {
             foreach (var x in GatherBuddy.AutoGather.ItemsToGather)
             {
-                ImGui.Text($"Item: {x.Item.Name}; Location: {x.Location.Name}; Valid until: {(x.Time == TimeInterval.Always ? "Always" : x.Time.End.ConvertToEorzea().DateTime.ToString("HH:mm", CultureInfo.InvariantCulture))} ET; Quantity: {x.Quantity}");
+                ImGui.Text($"物品 {x.Item.Name}，地点 {x.Location.Name}，有效时间 {(x.Time == TimeInterval.Always ? "始终" : x.Time.End.ConvertToEorzea().DateTime.ToString("HH:mm", CultureInfo.InvariantCulture))} 艾欧泽亚时间，数量 {x.Quantity}");
                 if (x.Time == TimeInterval.Always || x.Node == null || x.Node.NodeType is not NodeType.Unspoiled and not NodeType.Legendary and not NodeType.Clouded)
                 {
                     continue;
@@ -1275,16 +1275,16 @@ public partial class Interface
             {
                 text.AppendLine($"已触摸: {tr.Touched}");
                 text.AppendLine($"有未隐藏项: {tr.HasUnhidden}");
-                text.AppendLine($"采集完整性: {tr.IntegrityRemaining}/{tr.IntegrityMax}");
-                text.Append($"Quick gathering: {(!tr.QuickGatheringAllowed ? "not" : "")} allowed");
+                text.AppendLine($"采集次数／耐久 {tr.IntegrityRemaining}/{tr.IntegrityMax}");
+                text.Append($"快速采集{(tr.QuickGatheringAllowed ? "可用" : "不可用")}");
                 if (tr.QuickGatheringAllowed)
                 {
-                    text.Append($", {(!tr.QuickGatheringEnabled ? "not" : "")} checked");
+                    text.Append($"，{(tr.QuickGatheringEnabled ? "已勾选" : "未勾选")}");
                 }
 
                 if (tr.QuickGatheringInProgress)
                 {
-                    text.Append($", in progress");
+                    text.Append("，进行中");
                 }
 
                 text.AppendLine();
@@ -1297,27 +1297,27 @@ public partial class Interface
                         text.AppendLine(" 空的;");
                         continue;
                     }
-                    text.Append($" {(!n.IsEmpty ? n.Item.Name[GatherBuddy.Language] : "None")};");
+                    text.Append($" {(!n.IsEmpty ? n.Item.Name[GatherBuddy.Language] : "无")};");
                     //if (!n.Enabled) text.Append(" disabled;");
                     text.Append($" 等级: {n.ItemLevel}; 产量: {n.Yield}{(n.HasGivingLandBuff ? "+?" : "")}; 概率: {n.GatherChance}; 加成: {n.BoonChance};");
                     if (n.IsHidden)
                     {
-                        text.Append(" hidden;");
+                        text.Append(" 隐藏，");
                     }
 
                     if (n.IsRare)
                     {
-                        text.Append(" rare;");
+                        text.Append(" 珍稀，");
                     }
 
                     if (n.HasBonus)
                     {
-                        text.Append(" bonus;");
+                        text.Append(" 有加成，");
                     }
 
                     if (n.IsCollectable)
                     {
-                        text.Append($" collectable;");
+                        text.Append($" 收藏品，");
                     }
 
                     text.AppendLine();
@@ -1343,7 +1343,7 @@ public partial class Interface
         }
 
         var exporter = GatherBuddy.AutoGather.ArtisanExporter;
-        ImGui.Text($"Artisan Assembly Enabled: {AutoGather.Helpers.Reflection.ArtisanExporter.ArtisanAssemblyEnabled}");
+        ImGui.Text($"Artisan 程序集已启用 {AutoGather.Helpers.Reflection.ArtisanExporter.ArtisanAssemblyEnabled}");
         if (exporter.TouchArtisanAssembly)
         {
             ImGui.Text($"Artisan 实例: {exporter.ArtisanAssemblyInstance}");

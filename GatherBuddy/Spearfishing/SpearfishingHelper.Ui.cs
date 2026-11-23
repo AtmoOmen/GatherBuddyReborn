@@ -85,7 +85,7 @@ public partial class SpearfishingHelper : Window
             var name = fish.Name[GatherBuddy.Language];
             if (GatherBuddy.Config.ShowSpearfishListIconsAsText)
             {
-                name = $"{name} ({fish.Size.ToName()} and {fish.Speed.ToName()})";
+                name = $"{name}（{fish.Size.ToName()}，{fish.Speed.ToName()}）";
             }
             else
             {

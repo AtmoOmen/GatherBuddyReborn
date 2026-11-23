@@ -351,11 +351,11 @@ public partial class FishTimerWindow : Window, IDisposable
         else
         {
             _spotName ??= GetSpotText(_spot);
-            var baitString = " (M)";
+            var baitString = "（以小钓大）";
             if (GatherBuddy.GameData.Bait.ContainsKey(_recorder.Record.BaitId))
             {
                 var baitCount = CurrentBait.HasItem(_recorder.Record.Bait.Id);
-                baitString = baitCount > 999 ? " (>1k)" : $" ({baitCount})";
+                baitString = baitCount > 999 ? "（999+）" : $" ({baitCount})";
             }
 
             DrawTextHeader(_recorder.Record.Bait.Name + baitString, _spotName, _milliseconds);

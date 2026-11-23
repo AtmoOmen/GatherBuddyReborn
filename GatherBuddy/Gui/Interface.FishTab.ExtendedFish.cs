@@ -377,9 +377,9 @@ public partial class Interface
             }
 
             Patch = string.Intern($"版本 {Data.Patch.ToVersionString()}");
-            FishType = Data.OceanFish ? "Ocean Fish" :
-                Data.IsSpearFish ? "Spearfishing" :
-                Data.IsBigFish ? "Big Fish" : "Regular Fish";
+            FishType = Data.OceanFish ? "出海垂钓鱼类" :
+                Data.IsSpearFish ? "刺鱼" :
+                Data.IsBigFish ? "鱼王" : "普通鱼类";
 
             Time = !Data.FishRestrictions.HasFlag(FishRestrictions.Time)
                 ? "总是出现"
@@ -434,13 +434,13 @@ public partial class Interface
         {
             if (!fish.Data.FishRestrictions.HasFlag(FishRestrictions.Weather))
             {
-                Ui.Framed("No weather restrictions", ColorId.HeaderWeather.Value());
+                Ui.Framed("没有天气限制", ColorId.HeaderWeather.Value());
                 return;
             }
 
             if (fish.WeatherIcons.Length == 0 && fish.TransitionIcons.Length == 0)
             {
-                Ui.Framed("Unknown weather restrictions", ColorId.HeaderWeather.Value());
+                Ui.Framed("天气条件未知", ColorId.HeaderWeather.Value());
                 return;
             }
 
@@ -511,7 +511,7 @@ public partial class Interface
         {
             if (fish.Bait.Length == 0)
             {
-                Ui.Framed("Unknown catch method", M3.Scheme.ErrorContainer);
+                Ui.Framed("捕获方式未知", M3.Scheme.ErrorContainer);
                 return;
             }
 
@@ -688,7 +688,7 @@ public partial class Interface
         {
             if (fish.Data.Points > 0)
             {
-                Ui.Framed($"Worth {fish.Data.Points} points", M3.Scheme.SuccessContainer);
+                Ui.Framed($"{fish.Data.Points} 分", M3.Scheme.SuccessContainer);
             }
         }
 

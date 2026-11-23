@@ -1007,7 +1007,7 @@ public sealed class VendorPurchaseManager : IDisposable
         var currentSealCurrencyItemId = GetGrandCompanySealCurrencyItemId(currentGrandCompanyId);
         if (_request.CurrencyItemId != 0 && currentSealCurrencyItemId != 0 && _request.CurrencyItemId != currentSealCurrencyItemId)
         {
-            Fail($"{_request.ItemName} is not sold by the current Grand Company.");
+            Fail($"当前所属的大国防联军不出售「{_request.ItemName}」。");
             return;
         }
         var remainingQuantity = GetRemainingQuantity();
@@ -1131,7 +1131,7 @@ public sealed class VendorPurchaseManager : IDisposable
             return false;
         }
 
-        _statusText = $"{reason} with {_request.Vendor.Name}";
+        _statusText = $"{reason} · {_request.Vendor.Name}";
         return true;
     }
 

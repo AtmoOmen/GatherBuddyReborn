@@ -103,8 +103,8 @@ public partial class VulcanWindow
         }
 
         var recipeCount = list.Recipes.Count;
-        var location = string.IsNullOrEmpty(list.FolderPath) ? "Crafting list" : CraftingListManager.FormatFolderPath(list.FolderPath);
-        var subtitle = $"{location} · {recipeCount} {(recipeCount == 1 ? "recipe" : "recipes")}";
+        var location = string.IsNullOrEmpty(list.FolderPath) ? "制作清单" : CraftingListManager.FormatFolderPath(list.FolderPath);
+        var subtitle = $"{location} · {recipeCount} {(recipeCount == 1 ? "个配方" : "个配方")}";
         var blockHeight = titleHeight + ImGui.GetStyle().ItemSpacing.Y + ImGui.GetTextLineHeight();
 
         var row = new Ui.Row(MathF.Max(buttonSize, blockHeight));
@@ -441,7 +441,7 @@ public partial class VulcanWindow
         var list = _pendingDeleteListId is int listId ? GatherBuddy.CraftingListManager.GetListByID(listId) : null;
         var supporting = list == null
             ? "此清单已不存在。"
-            : $"{list.Name} and its {list.Recipes.Count} {(list.Recipes.Count == 1 ? "recipe" : "recipes")} will be removed. This can't be undone.";
+            : $"将删除清单「{list.Name}」及其中的 {list.Recipes.Count} 个配方。删除后无法撤销。";
         using var dialog = M3Dialog.Begin(DeleteListDialogId, "删除此清单？", supporting, FontAwesomeIcon.Trash);
         if (!dialog.IsOpen)
         {
@@ -507,7 +507,7 @@ public partial class VulcanWindow
         }
 
         var recipeCount = list.Recipes.Count;
-        var details = $"{recipeCount} {(recipeCount == 1 ? "recipe" : "recipes")} · Created {list.CreatedAt.ToLocalTime():yyyy-MM-dd}";
+        var details = $"{recipeCount} {(recipeCount == 1 ? "个配方" : "个配方")} · 创建于 {list.CreatedAt.ToLocalTime():yyyy-MM-dd}";
         if (!string.IsNullOrEmpty(list.FolderPath))
         {
             details = $"{CraftingListManager.FormatFolderPath(list.FolderPath)} · {details}";
@@ -652,7 +652,7 @@ public partial class VulcanWindow
             ImGui.TextWrapped(CraftingListManager.GetFolderDisplayName(folderPath));
         }
 
-        M3Text.Draw($"{CraftingListManager.FormatFolderPath(folderPath)} · {entries.Count} {(entries.Count == 1 ? "list" : "lists")} in this folder tree",
+        M3Text.Draw($"{CraftingListManager.FormatFolderPath(folderPath)} · 此文件夹及其子文件夹共有 {entries.Count} 份清单",
             M3TextStyle.Muted, true);
         ImGui.Dummy(new Vector2(0f, M3.Space1));
 
@@ -690,7 +690,7 @@ public partial class VulcanWindow
         {
             var recipes = list.Recipes.Count;
             using var node = M3Tree.Node($"##folder_preview_{list.ID}", label, leaf: true, icon: FontAwesomeIcon.ClipboardList,
-                tooltip: "点击打开此清单", trailing: $"{recipes} {(recipes == 1 ? "recipe" : "recipes")}");
+                tooltip: "点击打开此清单", trailing: $"{recipes} {(recipes == 1 ? "个配方" : "个配方")}");
             if (node.Clicked)
             {
                 OpenCraftingList(list);

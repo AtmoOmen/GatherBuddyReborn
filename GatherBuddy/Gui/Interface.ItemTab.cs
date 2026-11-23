@@ -46,7 +46,7 @@ public partial class Interface
                 _nameColumnWidth = (MaxTextWidth(Items, static i => i.Data.Name[GatherBuddy.Language]) + ItemSpacing.X + LineIconSize.X) / Scale;
                 _gatheredColumnWidth = TextWidth(_gatheredColumn.DisplayLabel) / Scale + Table.ArrowWidth;
                 _levelingColumnWidth = TextWidth(_levelingColumn.DisplayLabel) / Scale + Table.ArrowWidth;
-                _nextUptimeColumnWidth = Math.Max(TextWidth("99:99 Minutes") / Scale,
+                _nextUptimeColumnWidth = Math.Max(TextWidth("99:99 分钟") / Scale,
                     TextWidth(_nextUptimeColumn.DisplayLabel) / Scale + Table.ArrowWidth);
                 _closestAetheryteColumnWidth = MaxTextWidth(GatherBuddy.GameData.Aetherytes.Values, static a => a.Name) / Scale;
                 _levelColumnWidth = Math.Max(TextWidth("99*****") / Scale,
@@ -54,7 +54,7 @@ public partial class Interface
                 var jobNameWidth = 0f;
                 foreach (var jobName in Enum.GetNames<GatheringType>())
                 {
-                    if (jobName != "Spearfishing")
+                    if (jobName != "刺鱼")
                     {
                         jobNameWidth = Math.Max(jobNameWidth, TextWidth(jobName));
                     }
@@ -126,7 +126,7 @@ public partial class Interface
             {
                 if (item.Leveling)
                 {
-                    Ui.CenteredIcon(FontAwesomeIcon.Check, M3.Scheme.Success, "Useful for leveling");
+                    Ui.CenteredIcon(FontAwesomeIcon.Check, M3.Scheme.Success, "适合练级");
                 }
                 else
                 {
@@ -410,16 +410,16 @@ public partial class Interface
                 switch (item.GatheredState)
                 {
                     case ExtendedGatherable.LogState.Gathered:
-                        Ui.CenteredIcon(FontAwesomeIcon.Check, M3.Scheme.Success, "Already gathered");
+                        Ui.CenteredIcon(FontAwesomeIcon.Check, M3.Scheme.Success, "已采集");
                         break;
                     case ExtendedGatherable.LogState.Ungathered:
-                        Ui.CenteredIcon(FontAwesomeIcon.Times, M3.Scheme.Error, "Not gathered yet");
+                        Ui.CenteredIcon(FontAwesomeIcon.Times, M3.Scheme.Error, "尚未采集");
                         break;
                     case ExtendedGatherable.LogState.NotTracked:
-                        Ui.CenteredIcon(FontAwesomeIcon.Minus, M3Text.ColorOf(M3TextStyle.Faint), "Not tracked by the gathering log");
+                        Ui.CenteredIcon(FontAwesomeIcon.Minus, M3Text.ColorOf(M3TextStyle.Faint), "采集笔记未收录此物品");
                         break;
                     default:
-                        Ui.CenteredIcon(FontAwesomeIcon.Question, M3.Scheme.Info, "The gathering log state is not available");
+                        Ui.CenteredIcon(FontAwesomeIcon.Question, M3.Scheme.Info, "无法读取采集笔记状态");
                         break;
                 }
             }
@@ -835,7 +835,7 @@ public partial class Interface
         private static string GetFolkloreFilterLabel(Gatherable gatherable)
             => GetFolkloreFilterKey(gatherable) == 0
                 ? "无传承录"
-                : gatherable.NodeList.Find(node => node.Folklore.Length > 0)?.Folklore ?? "No Folklore";
+                : gatherable.NodeList.Find(node => node.Folklore.Length > 0)?.Folklore ?? "无需传承录";
 
         private static List<ExtendedGatherable> CreateRows()
         {
@@ -885,7 +885,7 @@ public partial class Interface
         using var id = ImRaii.PushId("Gatherables");
         _itemTable.ExtraHeight = TableFooterHeight;
         _itemTable.Draw(ImGui.GetTextLineHeightWithSpacing());
-        DrawTableFooter(_itemTable, g => g.Data, "Gatherables", "Items");
+        DrawTableFooter(_itemTable, g => g.Data, "Gatherables", "物品");
         DrawClippy();
     }
 }

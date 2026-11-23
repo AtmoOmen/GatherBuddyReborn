@@ -144,7 +144,7 @@ public partial class Interface
 
     private readonly AlarmCache _alarmCache;
 
-    private static readonly string[] AlarmColumns = ["##delete", "Name", "On", "Item", "Seconds early", "Chat", "Sound", "Location", "Next"];
+    private static readonly string[] AlarmColumns = ["##delete", "名称", "启用", "物品", "提前秒数", "聊天提示", "提示音", "地点", "下次提醒"];
     private static readonly string[] AlarmColumnLabels = ["", "名称", "启用", "物品", "提前秒数", "聊天", "音效", "地点", "下次触发"];
 
     private static float AlarmItemWidth

@@ -156,7 +156,7 @@ public partial class Interface
     public static CraftingListDefinition? CurrentCraftingList
         => _plugin._vulcanWindow?.CurrentCraftingList;
 
-    private static readonly string[] AutoGatherItemColumns = ["##drag", "##delete", "On", "Item", "Have", "Want", "Location"];
+    private static readonly string[] AutoGatherItemColumns = ["##drag", "##delete", "启用", "物品", "持有", "目标数量", "采集地点"];
 
     private void DrawAutoGatherListsLine()
     {
@@ -180,7 +180,7 @@ public partial class Interface
         {
             row.Next(M3Widgets.ButtonHeight, M3.Space1);
             if (M3Widgets.Button("##artisan", "从 Artisan 导入", M3ButtonStyle.Text, FontAwesomeIcon.FileImport,
-                    tooltip: "Pick one of your Artisan lists to import into a new auto-gather list."))
+                    tooltip: "选择一份 Artisan 清单并导入为新的自动采集清单。"))
             {
                 M3Menu.Open("##artisanImport");
             }
@@ -188,7 +188,7 @@ public partial class Interface
             using var menu = M3Menu.Begin("##artisanImport");
             if (menu.IsOpen)
             {
-                M3Menu.Heading("Import an Artisan list");
+                M3Menu.Heading("导入 Artisan 清单");
                 foreach (var kvp in GatherBuddy.AutoGather.ArtisanExporter.GetArtisanListNames())
                 {
                     if (M3Menu.Item($"##artisan{kvp.Key}", kvp.Value, FontAwesomeIcon.ClipboardList, tooltip: $"{kvp.Value} ({kvp.Key})"))
@@ -202,18 +202,18 @@ public partial class Interface
 
         row.Next(M3Widgets.ButtonHeight, M3.Space1);
         if (M3Widgets.Button("##teamcraft", "从 TeamCraft 导入", M3ButtonStyle.Text, FontAwesomeIcon.Paste, enabled: current != null,
-                tooltip: "Add the items of a TeamCraft list in your clipboard to this list."))
+                tooltip: "将剪贴板中的 Teamcraft 清单物品添加到当前清单。"))
         {
             ImportTeamCraftList(current!);
         }
 
         row.Next(ImGui.GetFrameHeight(), M3.Space2);
         M3Widgets.HelpMarker(
-            "If the config option to sort by location is not selected, items are gathered in the order of the enabled lists, then in the order of items in each list, "
+            "关闭按地点排序时，先按启用清单的顺序，再按清单内的物品顺序采集， "
           + "但限时采集点和鱼类始终优先。\n"
-          + "Drag lists in the tree to move them, or onto a folder to put them in it.\n"
-          + "Drag items by their handle to rearrange them, or onto another list in the tree to move them there.\n"
-          + "In the Gather Window, hold Control and right-click an item to delete it from the list it belongs to.");
+          + "拖动清单可调整顺序，拖到文件夹上可将清单移入其中。\n"
+          + "拖动物品左侧的把手可调整顺序，拖到另一份清单上可将物品移入该清单。\n"
+          + "在采集窗口按住 Ctrl 并右键点击物品，可将其从所属清单移除。");
         row.Next(M3Widgets.IconButtonSize, M3.Space1);
         if (M3Widgets.IconButton("##discord", FontAwesomeIcon.Comments, "打开自动采集支持 Discord"))
         {
@@ -337,13 +337,13 @@ public partial class Interface
 
     private void DrawAutoGatherList(AutoGatherList list)
     {
-        if (Ui.CommitField("##listName", "Name", list.Name, out var newName, SetInputWidth, 64))
+        if (Ui.CommitField("##listName", "名称", list.Name, out var newName, SetInputWidth, 64))
         {
             _plugin.AutoGatherListsManager.ChangeName(list, newName);
         }
 
         ImGui.SameLine(0, M3.Space2);
-        if (Ui.CommitField("##listDesc", "Description", list.Description, out var newDesc, 2 * SetInputWidth, 128))
+        if (Ui.CommitField("##listDesc", "说明", list.Description, out var newDesc, 2 * SetInputWidth, 128))
         {
             _plugin.AutoGatherListsManager.ChangeDescription(list, newDesc);
         }
@@ -359,16 +359,16 @@ public partial class Interface
         }
 
         M3Tooltip.Hovered("采集本清单中已启用的物品。");
-        row.NextText(enabled ? "Enabled" : "Disabled", M3TextStyle.Muted, M3.Space2);
+        row.NextText(enabled ? "已启用" : "已禁用", M3TextStyle.Muted, M3.Space2);
         row.Next(checkboxHeight, M3.Space3 * 2);
-        DrawAutoGatherListOption("Fallback##list",
-            "Items from fallback lists won't be auto-gathered on their own.\n"
-          + "But if a node doesn't contain any items from regular lists, or you gathered enough of them,\n"
-          + "items from fallback lists are gathered instead if that node has them.",
+        DrawAutoGatherListOption("备用清单##list",
+            "处理常规清单的途中会检查备用清单。\n"
+          + "如果当前采集点没有普通清单中的物品，或所需数量均已达标，\n"
+          + "GBR 会采集该采集点中属于备用清单的物品。",
             list.Fallback, v => _plugin.AutoGatherListsManager.SetFallback(list, v));
         row.Next(checkboxHeight, M3.Space3);
-        DrawAutoGatherListOption("Remove completed##list",
-            "Remove enabled items from this list once your inventory reaches their quantity.",
+        DrawAutoGatherListOption("移除已完成物品##list",
+            "背包中的数量达到目标后，从清单移除对应的已启用物品。",
             list.RemoveCompletedItems, v => _plugin.AutoGatherListsManager.SetRemoveCompletedItems(list, v));
 
         if (!ReferenceEquals(_autoGatherListsCache.ItemFilterList, list))
@@ -421,7 +421,7 @@ public partial class Interface
         }
 
         SameRow(ImGui.GetTextLineHeight());
-        M3Text.Draw(filteringItems ? $"{visibleItems.Count} of {list.Items.Count} items" : $"{list.Items.Count} items", M3TextStyle.Muted);
+        M3Text.Draw(filteringItems ? $"显示 {visibleItems.Count} / {list.Items.Count} 项" : $"共 {list.Items.Count} 项", M3TextStyle.Muted);
 
         var excludedGatherables = new List<IGatherable>(list.Items.Count);
         foreach (var listItem in list.Items)
@@ -465,7 +465,7 @@ public partial class Interface
                 foreach (var column in AutoGatherItemColumns)
                 {
                     ImGui.TableNextColumn();
-                    if (column == "On" && list.Items.Count > 0)
+                    if (column == "启用" && list.Items.Count > 0)
                     {
                         var allEnabled = true;
                         var anyEnabled = false;
@@ -559,7 +559,7 @@ public partial class Interface
                 ImGui.TableNextColumn();
                 ImGui.TableNextColumn();
                 var idx = _autoGatherListsCache.NewGatherableIdx;
-                if (DrawFilteredGatherableCombo("##newItem", ref idx, "Add an item", comboWidth))
+                if (DrawFilteredGatherableCombo("##newItem", ref idx, "添加物品", comboWidth))
                 {
                     _autoGatherListsCache.NewGatherableIdx = idx;
                     _plugin.AutoGatherListsManager.AddItem(list, gatherables[idx]);
@@ -569,7 +569,7 @@ public partial class Interface
 
         if (visibleItemIndices.Count == 0 && list.Items.Count > 0)
         {
-            M3Text.Draw("No items match the search.", M3TextStyle.Faint);
+            M3Text.Draw("没有符合搜索条件的物品。", M3TextStyle.Faint);
         }
 
         if (deleteIndex >= 0)
@@ -627,7 +627,7 @@ public partial class Interface
         var status = GatherBuddy.AutoGather.AutoStatus;
         var compact = GatherBuddy.Config.UiDescriptionTooltips;
         if (M3Widgets.RowSwitch(compact ? $"自动采集：{status}###auto_gather_enabled" : "自动采集###auto_gather_enabled", ref enabled,
-                compact ? null : $"Status: {status}"))
+                compact ? null : $"启用状态 {status}"))
         {
             GatherBuddy.AutoGather.Enabled = enabled;
         }

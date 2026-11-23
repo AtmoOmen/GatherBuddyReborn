@@ -16,11 +16,11 @@ public partial class Interface : M3ShellWindow, IDisposable
 {
     private const string PluginName = "GatherBuddy Reborn";
 
-    private const string SectionBrowse = "Browse";
-    private const string SectionPlan = "Plan";
-    private const string SectionFishing = "Fishing";
-    private const string SectionSettings = "Settings";
-    private const string SectionTools = "Tools";
+    private const string SectionBrowse = "浏览";
+    private const string SectionPlan = "计划";
+    private const string SectionFishing = "钓鱼";
+    private const string SectionSettings = "设置";
+    private const string SectionTools = "工具";
 
     public const string ItemsPageId = "gatherables";
     public const string FishPageId = "fish";

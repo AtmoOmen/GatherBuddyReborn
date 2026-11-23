@@ -15,13 +15,13 @@ namespace GatherBuddy.Gui;
 
 public partial class VulcanWindow : M3ShellWindow, IDisposable
 {
-    public const string WindowId = "Vulcan - Crafting###VulcanWindow";
+    public const string WindowId = "Vulcan 制作###VulcanWindow";
 
-    private const string SectionCraft = "Craft";
-    private const string SectionBuySell = "Buy and sell";
-    private const string SectionSolvers = "Solvers";
-    private const string SectionSettings = "General";
-    private const string SectionTools = "Tools";
+    private const string SectionCraft = "制作";
+    private const string SectionBuySell = "买卖";
+    private const string SectionSolvers = "求解器";
+    private const string SectionSettings = "常规";
+    private const string SectionTools = "工具";
 
     private const string CraftingListsPageId = "crafting_lists";
     private const string RecipesPageId = "recipes";
@@ -370,24 +370,24 @@ public partial class VulcanWindow : M3ShellWindow, IDisposable
 
         if (!installed)
         {
-            return new ArtisanChip("Artisan missing", FontAwesomeIcon.Ban, false, false,
-                "Artisan isn't installed. Once it is installed, Vulcan can turn it on and off for you while crafting.", false);
+            return new ArtisanChip("未安装 Artisan", FontAwesomeIcon.Ban, false, false,
+                "安装 Artisan 后，可以在制作时通过 Vulcan 启用或禁用它。", false);
         }
 
         if (inProgress)
         {
-            return new ArtisanChip(_pendingArtisanEnabledState == true ? "Enabling Artisan…" : "Disabling Artisan…", FontAwesomeIcon.Sync, loaded, false,
-                "Waiting for Dalamud to finish.", loaded);
+            return new ArtisanChip(_pendingArtisanEnabledState == true ? "正在启用 Artisan…" : "正在禁用 Artisan…", FontAwesomeIcon.Sync, loaded, false,
+                "正在等待 Dalamud 完成插件切换。", loaded);
         }
 
         if (blocked)
         {
-            return new ArtisanChip(loaded ? "Artisan on" : "Artisan off", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, false,
-                "Artisan can't be turned on or off from here right now.", loaded);
+            return new ArtisanChip(loaded ? "Artisan 已启用" : "Artisan 已禁用", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, false,
+                "当前无法在此切换 Artisan 状态。", loaded);
         }
 
-        return new ArtisanChip(loaded ? "Artisan on" : "Artisan off", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, true,
-            loaded ? "Artisan is enabled. Click to disable it." : "Artisan is disabled. Click to enable it.", loaded);
+        return new ArtisanChip(loaded ? "Artisan 已启用" : "Artisan 已禁用", loaded ? FontAwesomeIcon.ToggleOn : FontAwesomeIcon.ToggleOff, loaded, true,
+            loaded ? "Artisan 已启用，点击禁用。" : "Artisan 已禁用，点击启用。", loaded);
     }
 
     private bool UpdatePendingArtisanToggle(bool artisanInstalled, bool artisanLoaded)
@@ -413,7 +413,7 @@ public partial class VulcanWindow : M3ShellWindow, IDisposable
                 GatherBuddy.Log.Debug($"[VulcanWindow] Artisan toggle exception: {exception}");
             }
 
-            Communicator.PrintError($"Failed to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
+            Communicator.PrintError($"无法{(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan。");
             ClearPendingArtisanToggle();
             return false;
         }
@@ -421,7 +421,7 @@ public partial class VulcanWindow : M3ShellWindow, IDisposable
         if (_artisanToggleTask is { IsCanceled: true })
         {
             GatherBuddy.Log.Warning($"[VulcanWindow] Artisan toggle was cancelled while trying to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
-            Communicator.PrintError($"Failed to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
+            Communicator.PrintError($"无法{(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan。");
             ClearPendingArtisanToggle();
             return false;
         }
@@ -439,7 +439,7 @@ public partial class VulcanWindow : M3ShellWindow, IDisposable
         }
 
         GatherBuddy.Log.Warning($"[VulcanWindow] Timed out waiting for Artisan to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")}.");
-        Communicator.PrintError($"Timed out trying to {(_pendingArtisanEnabledState.Value ? "enable" : "disable")} Artisan.");
+        Communicator.PrintError($"{(_pendingArtisanEnabledState.Value ? "启用" : "禁用")} Artisan 超时。");
         ClearPendingArtisanToggle();
         return false;
     }
@@ -449,7 +449,7 @@ public partial class VulcanWindow : M3ShellWindow, IDisposable
         if (!DalamudPluginToggleHelper.TrySetPluginEnabled(ArtisanPluginName, enable, out var toggleTask, out var failureReason))
         {
             GatherBuddy.Log.Warning($"[VulcanWindow] Failed to invoke reflected Artisan toggle for state {(enable ? "enabled" : "disabled")}: {failureReason ?? "unknown reason"}.");
-            Communicator.PrintError(failureReason ?? $"Failed to {(enable ? "enable" : "disable")} Artisan.");
+            Communicator.PrintError(failureReason ?? $"无法{(enable ? "启用" : "禁用")} Artisan。");
             return;
         }
 

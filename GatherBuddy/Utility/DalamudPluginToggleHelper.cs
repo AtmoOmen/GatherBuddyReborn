@@ -29,7 +29,7 @@ internal static class DalamudPluginToggleHelper
         {
             if (!ReflectionHelpers.TryGetInstalledPluginEntry(internalName, out var localPlugin, false))
             {
-                return new PluginToggleState(false, false, false, $"{internalName} is not installed.");
+                return new PluginToggleState(false, false, false, $"尚未安装 {internalName}。");
             }
 
             var isLoaded = localPlugin.GetFoP("IsLoaded") is bool loaded && loaded;
@@ -56,7 +56,7 @@ internal static class DalamudPluginToggleHelper
         {
             if (!ReflectionHelpers.TryGetInstalledPluginEntry(internalName, out var localPlugin, true))
             {
-                failureReason = $"{internalName} is not installed.";
+                failureReason = $"尚未安装 {internalName}。";
                 return false;
             }
 
@@ -95,7 +95,7 @@ internal static class DalamudPluginToggleHelper
         catch (Exception e)
         {
             GatherBuddy.Log.Debug($"[DalamudPluginToggleHelper] Failed to {(enable ? "enable" : "disable")} {internalName}: {e}");
-            failureReason = $"Failed to {(enable ? "enable" : "disable")} {internalName}.";
+            failureReason = $"无法{(enable ? "启用" : "禁用")} {internalName}。";
             operationTask = null;
             return false;
         }

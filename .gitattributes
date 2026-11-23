@@ -1,0 +1,2 @@
+# Keep LF endings and allow the patch's context marker before tab indentation.
+build-configuration/RebornMaterial.zh-CN.patch text eol=lf whitespace=-space-before-tab

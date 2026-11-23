@@ -15,7 +15,7 @@ namespace GatherBuddy.Gui;
 
 public class CraftingTreeWindow : M3PanelWindow
 {
-    public const string WindowId = "Crafting Tree###CraftingTree";
+    public const string WindowId = "制作树###CraftingTree";
     private const int MaxRecursionDepth = 24;
     private const int MaxVendorsShown = 6;
 
@@ -29,8 +29,8 @@ public class CraftingTreeWindow : M3PanelWindow
 
     private static readonly M3WindowAction[] TreeWindowActions =
     [
-        new("##tree_materials", FontAwesomeIcon.Boxes, "Show the materials for this list"),
-        new("##tree_vulcan", FontAwesomeIcon.Hammer, "Open Vulcan's crafting lists"),
+        new("##tree_materials", FontAwesomeIcon.Boxes, "查看此清单所需的材料。"),
+        new("##tree_vulcan", FontAwesomeIcon.Hammer, "打开 Vulcan 的制作清单。"),
     ];
 
     private static readonly Vector4 HueRoot = new(0.95f, 0.85f, 0.45f, 1f);
@@ -41,7 +41,7 @@ public class CraftingTreeWindow : M3PanelWindow
     private static readonly Vector4 HueScrip = new(0.85f, 0.55f, 1.00f, 1f);
     private static readonly Vector4 HueDrop = new(1.00f, 0.55f, 0.55f, 1f);
 
-    private static readonly string[] TagLabels = ["Final", "Craft", "Gather", "Fish", "Vendor", "Currency", "Scrip", "Drop", "Other"];
+    private static readonly string[] TagLabels = ["成品", "制作", "采集", "钓鱼", "商人", "货币", "票据", "掉落", "其他"];
 
     private static float IndentPerLevel
         => VulcanUiScaling.Scaled(22f);
@@ -72,7 +72,7 @@ public class CraftingTreeWindow : M3PanelWindow
     private Vector2 _itemSpacing;
 
     public CraftingTreeWindow()
-        : base(WindowId, "Crafting Tree", DefaultSize, DefaultConstraints)
+        : base(WindowId, "制作树", DefaultSize, DefaultConstraints)
     {
         BlocksGameInput = false;
     }
@@ -120,7 +120,7 @@ public class CraftingTreeWindow : M3PanelWindow
         {
             if (_editor == null)
             {
-                return ("No list open", null);
+                return ("尚未打开清单", null);
             }
 
             return _cachedSummary.Length == 0
@@ -138,15 +138,15 @@ public class CraftingTreeWindow : M3PanelWindow
         }
 
         _windowNameListName = listName;
-        WindowName = listName == null ? WindowId : $"Crafting Tree — {listName}###CraftingTree";
+        WindowName = listName == null ? WindowId : $"制作树 · {listName}###CraftingTree";
     }
 
     protected override void DrawContents()
     {
         if (_editor == null)
         {
-            if (M3Widgets.EmptyState("##tree_no_list", "No list open", "Open a crafting list in Vulcan to see how its recipes break down.",
-                    FontAwesomeIcon.Sitemap, "Open Vulcan"))
+            if (M3Widgets.EmptyState("##tree_no_list", "尚未打开清单", "在 Vulcan 中打开一份制作清单，即可查看每个配方的材料来源。",
+                    FontAwesomeIcon.Sitemap, "打开 Vulcan"))
             {
                 GatherBuddy.VulcanWindow?.OpenToCraftingLists();
             }
@@ -163,7 +163,7 @@ public class CraftingTreeWindow : M3PanelWindow
 
         if (_cachedTree.Count == 0)
         {
-            M3Widgets.EmptyState("##tree_empty", "Nothing to show", "This list is empty, or its recipes couldn't be resolved.",
+            M3Widgets.EmptyState("##tree_empty", "没有可显示的配方", "清单为空，或无法读取其中的配方。",
                 FontAwesomeIcon.Sitemap);
             return;
         }
@@ -174,17 +174,17 @@ public class CraftingTreeWindow : M3PanelWindow
 
     private void DrawToolbar()
     {
-        const string expandLabel = "Expand all";
-        const string collapseLabel = "Collapse all";
+        const string expandLabel = "全部展开";
+        const string collapseLabel = "全部收起";
         var flow = new M3Flow();
         flow.Next(M3Widgets.ChipWidth(expandLabel, FontAwesomeIcon.AngleDoubleDown));
-        if (M3Widgets.Chip("##tree_expand", expandLabel, false, FontAwesomeIcon.AngleDoubleDown, "Show every ingredient"))
+        if (M3Widgets.Chip("##tree_expand", expandLabel, false, FontAwesomeIcon.AngleDoubleDown, "显示所有材料"))
         {
             SetExpandedAll(true);
         }
 
         flow.Next(M3Widgets.ChipWidth(collapseLabel, FontAwesomeIcon.AngleDoubleUp));
-        if (M3Widgets.Chip("##tree_collapse", collapseLabel, false, FontAwesomeIcon.AngleDoubleUp, "Show only the final items"))
+        if (M3Widgets.Chip("##tree_collapse", collapseLabel, false, FontAwesomeIcon.AngleDoubleUp, "仅显示成品"))
         {
             SetExpandedAll(false);
         }
@@ -306,7 +306,7 @@ public class CraftingTreeWindow : M3PanelWindow
         var crafts = SumCrafts(tree);
         var gather = SumLeaves(tree, MaterialSource.Gatherable, MaterialSource.Fish);
         var vendor = SumLeaves(tree, MaterialSource.GilVendor, MaterialSource.SpecialCurrency, MaterialSource.Scrip);
-        return $"{tree.Count} final · {crafts} {(crafts == 1 ? "sub-craft" : "sub-crafts")} · {gather} gather · {vendor} vendor/scrip";
+        return $"{tree.Count} 种成品 · {crafts} 项半成品 · {gather} 项采集 · {vendor} 项购买或兑换";
     }
 
     private void DrawTreeNode(TreeNode node, int depth, bool isLast)
@@ -455,23 +455,23 @@ public class CraftingTreeWindow : M3PanelWindow
     {
         if (node.IsRoot)
         {
-            return ("Final", Tone(HueRoot));
+            return ("成品", Tone(HueRoot));
         }
 
         if (node.IsCraft)
         {
-            return ("Craft", Tone(HueSubCraft));
+            return ("制作", Tone(HueSubCraft));
         }
 
         return node.MaterialSource switch
         {
-            MaterialSource.Gatherable => ("Gather", Tone(HueGather)),
-            MaterialSource.Fish => ("Fish", Tone(HueFish)),
-            MaterialSource.GilVendor => ("Vendor", Tone(HueVendor)),
-            MaterialSource.SpecialCurrency => ("Currency", Tone(HueScrip)),
-            MaterialSource.Scrip => ("Scrip", Tone(HueScrip)),
-            MaterialSource.Drop => ("Drop", Tone(HueDrop)),
-            _ => ("Other", M3.Scheme.OnSurfaceVariant),
+            MaterialSource.Gatherable => ("采集", Tone(HueGather)),
+            MaterialSource.Fish => ("钓鱼", Tone(HueFish)),
+            MaterialSource.GilVendor => ("商人", Tone(HueVendor)),
+            MaterialSource.SpecialCurrency => ("货币", Tone(HueScrip)),
+            MaterialSource.Scrip => ("票据", Tone(HueScrip)),
+            MaterialSource.Drop => ("掉落", Tone(HueDrop)),
+            _ => ("其他", M3.Scheme.OnSurfaceVariant),
         };
     }
 
@@ -483,26 +483,26 @@ public class CraftingTreeWindow : M3PanelWindow
             ImGui.TextUnformatted(node.ItemName);
         }
 
-        M3Text.Draw($"Need: {node.Quantity:N0}", M3TextStyle.Muted);
+        M3Text.Draw($"所需数量 {node.Quantity:N0}", M3TextStyle.Muted);
         if (node.IsCraft && node.RecipeYield > 1 && node.CraftCount > 0)
         {
-            M3Text.Draw($"Crafts: {node.CraftCount:N0} (yields {node.RecipeYield} each)", M3TextStyle.Muted);
+            M3Text.Draw($"制作 {node.CraftCount:N0} 次，每次产出 {node.RecipeYield} 个", M3TextStyle.Muted);
         }
 
         if (node.IsCraft && node.CrafterClassName is { Length: > 0 })
         {
-            TextColored($"Crafter: {node.CrafterClassName}", tone);
+            TextColored($"制作职业 {node.CrafterClassName}", tone);
         }
 
         if (node.GatherTerritory is { Length: > 0 })
         {
-            TextColored($"Best location: {node.GatherTerritory}", tone);
+            TextColored($"推荐地点 {node.GatherTerritory}", tone);
         }
 
         if (node.VendorOptions is { Count: > 0 })
         {
             ImGui.Dummy(new Vector2(0f, 2f * M3.Scale));
-            TextColored("Vendors", tone);
+            TextColored("商人", tone);
             var shown = Math.Min(node.VendorOptions.Count, MaxVendorsShown);
             for (var i = 0; i < shown; ++i)
             {
@@ -512,7 +512,7 @@ public class CraftingTreeWindow : M3PanelWindow
 
             if (node.VendorOptions.Count > MaxVendorsShown)
             {
-                M3Text.Draw($"and {node.VendorOptions.Count - MaxVendorsShown} more", M3TextStyle.Faint);
+                M3Text.Draw($"另有 {node.VendorOptions.Count - MaxVendorsShown} 位商人", M3TextStyle.Faint);
             }
         }
 

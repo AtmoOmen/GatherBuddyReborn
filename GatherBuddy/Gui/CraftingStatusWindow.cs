@@ -309,7 +309,7 @@ public class CraftingStatusWindow : M3Window
         return state switch
         {
             CraftingQueueProcessor.QueueState.Idle => "空闲",
-            CraftingQueueProcessor.QueueState.NavigatingToRetainerBell => "前往雇员铃",
+            CraftingQueueProcessor.QueueState.NavigatingToRetainerBell => "前往传唤铃",
             CraftingQueueProcessor.QueueState.WaitingForGather => "采集材料中",
             CraftingQueueProcessor.QueueState.WaitingForJobSwitch => "切换职业中",
             CraftingQueueProcessor.QueueState.Repairing => "修理装备中",

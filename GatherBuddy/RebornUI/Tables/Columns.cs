@@ -21,7 +21,7 @@ public class Column<TItem>
         => -1f;
 
     public string FilterLabel
-        => $"##{Label}Filter";
+        => $"##{Label}筛选";
 
     public virtual bool DrawFilter()
     {
@@ -303,9 +303,9 @@ public static class TableFilter
 {
     private static readonly M3Segment[] TriStateSegments =
     [
-        new("Any"),
-        new("Yes", FontAwesomeIcon.Check),
-        new("No", FontAwesomeIcon.Times),
+        new("不限"),
+        new("是", FontAwesomeIcon.Check),
+        new("否", FontAwesomeIcon.Times),
     ];
 
     public static float Height
@@ -381,7 +381,7 @@ public static class TableFilter
 
         if (filtered)
         {
-            M3Tooltip.Hovered("Right-click to clear the filter.");
+            M3Tooltip.Hovered("右键点击可清除筛选条件。");
         }
 
         return clicked;

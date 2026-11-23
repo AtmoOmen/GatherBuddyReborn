@@ -18,6 +18,15 @@ public class MacroValidationResult
 {
     public bool IsValid { get; init; }
     public MacroValidationFailure Failure { get; init; }
+    internal string FailureText => Failure switch
+    {
+        MacroValidationFailure.NoStats => "无法读取能力值",
+        MacroValidationFailure.CPExhausted => "制作力不足",
+        MacroValidationFailure.DurabilityFailed => "耐久耗尽",
+        MacroValidationFailure.InsufficientProgress => "进展未达到要求",
+        MacroValidationFailure.ActionUnusable => "有技能无法使用",
+        _ => "验证失败",
+    };
     public int FailedAtStep { get; init; }
     public int FinalProgress { get; init; }
     public int RequiredProgress { get; init; }

@@ -487,7 +487,7 @@ public class GatherWindow : Window
         }
         if (GatherBuddy.AutoGather.CurrentRequestedTarget is { } target)
         {
-            ImGui.Text($"Target: {target.Name[GatherBuddy.Language]}");
+            ImGui.Text($"目标 {target.Name[GatherBuddy.Language]}");
         }
 
         using var table = ImRaii.Table("##table", GatherBuddy.Config.ShowGatherWindowTimers ? 2 : 1);

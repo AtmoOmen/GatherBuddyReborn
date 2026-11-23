@@ -24,7 +24,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
         ulong AvailableAmount,
         ulong RequiredAmount);
 
-    public const string WindowId = "Vendor Buy List###VendorBuyListWindow";
+    public const string WindowId = "商店购买清单###VendorBuyListWindow";
     private const string ListNameDialogId = "Vendor Buy List Name###VendorBuyListNamePopup";
     private const float HoldToConfirmSeconds = 0.6f;
 
@@ -177,7 +177,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
                 return (manager.StatusText, manager.IsRunning ? M3.Scheme.Primary : null);
             }
 
-            return (VendorBuyListManager.Lists.Count == 1 ? "1 list" : $"{VendorBuyListManager.Lists.Count} lists", null);
+            return (VendorBuyListManager.Lists.Count == 1 ? "1 份清单" : $"{VendorBuyListManager.Lists.Count} 份清单", null);
         }
     }
 
@@ -376,7 +376,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
             titleHeight = ImGui.CalcTextSize(title).Y;
         }
 
-        var summary = $"{entryCount} entry(s) · {pending} pending";
+        var summary = $"{entryCount} 项物品 · {pending} 项待购买";
         var height = MathF.Max(M3Widgets.ButtonHeight, titleHeight + 2f * M3.Scale + ImGui.GetTextLineHeight());
         var drawList = ImGui.GetWindowDrawList();
         var textTop = origin.Y + (height - titleHeight - 2f * M3.Scale - ImGui.GetTextLineHeight()) * 0.5f;
@@ -554,7 +554,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
         if (ImGui.IsItemHovered())
         {
             M3Tooltip.Show($"{requirement.CurrencyName}\n持有: {requirement.AvailableAmount:N0}\n需要: {requirement.RequiredAmount:N0}"
-              + (enough ? string.Empty : $"\nShort by {requirement.RequiredAmount - requirement.AvailableAmount:N0}"));
+              + (enough ? string.Empty : $"\n还缺 {requirement.RequiredAmount - requirement.AvailableAmount:N0}"));
         }
     }
 
@@ -569,13 +569,13 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
         }
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 1.25f);
-        ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(58f));
-        ImGui.TableSetupColumn("Want", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(86f));
-        ImGui.TableSetupColumn("Have", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
-        ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
-        ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthStretch, 0.80f);
-        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 1.00f);
+        ImGui.TableSetupColumn("物品", ImGuiTableColumnFlags.WidthStretch, 1.25f);
+        ImGui.TableSetupColumn("价格", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(58f));
+        ImGui.TableSetupColumn("目标数量", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(86f));
+        ImGui.TableSetupColumn("持有", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
+        ImGui.TableSetupColumn("需购买", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(54f));
+        ImGui.TableSetupColumn("商人", ImGuiTableColumnFlags.WidthStretch, 0.80f);
+        ImGui.TableSetupColumn("地点", ImGuiTableColumnFlags.WidthStretch, 1.00f);
         ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight() + VulcanUiScaling.Scaled(8f));
         ImGui.TableHeadersRow();
 
@@ -722,7 +722,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
         ImGui.TableNextColumn();
         if (!entry.Enabled)
         {
-            Ui.RowText("Off", rowHeight, M3TextStyle.Faint);
+            Ui.RowText("关闭", rowHeight, M3TextStyle.Faint);
         }
         else if (remaining > 0)
         {
@@ -861,7 +861,7 @@ public sealed partial class VendorBuyListWindow : M3PanelWindow
         var index = vendorOptions.IndexOf(o => VendorPreferenceHelper.MatchesVendor(o.Npc, current.Npc));
         if (M3Widgets.Combo($"##vendorBuyListVendor_{entry.Id}", ref index, vendorOptions.Count, i => GetVendorNpcDisplayLabel(vendorOptions, vendorOptions[i]),
                 ImGui.GetContentRegionAvail().X, selectedLabel, enabled: !(isActive || manager.IsBusy),
-                tooltip: $"{selectedLabel}\n{vendorOptions.Count} vendors sell this; pick the one to buy from.")
+                tooltip: $"{selectedLabel}\n{vendorOptions.Count} 位商人出售此物品，可以选择向谁购买。")
          && index >= 0
          && manager.UpdateEntryVendor(entry.Id, vendorOptions[index].Npc))
         {

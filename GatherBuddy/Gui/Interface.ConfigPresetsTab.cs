@@ -236,8 +236,8 @@ namespace GatherBuddy.Gui
 
         private static readonly M3Segment[] LevelKindSegments =
         [
-            new("Item level", Tooltip: "The level shown in the gathering log and the gathering window."),
-            new("Gathering level", Tooltip: "The hidden gathering level (glv). Use it to tell different tiers of legendary nodes apart."),
+            new("物品等级", Tooltip: "采集笔记和采集窗口显示的物品等级。"),
+            new("采集等级", Tooltip: "游戏内部的采集等级（GLV），可区分不同档次的传说采集点。"),
         ];
 
         private bool _presetsDirty;
@@ -322,8 +322,8 @@ namespace GatherBuddy.Gui
                     M3ButtonStyle.Tonal, FontAwesomeIcon.Copy))
             {
                 ImGui.SetClipboardText(preset.ToBase64String());
-                Communicator.Print($"Successfully copied {preset.Name} to clipboard.");
-                M3Snackbar.Show($"Copied {CheckUnnamed(preset.Name)} to the clipboard.", severity: M3Severity.Success);
+                Communicator.Print($"已将预设「{preset.Name}」复制到剪贴板。");
+                M3Snackbar.Show($"已将预设「{CheckUnnamed(preset.Name)}」复制到剪贴板。", severity: M3Severity.Success);
             }
 
             if (M3Widgets.RowButton("检查物品使用的预设###Check which preset each item uses", "检查",
@@ -340,7 +340,7 @@ namespace GatherBuddy.Gui
                 "此预设适用的物品。");
 
             var kind = preset.ItemLevel.UseGlv ? 1 : 0;
-            if (M3Widgets.RowSegmented("Level type", ref kind, LevelKindSegments))
+            if (M3Widgets.RowSegmented("等级类型", ref kind, LevelKindSegments))
             {
                 SwitchLevelKind(preset, kind == 1);
             }
@@ -348,8 +348,8 @@ namespace GatherBuddy.Gui
             var low = preset.ItemLevel.Min;
             var high = preset.ItemLevel.Max;
             var useGlv = preset.ItemLevel.UseGlv;
-            if (M3Widgets.RowIntRange(useGlv ? "Gathering level range" : "Item level range", ref low, ref high, 1, useGlv ? ConfigPreset.MaxGvl : ConfigPreset.MaxLevel,
-                    supporting: "The lowest and highest level this preset is used for."))
+            if (M3Widgets.RowIntRange(useGlv ? "采集等级范围" : "物品等级范围", ref low, ref high, 1, useGlv ? ConfigPreset.MaxGvl : ConfigPreset.MaxLevel,
+                    supporting: "此预设适用的最低和最高等级。"))
             {
                 preset.ItemLevel.Min = low;
                 preset.ItemLevel.Max = high;
@@ -357,19 +357,19 @@ namespace GatherBuddy.Gui
             }
 
             var nodes = preset.NodeType;
-            DrawChipGroup("preset_nodes", "Node types", null,
-                ("Regular", nodes.Regular, v => nodes.Regular = v),
-                ("Unspoiled", nodes.Unspoiled, v => nodes.Unspoiled = v),
-                ("Legendary", nodes.Legendary, v => nodes.Legendary = v),
-                ("Ephemeral", nodes.Ephemeral, v => nodes.Ephemeral = v),
-                ("Clouded", nodes.Clouded, v => nodes.Clouded = v));
+            DrawChipGroup("preset_nodes", "采集点类型", null,
+                ("常规", nodes.Regular, v => nodes.Regular = v),
+                ("未知", nodes.Unspoiled, v => nodes.Unspoiled = v),
+                ("传说", nodes.Legendary, v => nodes.Legendary = v),
+                ("限时", nodes.Ephemeral, v => nodes.Ephemeral = v),
+                ("云雾", nodes.Clouded, v => nodes.Clouded = v));
 
             var items = preset.ItemType;
-            DrawChipGroup("preset_items", "Item types", "Choosing fish turns off deciding actions automatically.",
-                ("Crystals", items.Crystals, v => items.Crystals = v),
-                ("Collectables", items.Collectables, v => items.Collectables = v),
-                ("Gatherables", items.Other, v => items.Other = v),
-                ("Fish", items.Fish, v =>
+            DrawChipGroup("preset_items", "物品类型", "选择鱼类时会关闭自动选择技能。",
+                ("水晶", items.Crystals, v => items.Crystals = v),
+                ("收藏品", items.Collectables, v => items.Collectables = v),
+                ("普通采集品", items.Other, v => items.Other = v),
+                ("鱼类", items.Fish, v =>
                 {
                     items.Fish = v;
                     if (v)
@@ -456,7 +456,7 @@ namespace GatherBuddy.Gui
             if (types.Crystals || types.Other)
             {
                 var gp = preset.GatherableMinGP;
-                if (M3Widgets.RowNumber("Minimum GP for regular items and crystals", ref gp, 10, 0, ConfigPreset.MaxGP, "GP"))
+                if (M3Widgets.RowNumber("普通采集品和水晶所需的最低采集力", ref gp, 10, 0, ConfigPreset.MaxGP, "点"))
                 {
                     preset.GatherableMinGP = gp;
                     MarkPresetsDirty();
@@ -466,14 +466,14 @@ namespace GatherBuddy.Gui
             if (types.Collectables)
             {
                 var gp = preset.CollectableMinGP;
-                if (M3Widgets.RowNumber("Minimum GP for collectables", ref gp, 10, 0, ConfigPreset.MaxGP, "GP"))
+                if (M3Widgets.RowNumber("收藏品所需的最低采集力", ref gp, 10, 0, ConfigPreset.MaxGP, "点"))
                 {
                     preset.CollectableMinGP = gp;
                     MarkPresetsDirty();
                 }
 
                 gp = preset.CollectableActionsMinGP;
-                if (M3Widgets.RowNumber("Minimum GP for actions on collectables", ref gp, 10, 0, ConfigPreset.MaxGP, "GP"))
+                if (M3Widgets.RowNumber("收藏品采集技能所需的最低采集力", ref gp, 10, 0, ConfigPreset.MaxGP, "点"))
                 {
                     preset.CollectableActionsMinGP = gp;
                     MarkPresetsDirty();
@@ -481,8 +481,8 @@ namespace GatherBuddy.Gui
 
                 var solidAge = ConcatNames(Actions.SolidAge);
                 var alwaysSolidAge = preset.CollectableAlwaysUseSolidAge;
-                if (M3Widgets.RowSwitch($"Always use {solidAge}", ref alwaysSolidAge,
-                        $"Use {solidAge} regardless of starting GP once the target collectability is reached."))
+                if (M3Widgets.RowSwitch($"始终使用 {solidAge}", ref alwaysSolidAge,
+                        $"达到目标收藏价值时，即使初始采集力未达到设定值，也尝试使用 {solidAge}。"))
                 {
                     preset.CollectableAlwaysUseSolidAge = alwaysSolidAge;
                     MarkPresetsDirty();
@@ -500,16 +500,16 @@ namespace GatherBuddy.Gui
                 {
                     using var sub = M3SubGroup.Begin();
                     var score = preset.CollectableTagetScore;
-                    if (M3Widgets.RowNumber("Target collectability", ref score, 10, 0, ConfigPreset.MaxCollectability, null,
-                            "Keep going until the item reaches this collectability."))
+                    if (M3Widgets.RowNumber("目标收藏价值", ref score, 10, 0, ConfigPreset.MaxCollectability, null,
+                            "将收藏价值提高到这个数值后再采集。"))
                     {
                         preset.CollectableTagetScore = score;
                         MarkPresetsDirty();
                     }
 
                     score = preset.CollectableMinScore;
-                    if (M3Widgets.RowNumber("Minimum collectability at the last integrity point", ref score, 10, 0, ConfigPreset.MaxCollectability, null,
-                            $"Collect anyway at the last integrity point if the item has at least this much. {ConfigPreset.MaxCollectability} turns it off."))
+                    if (M3Widgets.RowNumber("最后一次采集的最低收藏价值", ref score, 10, 0, ConfigPreset.MaxCollectability, null,
+                            $"只剩最后一次采集机会时，达到此收藏价值即可采集。设为 {ConfigPreset.MaxCollectability} 时关闭此规则。"))
                     {
                         preset.CollectableMinScore = score;
                         MarkPresetsDirty();
@@ -522,8 +522,7 @@ namespace GatherBuddy.Gui
             {
                 var automatic = preset.ChooseBestActionsAutomatically;
                 if (M3Widgets.RowSwitch("自动决定使用的技能", ref automatic,
-                        "For collectables, the usual collectable rotation is used with every action. For unspoiled and legendary nodes, "
-                      + "actions are chosen for the most yield. For regular nodes, actions are chosen for the most yield per GP spent."))
+                        "收藏品使用包含全部可用技能的常规收藏品流程。未知和传说采集点优先提高总获得数，常规采集点优先提高每点采集力带来的获得数。"))
                 {
                     preset.ChooseBestActionsAutomatically = automatic;
                     MarkPresetsDirty();
@@ -533,10 +532,9 @@ namespace GatherBuddy.Gui
             if (!types.Fish && preset.ChooseBestActionsAutomatically && preset.NodeType.Regular)
             {
                 var bestOnly = preset.SpendGPOnBestNodesOnly;
-                if (M3Widgets.RowSwitch("仅在 GP 充足时选择最优加成的采集点", ref bestOnly,
-                        "Regular nodes only. Keeps GP for nodes whose bonuses give the best yield per GP: make sure nodes with +2 integrity, "
-                      + "+3 yield and +100% boon chance hidden bonuses exist and that you meet their requirements. "
-                      + $"Ignored when {ConcatNames(Actions.Bountiful)} gives +3, since nothing beats that. Not recommended with the Revisit trait (level 91+)."))
+                if (M3Widgets.RowSwitch("优先为加成效率最高的采集点保留采集力", ref bestOnly,
+                        "仅对常规采集点生效。优先保留采集力给加成效率最高的采集点。请确认该区域有采集次数 +2、获得数 +3 和额外采集奖励发生率 +100% 的隐藏加成，且角色符合触发条件。"
+                      + $"当 {ConcatNames(Actions.Bountiful)} 能让获得数 +3 时跳过此规则。解锁「再次发现」（91 级）后建议关闭此项。"))
                 {
                     preset.SpendGPOnBestNodesOnly = bestOnly;
                     MarkPresetsDirty();
@@ -584,7 +582,7 @@ namespace GatherBuddy.Gui
                 using var card = M3Card.Begin("preset_fishing_actions", "钓鱼技能", FontAwesomeIcon.Fish, M3.AccentFor(2),
                     M3CardStyle.Filled, "启用技能后可设置其使用时机。");
                 var actions = preset.FishingActions;
-                DrawToggleRow("Patience / Patience II", actions.Patience);
+                DrawToggleRow($"{Actions.Patience.Name} / {Actions.PatienceII.Name}", actions.Patience);
                 DrawFishingActionRow(Actions.DoubleHook.Name, actions.DoubleHook, actions.TripleHook);
                 DrawFishingActionRow(Actions.TripleHook.Name, actions.TripleHook, actions.DoubleHook);
                 DrawFishingActionRow(Actions.PrizeCatch.Name, actions.PrizeCatch);
@@ -601,12 +599,12 @@ namespace GatherBuddy.Gui
             using var card = M3Card.Begin("preset_consumables", "消耗品", FontAwesomeIcon.Flask, M3.AccentFor(0), M3CardStyle.Filled,
                 "优先列出背包中的物品，并显示持有数量。");
             var consumables = preset.Consumables;
-            DrawActionRow("Cordial", consumables.Cordial, PossibleCordials);
-            DrawActionRow("Food", consumables.Food, PossibleFoods, true);
-            DrawActionRow("Medicine", consumables.Potion, PossiblePotions, true);
-            DrawActionRow("Manual", consumables.Manual, PossibleManuals, true);
-            DrawActionRow("Squadron Manual", consumables.SquadronManual, PossibleSquadronManuals, true);
-            DrawActionRow("Squadron Pass", consumables.SquadronPass, PossibleSquadronPasses, true);
+            DrawActionRow("强心剂", consumables.Cordial, PossibleCordials);
+            DrawActionRow("食物", consumables.Food, PossibleFoods, true);
+            DrawActionRow("药品", consumables.Potion, PossiblePotions, true);
+            DrawActionRow("生存学指南", consumables.Manual, PossibleManuals, true);
+            DrawActionRow("军用及民用指南", consumables.SquadronManual, PossibleSquadronManuals, true);
+            DrawActionRow("传送网使用优惠券", consumables.SquadronPass, PossibleSquadronPasses, true);
         }
 
         private void DrawActionRow(string name, ConfigPreset.ActionConfig action, IEnumerable<Item>? items = null, bool hideGP = false)
@@ -628,7 +626,7 @@ namespace GatherBuddy.Gui
             if (action is ConfigPreset.ActionConfigIntegrity firstStep)
             {
                 var firstStepOnly = firstStep.FirstStepOnly;
-                if (M3Widgets.RowSwitch("Only on the first step", ref firstStepOnly, "Use it only if nothing has been gathered from the node yet."))
+                if (M3Widgets.RowSwitch("仅在首次采集前使用", ref firstStepOnly, "只在本采集点尚未采集过时使用此技能。"))
                 {
                     firstStep.FirstStepOnly = firstStepOnly;
                     MarkPresetsDirty();
@@ -639,7 +637,7 @@ namespace GatherBuddy.Gui
             {
                 var low = action.MinGP;
                 var high = action.MaxGP;
-                if (M3Widgets.RowIntRange("GP", ref low, ref high, 0, ConfigPreset.MaxGP, supporting: "Use it while your GP is in this range."))
+                if (M3Widgets.RowIntRange("采集力范围", ref low, ref high, 0, ConfigPreset.MaxGP, supporting: "当前采集力在此范围内时使用。"))
                 {
                     action.MinGP = low;
                     action.MaxGP = high;
@@ -651,7 +649,7 @@ namespace GatherBuddy.Gui
             {
                 var low = boon.MinBoonChance;
                 var high = boon.MaxBoonChance;
-                if (M3Widgets.RowIntRange("Boon chance", ref low, ref high, 0, 100, "%", "Use it while the boon chance is in this range."))
+                if (M3Widgets.RowIntRange("额外采集奖励发生率", ref low, ref high, 0, 100, "%", "额外采集奖励发生率在此范围内时使用。"))
                 {
                     boon.MinBoonChance = low;
                     boon.MaxBoonChance = high;
@@ -693,7 +691,7 @@ namespace GatherBuddy.Gui
             {
                 var choices = ConsumableChoices(name, items);
                 var index = Math.Max(0, choices.FindIndex(c => c.RowId == consumable.ItemId));
-                if (M3Widgets.RowCombo("Item", ref index, choices.Count, i => choices[i].Name, null, search: true)
+                if (M3Widgets.RowCombo("物品", ref index, choices.Count, i => choices[i].Name, null, search: true)
                  && index >= 0 && index < choices.Count && choices[index].RowId != consumable.ItemId)
                 {
                     consumable.ItemId = choices[index].RowId;
@@ -717,7 +715,7 @@ namespace GatherBuddy.Gui
         {
             using var id = ImRaii.PushId(name);
             var enabled = action.Enabled;
-            var supporting = oppositeAction != null ? "Double Hook and Triple Hook can't both be on; turning one on turns the other off." : null;
+            var supporting = oppositeAction != null ? "双重提钩和三重提钩互斥，开启其中一个会关闭另一个。" : null;
             if (M3Widgets.RowSwitch(name, ref enabled, supporting))
             {
                 action.Enabled = enabled;
@@ -736,14 +734,14 @@ namespace GatherBuddy.Gui
 
             using var sub = M3SubGroup.Begin();
             var above = action.GpThresholdAbove ? 0 : 1;
-            if (M3Widgets.RowSegmented("Use when GP is", ref above, SettingRows.AboveBelowSegments))
+            if (M3Widgets.RowSegmented("采集力使用条件", ref above, SettingRows.AboveBelowSegments))
             {
                 action.GpThresholdAbove = above == 0;
                 MarkPresetsDirty();
             }
 
             var threshold = action.GpThreshold;
-            if (M3Widgets.RowNumber("GP threshold", ref threshold, 10, 0, ConfigPreset.MaxGP, "GP"))
+            if (M3Widgets.RowNumber("采集力阈值", ref threshold, 10, 0, ConfigPreset.MaxGP, "点"))
             {
                 action.GpThreshold = threshold;
                 MarkPresetsDirty();
@@ -779,7 +777,7 @@ namespace GatherBuddy.Gui
                 return order != 0 ? order : a.Order.CompareTo(b.Order);
             });
 
-            var list = new List<(string Name, uint RowId)>(entries.Count + 1) { ("None", 0u) };
+            var list = new List<(string Name, uint RowId)>(entries.Count + 1) { ("无", 0u) };
             foreach (var (name, rowId, count, _) in entries)
             {
                 list.Add(($"{name} ({count})", rowId));
@@ -838,9 +836,9 @@ namespace GatherBuddy.Gui
                 if (table)
                 {
                     ImGui.TableSetupScrollFreeze(0, 1);
-                    ImGui.TableSetupColumn("Gather list");
-                    ImGui.TableSetupColumn("Item");
-                    ImGui.TableSetupColumn("Config preset");
+                    ImGui.TableSetupColumn("采集清单");
+                    ImGui.TableSetupColumn("物品");
+                    ImGui.TableSetupColumn("配置预设");
                     ImGui.TableHeadersRow();
 
                     foreach (var (list, name, item) in rows)

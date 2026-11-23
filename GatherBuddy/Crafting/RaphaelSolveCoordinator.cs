@@ -729,7 +729,7 @@ public class RaphaelSolveCoordinator
             if (string.IsNullOrEmpty(raphaelPath))
             {
                 cacheEntry.IsFailed = true;
-                cacheEntry.FailureReason = "raphael-cli.exe path is empty";
+                cacheEntry.FailureReason = "尚未设置 raphael-cli.exe 的路径";
                 _cachedSolutions[key] = cacheEntry;
                 GatherBuddy.Log.Error("[RaphaelSolveCoordinator] FAIL: raphael-cli.exe path could not be resolved - plugin directory is unavailable");
                 return;
@@ -738,7 +738,7 @@ public class RaphaelSolveCoordinator
             if (!File.Exists(raphaelPath))
             {
                 cacheEntry.IsFailed = true;
-                cacheEntry.FailureReason = $"raphael-cli.exe not found at {raphaelPath}";
+                cacheEntry.FailureReason = $"在 {raphaelPath} 找不到 raphael-cli.exe";
                 _cachedSolutions[key] = cacheEntry;
                 GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: raphael-cli.exe not found at {raphaelPath}. Ensure the plugin was downloaded/updated with the latest version.");
                 return;
@@ -775,7 +775,7 @@ public class RaphaelSolveCoordinator
             if (process.ExitCode != 0)
             {
                 cacheEntry.IsFailed = true;
-                cacheEntry.FailureReason = $"Exit code {process.ExitCode}: {error}";
+                cacheEntry.FailureReason = $"退出代码 {process.ExitCode} · {error}";
                 _cachedSolutions[key] = cacheEntry;
                 GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Raphael exited with code {process.ExitCode} for recipe {request.RecipeId}");
                 GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Raphael stderr: {error}");
@@ -789,7 +789,7 @@ public class RaphaelSolveCoordinator
             if (actionIds.Count == 0)
             {
                 cacheEntry.IsFailed = true;
-                cacheEntry.FailureReason = "No actions generated";
+                cacheEntry.FailureReason = "求解器未生成制作技能";
                 _cachedSolutions[key] = cacheEntry;
                 GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Raphael generated empty solution for recipe {request.RecipeId}");
                 GatherBuddy.Log.Debug($"[RaphaelSolveCoordinator] Raphael stdout was: {output}");
@@ -812,7 +812,7 @@ public class RaphaelSolveCoordinator
             TryKillRaphaelProcess(process, request.RecipeId, "timeout");
             await DrainProcessOutputAsync(outputTask, errorTask).ConfigureAwait(false);
             cacheEntry.IsFailed = true;
-            cacheEntry.FailureReason = "Solve timeout";
+            cacheEntry.FailureReason = "求解超时";
             _cachedSolutions[key] = cacheEntry;
             GatherBuddy.Log.Error($"[RaphaelSolveCoordinator] FAIL: Raphael solve timeout for recipe {request.RecipeId} (timeout: {_config.RaphaelTimeoutMinutes} minutes)");
         }

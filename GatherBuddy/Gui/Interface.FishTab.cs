@@ -441,10 +441,10 @@ public partial class Interface
             public override void DrawColumn(ExtendedFish item, int _)
                 => ImGui.Text(item.FishType switch
                 {
-                    "Ocean Fish" => "海钓",
-                    "Spearfishing" => "刺鱼",
-                    "Big Fish" => "鱼王",
-                    "Regular Fish" => "普通鱼",
+                    "出海垂钓鱼类" => "海钓",
+                    "刺鱼" => "刺鱼",
+                    "鱼王" => "鱼王",
+                    "普通鱼类" => "普通鱼",
                     _ => item.FishType,
                 });
 
