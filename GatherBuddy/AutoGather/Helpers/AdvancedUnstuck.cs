@@ -1,6 +1,5 @@
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
-using GatherBuddy.CustomInfo;
 using GatherBuddy.Helpers;
 using GatherBuddy.Plugin;
 using System;
@@ -11,17 +10,15 @@ namespace GatherBuddy.AutoGather.Movement
     public sealed class AdvancedUnstuck : IDisposable
     {
         private const double UnstuckDuration = 1.0;
-        private const double CheckExpiration = 1.0;
-        private const float MinMovementDistance = 2.0f;
 
         private readonly OverrideMovement _movementController = new();
-        private DateTime _lastMovement;
+        private readonly NavigationProgress _progress = new();
         private DateTime _unstuckStart;
-        private DateTime _lastCheck;
         private DateTime _lastJumpAttempt;
-        private Vector3 _lastPosition;
 
         public bool IsRunning => _movementController.Enabled;
+
+        internal void ResetTracking() => _progress.Reset();
 
         public bool Check(Vector3 destination, bool isPathing)
         {
@@ -32,61 +29,28 @@ namespace GatherBuddy.AutoGather.Movement
 
             var now = DateTime.Now;
 
-            //On cooldown or not navigating: disable tracking and reset
-            if (now.Subtract(_unstuckStart).TotalSeconds < GatherBuddy.Config.AutoGatherConfig.NavResetCooldown
-                || destination == default)
+            if (destination == default || !isPathing || (now - _unstuckStart).TotalSeconds < GatherBuddy.Config.AutoGatherConfig.NavResetCooldown)
             {
-                _lastCheck = DateTime.MinValue;
+                ResetTracking();
                 return true;
             }
 
-            var lastCheck = _lastCheck;
-            _lastCheck = now;
-
-            //Tracking wasn't active for 1 second or was reset: restart tracking from the current position
-            if (now.Subtract(lastCheck).TotalSeconds > CheckExpiration)
+            var stationarySeconds = _progress.Observe(Player.Position, Environment.TickCount64);
+            if (stationarySeconds > GatherBuddy.Config.AutoGatherConfig.NavResetThreshold)
             {
-                _lastPosition = Player.Position;
-                _lastMovement = now;
-                return true;
-            }
-
-            //vnavmesh is moving...
-            if (isPathing)
-            {
-                //...and quite fast: update current position
-                if (_lastPosition.DistanceToPlayer() >= MinMovementDistance)
+                GatherBuddy.Log.Warning($"高级脱困: 角色连续 {stationarySeconds:F1} 秒停留在 {Player.Position}");
+                ResetTracking();
+                if ((now - _lastJumpAttempt).TotalSeconds > GatherBuddy.Config.AutoGatherConfig.NavResetCooldown * 2.0 && IsJumpPossible())
                 {
-                    _lastPosition = Player.Position;
-                    _lastMovement = now;
+                    _lastJumpAttempt = now;
+                    Jump();
                 }
-                //...but not fast enough: unstuck
-                else if (now.Subtract(_lastMovement).TotalSeconds > GatherBuddy.Config.AutoGatherConfig.NavResetThreshold)
+                else
                 {
-                    GatherBuddy.Log.Warning($"高级脱困: 角色卡住了。在 {now.Subtract(_lastMovement).TotalSeconds} 秒内移动了 {_lastPosition.DistanceToPlayer()} yal");
-
-                    // Try jumping first if not flying/diving and haven't tried jumping recently
-                    if (now.Subtract(_lastJumpAttempt).TotalSeconds > GatherBuddy.Config.AutoGatherConfig.NavResetCooldown * 2.0 && IsJumpPossible())
-                    {
-                        _lastMovement = _lastJumpAttempt = now;
-                        _lastPosition = Player.Position;
-
-                        Jump();
-                    }
-                    else
-                    {
-                        // Either flying/diving, or jump didn't work - use normal unstuck
-                        Start();
-                    }
+                    Start();
                 }
             }
-            else
-            {
-                //vnavmesh is generating path: update current position.
-                //Not checking IsPathGenerating because pathfinding may complete asynchronously, and this is handled by HandlePathfinding()
-                _lastPosition = Player.Position;
-                _lastMovement = now;
-            }
+
             return !IsRunning;
         }
 
@@ -224,7 +188,7 @@ namespace GatherBuddy.AutoGather.Movement
         private void Stop()
         {
             _movementController.Enabled = false;
-            _lastCheck = DateTime.MinValue;
+            ResetTracking();
             Dalamud.Framework.Update -= RunningUpdate;
         }
 

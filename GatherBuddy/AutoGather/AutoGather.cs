@@ -57,6 +57,7 @@ namespace GatherBuddy.AutoGather
             ArtisanExporter = new Reflection.ArtisanExporter(plugin.AutoGatherListsManager);
             Dalamud.Chat.CheckMessageHandled += OnMessageHandled;
             Dalamud.ToastGui.QuestToast += OnQuestToast;
+            Dalamud.ToastGui.ErrorToast += OnFlightErrorToast;
             //Dalamud.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, "Gathering", OnGatheringFinalize);
             _plugin.FishRecorder.Parser.CaughtFish += OnFishCaught;
         }
@@ -115,9 +116,8 @@ namespace GatherBuddy.AutoGather
         private GatherTarget? _fishingApproachTarget;
         private Vector3 _fishingApproachPosition;
         private readonly List<Vector3> _failedFishingApproachPositions = [];
-        private DateTime _fishingApproachLastProgressTime = DateTime.MinValue;
-        private DateTime _fishingApproachLastCheckTime = DateTime.MinValue;
-        private float _fishingApproachBestDistance = float.MaxValue;
+        private readonly NavigationProgress _fishingApproachProgress = new();
+        private readonly WaypointProgress _waypointProgress = new();
         private int _fishingApproachRetryCount;
         private bool _fishingApproachPathObserved;
         private bool _fishingApproachRecoveryPending;
@@ -186,10 +186,32 @@ namespace GatherBuddy.AutoGather
             }
         }
 
+        private void OnFlightErrorToast(ref SeString message, ref bool isHandled)
+            => LogFlightError(message);
+
+        private void LogFlightError(SeString message)
+        {
+            if (!Enabled || !Dalamud.Conditions[ConditionFlag.InFlight] || !Throttler.Throttle("GBR.FlightError", 1000))
+            {
+                return;
+            }
+
+            var now = Environment.TickCount64;
+            var recentAction = _lastTravelAction is { } action && now - action.Time <= 5000
+                ? $"{action.Type} {action.Id}（{now - action.Time} 毫秒前）"
+                : "最近 5 秒无坐骑、采集增益或消耗品动作";
+            GatherBuddy.Log.Information($"[飞行提示] {message.TextValue}，GBR 最近动作={recentAction}，角色={Player.Position}，导航目标={CurrentDestination}，计划落点={(_navState.groundWaypointCount > 0 ? _navState.landingPoint : (Vector3?)null)}");
+        }
+
         private void OnMessageHandled(IHandleableChatMessage chatMessage)
         {
             try
             {
+                if (chatMessage.LogKind == XivChatType.ErrorMessage)
+                {
+                    LogFlightError(chatMessage.Message);
+                }
+
                 if (chatMessage.LogKind is (XivChatType)2243)
                 {
                     var text = chatMessage.Message.TextValue;
@@ -245,9 +267,7 @@ namespace GatherBuddy.AutoGather
             _fishingApproachTarget = null;
             _fishingApproachPosition = default;
             _failedFishingApproachPositions.Clear();
-            _fishingApproachLastProgressTime = DateTime.MinValue;
-            _fishingApproachLastCheckTime = DateTime.MinValue;
-            _fishingApproachBestDistance = float.MaxValue;
+            _fishingApproachProgress.Reset();
             _fishingApproachRetryCount = 0;
             _fishingApproachPathObserved = false;
             _fishingApproachRecoveryPending = false;
@@ -271,9 +291,7 @@ namespace GatherBuddy.AutoGather
         {
             EnsureFishingApproachTarget(target);
             _fishingApproachPosition = position;
-            _fishingApproachBestDistance = position.DistanceToPlayer();
-            _fishingApproachLastProgressTime = DateTime.Now;
-            _fishingApproachLastCheckTime = DateTime.MinValue;
+            _fishingApproachProgress.Reset();
             _fishingApproachRetryCount = 0;
             _fishingApproachPathObserved = false;
         }
@@ -292,10 +310,6 @@ namespace GatherBuddy.AutoGather
                     $"[AutoGather] Fishing approach stalled for {target.Fish!.Name[GatherBuddy.Language]} at {target.FishingSpot!.Name}: {reason}; retrying position={position}; {routeState}");
                 StopNavigation();
                 _fishingSpotArrivalTime.Remove(target);
-                _fishingApproachBestDistance = position.DistanceToPlayer();
-                _fishingApproachLastProgressTime = DateTime.Now;
-                _fishingApproachLastCheckTime = DateTime.MinValue;
-                _fishingApproachPathObserved = false;
                 AutoStatus = "钓鱼寻路停滞，正在重试当前钓点...";
                 return;
             }
@@ -314,10 +328,6 @@ namespace GatherBuddy.AutoGather
             _fishingSpotArrivalTime.Remove(target);
             _jiggleAttempts.Remove(target);
             _fishingApproachPosition = default;
-            _fishingApproachBestDistance = float.MaxValue;
-            _fishingApproachLastProgressTime = DateTime.MinValue;
-            _fishingApproachLastCheckTime = DateTime.MinValue;
-            _fishingApproachPathObserved = false;
 
             if (runUnstuck)
             {
@@ -342,55 +352,28 @@ namespace GatherBuddy.AutoGather
                 return true;
             }
 
-            var now = DateTime.Now;
-            if (_fishingApproachLastCheckTime != DateTime.MinValue
-             && (now - _fishingApproachLastCheckTime).TotalSeconds > 1)
+            if (CurrentDestination != destination)
             {
-                _fishingApproachBestDistance = System.Math.Min(_fishingApproachBestDistance, distance);
-                _fishingApproachLastProgressTime = now;
-            }
-            _fishingApproachLastCheckTime = now;
-
-            if (!NavReady
-             || isPathGenerating
-             || TaskManager.IsBusy
-             || _advancedUnstuck.IsRunning
-             || Dalamud.Conditions[ConditionFlag.BetweenAreas]
-             || Dalamud.Conditions[ConditionFlag.BetweenAreas51]
-             || Dalamud.Conditions[ConditionFlag.Mounting]
-             || Dalamud.Conditions[ConditionFlag.Mounting71]
-             || Dalamud.Conditions[ConditionFlag.MountOrOrnamentTransition])
-            {
-                _fishingApproachBestDistance = System.Math.Min(_fishingApproachBestDistance, distance);
-                _fishingApproachLastProgressTime = now;
+                _fishingApproachProgress.Reset();
+                _fishingApproachPathObserved = false;
                 return true;
             }
 
-            if (CurrentDestination != destination)
+            if (!NavReady || isPathGenerating || TaskManager.IsBusy || _advancedUnstuck.IsRunning
+             || Dalamud.Conditions[ConditionFlag.BetweenAreas] || Dalamud.Conditions[ConditionFlag.BetweenAreas51]
+             || !NavigationMovementAllowed)
             {
+                _fishingApproachProgress.Reset();
                 return true;
             }
 
             if (isPathing)
             {
-                if (!_fishingApproachPathObserved)
+                _fishingApproachPathObserved = true;
+                var stationarySeconds = _fishingApproachProgress.Observe(Player.Position, Environment.TickCount64);
+                if (stationarySeconds > GatherBuddy.Config.AutoGatherConfig.NavResetThreshold)
                 {
-                    _fishingApproachPathObserved = true;
-                    _fishingApproachBestDistance = distance;
-                    _fishingApproachLastProgressTime = now;
-                    return true;
-                }
-
-                if (_fishingApproachBestDistance - distance >= 1f)
-                {
-                    _fishingApproachBestDistance = distance;
-                    _fishingApproachLastProgressTime = now;
-                    return true;
-                }
-
-                if ((now - _fishingApproachLastProgressTime).TotalSeconds > GatherBuddy.Config.AutoGatherConfig.NavResetThreshold)
-                {
-                    FailFishingApproach(target, $"no destination progress for {(now - _fishingApproachLastProgressTime).TotalSeconds:F1}s", "Fishing route stalled twice, finding a nearby spot...", true, false);
+                    FailFishingApproach(target, $"stationary for {stationarySeconds:F1}s, {distance:F1}y from destination", "钓鱼寻路连续两次停滞，正在寻找附近钓点...", true, false);
                     return false;
                 }
 
@@ -468,6 +451,8 @@ namespace GatherBuddy.AutoGather
                     _fishingSpotArrivalTime.Clear();
                     ResetFishingApproachState();
                     ResetPendingFishingTargetChange();
+                    _lastTravelAction = null;
+                    _failedPath = null;
                     Dalamud.ToastGui.ErrorToast -= HandleNodeInteractionErrorToast;
 
                     M3Gamepad.EnableInputBlocking();
@@ -593,6 +578,13 @@ namespace GatherBuddy.AutoGather
             var currentTerritory = Dalamud.ClientState.TerritoryType;
             if (_lastTerritory != currentTerritory)
             {
+                _lastTravelAction = null;
+                _failedPath = null;
+                if (CurrentDestination != default)
+                {
+                    StopNavigation();
+                }
+
                 ResetFishingApproachState();
                 _lastTerritory = currentTerritory;
                 _diademPathIndex = -1;
@@ -706,6 +698,8 @@ namespace GatherBuddy.AutoGather
             }
 
             HandlePathfinding(); // This should be done before checking TaskManager
+            if (_navState.landing != null)
+                return;
 
             if (Dalamud.Conditions[ConditionFlag.Jumping61] && IsPathing) // Jumping Windmire
             {
@@ -714,7 +708,7 @@ namespace GatherBuddy.AutoGather
 
             if (TaskManager.IsBusy)
             {
-                //GatherBuddy.Log.Verbose("TaskManager has tasks, skipping DoAutoGather");
+                ResetNavigationProgress();
                 return;
             }
 
@@ -734,6 +728,7 @@ namespace GatherBuddy.AutoGather
 
             if (!CanAct && !_diademQueuingInProgress)
             {
+                ResetNavigationProgress();
                 if (!Dalamud.Conditions[ConditionFlag.ExecutingGatheringAction])
                 {
                     AutoStatus = "当前无法行动";
@@ -929,12 +924,16 @@ namespace GatherBuddy.AutoGather
             var isPathGenerating = IsPathGenerating;
             var isPathing = IsPathing;
 
-            if (_advancedUnstuck.IsRunning || !FishingApproachOwnsRecovery && !_advancedUnstuck.Check(CurrentDestination, isPathing))
+            if (_advancedUnstuck.IsRunning || !FishingApproachOwnsRecovery && !_advancedUnstuck.Check(
+                    CurrentDestination, isPathing && !isPathGenerating && NavigationMovementAllowed))
             {
                 StopNavigation();
                 AutoStatus = $"尝试进一步脱离卡死";
                 return;
             }
+
+            if (CheckActiveWaypoint(isPathing, isPathGenerating))
+                return;
 
             if (isPathGenerating)
             {
@@ -2228,7 +2227,7 @@ namespace GatherBuddy.AutoGather
                     var pos = nextNode.Position;
                     if (TryWindmireJump(ref pos))
                     {
-                        Navigate(pos, ShouldFly(pos), direct: true, nodeId: nextNode.BaseId);
+                        Navigate(pos, ShouldFly(pos), direct: true);
                     }
                     else
                     {
@@ -2411,6 +2410,18 @@ namespace GatherBuddy.AutoGather
 
             AutoStatus = "正在移动至较远采集点...";
 
+            // Only Legendary, Unspoiled, and Clouded nodes show a map marker.
+            var mapMarkerAvailable = next.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled or NodeType.Clouded;
+            // Wait an additional 8 seconds because it takes a few seconds for the previous flag to disappear.
+            var gracePeriod = next.Time == TimeInterval.Always ? 0 : next.Time.Start - GatherBuddy.Time.ServerTime.AddSeconds(-8);
+            var mapMarker = mapMarkerAvailable && gracePeriod <= 0 ? TimedNodePosition : null;
+
+            if (CurrentDestination != default
+                && (_navState.farNodeLocation != next.Location || _navState.farNodeMarker != mapMarker))
+            {
+                StopNavigation();
+            }
+
             if (CurrentDestination != default && IsPathing)
             {
                 var currentNode = visibleNodes.Find(o => o.Position == CurrentDestination);
@@ -2442,12 +2453,6 @@ namespace GatherBuddy.AutoGather
 
             (uint? Id, Vector3 Position) selectedFarNode;
 
-            // Only Legendary, Unspoiled, and Clouded nodes show a map marker.
-            var mapMarkerAvailable = next.Node?.NodeType is NodeType.Legendary or NodeType.Unspoiled or NodeType.Clouded;
-            // Wait an additional 8 seconds because it takes a few seconds for the previous flag to disappear.
-            var gracePeriod = next.Time == TimeInterval.Always ? 0 : next.Time.Start - GatherBuddy.Time.ServerTime.AddSeconds(-8);
-            var mapMarker = mapMarkerAvailable && gracePeriod <= 0 ? TimedNodePosition : null;
-
             if (mapMarkerAvailable && ShouldUseFlag)
             {
                 if (mapMarker == null)
@@ -2461,7 +2466,15 @@ namespace GatherBuddy.AutoGather
                 if (selectedFarNode.Position == default || Vector2.DistanceSquared(mapMarker.Value, selectedFarNode.Position.ToVector2()) > 10 * 10)
                 {
                     var point = new Vector3(mapMarker.Value.X, 0, mapMarker.Value.Y);
-                    selectedFarNode = (null, VNavmesh.Query.Mesh.NearestPoint(point, 10, 10000).GetValueOrDefault(point));
+                    var meshPoint = VNavmesh.Query.Mesh.NearestPoint(point, 10, 10000);
+                    if (!meshPoint.HasValue)
+                    {
+                        StopNavigation();
+                        AutoStatus = "等待地图标记附近的可导航位置";
+                        return;
+                    }
+
+                    selectedFarNode = (null, meshPoint.Value);
                 }
             }
             else
@@ -2479,7 +2492,9 @@ namespace GatherBuddy.AutoGather
 
             var jump = Diadem.IsInside && TryWindmireJump(ref selectedFarNode.Position);
 
-            Navigate(selectedFarNode.Position, ShouldFly(selectedFarNode.Position), direct: jump, nodeId: jump ? null : selectedFarNode.Id);
+            Navigate(selectedFarNode.Position, ShouldFly(selectedFarNode.Position), direct: jump, nodeId: jump ? null : selectedFarNode.Id, underwaterNode: isSpearfishing);
+            _navState.farNodeLocation = next.Location;
+            _navState.farNodeMarker = mapMarker;
         }
 
         private uint LastVisitedNode
@@ -3167,6 +3182,7 @@ namespace GatherBuddy.AutoGather
             _diadem?.Dispose();
             Dalamud.Chat.CheckMessageHandled -= OnMessageHandled;
             Dalamud.ToastGui.QuestToast -= OnQuestToast;
+            Dalamud.ToastGui.ErrorToast -= OnFlightErrorToast;
             //Dalamud.AddonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "Gathering", OnGatheringFinalize);
         }
     }

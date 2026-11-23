@@ -24,26 +24,23 @@ namespace GatherBuddy.AutoGather
 {
     public partial class AutoGather
     {
-        private unsafe void EnqueueDismount(bool moveAfterDismount = true)
+        private void EnqueueDismount(bool moveAfterDismount = true)
         {
             TaskManager.Enqueue(StopNavigation);
 
-            const uint DismountGeneralActionId = 23;
-            var am = ActionManager.Instance();
-            var actionType = moveAfterDismount ? ActionType.GeneralAction : ActionType.Mount;
-            var actionId = moveAfterDismount ? DismountGeneralActionId : 0u;
-            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) { am->UseAction(actionType, actionId); } }, "解除飞行");
+            TaskManager.Enqueue(() => { TryDismount(moveAfterDismount); }, "解除飞行");
 
             TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.InFlight] && CanAct, 1000, "等待飞行状态取消");
-            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) { am->UseAction(actionType, actionId); } }, "解除飞行 2");
-            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Mounted] && CanAct, 1000, "等待坐骑状态取消");
+            TaskManager.Enqueue(() =>
+            {
+                if (!Dalamud.Conditions[ConditionFlag.InFlight])
+                    TryDismount(moveAfterDismount);
+            }, "下坐骑");
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Mounted] && !Dalamud.Conditions[ConditionFlag.InFlight] && CanAct,
+                1000, "等待坐骑状态取消");
             if (moveAfterDismount)
             {
-                // A short movement pulse clears the suspended state after landing on the Chinese client.
-                TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) { Chat.ExecuteCommand("/automove on"); } }, "落地后短暂移动");
-                TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) { TaskManager.DelayNextImmediate(100); } });
-                TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) { Chat.ExecuteCommand("/automove off"); } }, "停止自动移动");
-                TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) { TaskManager.DelayNextImmediate(400); } });
+                EnqueueMovementAfterDismount();
             }
             else
             {
@@ -52,28 +49,51 @@ namespace GatherBuddy.AutoGather
             }
         }
 
-        private unsafe void EnqueueMountUp()
+        private void EnqueueMovementAfterDismount()
+        {
+            // A short movement pulse clears the suspended state after landing on the Chinese client.
+            var moved = false;
+            TaskManager.Enqueue(() =>
+            {
+                if (Dalamud.Conditions[ConditionFlag.Mounted] || Dalamud.Conditions[ConditionFlag.InFlight])
+                    return;
+
+                Chat.ExecuteCommand("/automove on");
+                moved = true;
+                TaskManager.DelayNextImmediate(100);
+            }, "落地后短暂移动");
+            TaskManager.Enqueue(() =>
+            {
+                if (!moved)
+                    return;
+
+                Chat.ExecuteCommand("/automove off");
+                TaskManager.DelayNextImmediate(400);
+            }, "停止自动移动");
+        }
+
+        private void EnqueueMountUp()
         {
             const uint MountRouletteGeneralActionId = 9;
-            var am = ActionManager.Instance();
             var mount = GatherBuddy.Config.AutoGatherConfig.AutoGatherMountId;
-            Action doMount;
-
-            if (IsMountUnlocked(mount) && am->GetActionStatus(ActionType.Mount, mount) == 0)
+            var type = ActionType.Mount;
+            if (mount == 0 || !IsMountUnlocked(mount) || !CanUseTravelAction(type, mount))
             {
-                doMount = () => am->UseAction(ActionType.Mount, mount);
-            }
-            else
-            {
-                if (am->GetActionStatus(ActionType.GeneralAction, MountRouletteGeneralActionId) != 0)
+                type = ActionType.GeneralAction;
+                mount = MountRouletteGeneralActionId;
+                if (!CanUseTravelAction(type, mount))
                 {
                     return;
                 }
-
-                doMount = () => am->UseAction(ActionType.GeneralAction, MountRouletteGeneralActionId);
             }
 
-            EnqueueActionWithDelay(doMount);
+            EnqueueActionWithDelay(() =>
+            {
+                if (!Dalamud.Conditions[ConditionFlag.Mounted] && !Dalamud.Conditions[ConditionFlag.InFlight])
+                {
+                    UseTravelAction(type, mount);
+                }
+            });
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.Mounted], 2000);
         }
 
@@ -94,6 +114,16 @@ namespace GatherBuddy.AutoGather
             return instance->IsMountUnlocked(mount);
         }
 
+        private static bool WithinNodeInteractionRange(Vector3 position, Vector3 node)
+            => WithinNodeHorizontalRange(position, node)
+            && Math.Abs(position.Y - node.Y) < 3f;
+
+        private static bool WithinNodeHorizontalRange(Vector3 position, Vector3 node)
+            => Vector2.DistanceSquared(position.ToVector2(), node.ToVector2()) < 3.5f * 3.5f;
+
+        private static bool AboveNode(Vector3 position, Vector3 node)
+            => position.Y >= node.Y && WithinNodeHorizontalRange(position, node);
+
         private void MoveToCloseNode(IGameObject gameObject, Gatherable targetItem, ConfigPreset config)
         {
             if (!Player.Available)
@@ -101,17 +131,30 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            // We can open a node with less than 3 vertical and less than 3.5 horizontal separation
-            var hSeparation = Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2());
-            var vSeparation = Math.Abs(gameObject.Position.Y - Player.Position.Y);
+            if (Dalamud.Conditions[ConditionFlag.InFlight] && !Dalamud.Conditions[ConditionFlag.Diving]
+                && (AboveNode(Player.Position, gameObject.Position) || WithinNodeInteractionRange(Player.Position, gameObject.Position)))
+            {
+                // A route may pass above the node before its last turn. Finish it first.
+                if (CurrentDestination == gameObject.Position && (IsPathing || IsPathGenerating))
+                    return;
 
-            if (hSeparation < 3.5)
+                Navigate(gameObject.Position, true, nodeId: gameObject.BaseId);
+                return;
+            }
+
+            if (WithinNodeInteractionRange(Player.Position, gameObject.Position))
             {
                 var waitGP = targetItem.ItemData.IsCollectable && Player.Object.CurrentGp < config.CollectableMinGP;
                 waitGP |= !targetItem.ItemData.IsCollectable && Player.Object.CurrentGp < config.GatherableMinGP;
 
                 if (Dalamud.Conditions[ConditionFlag.Mounted])
                 {
+                    if (IsWaitingToRetryNavigation(gameObject.Position))
+                    {
+                        AutoStatus = "等待重试下坐骑...";
+                        return;
+                    }
+
                     EnqueueDismount();
                     TaskManager.Enqueue(() =>
                     {
@@ -150,16 +193,10 @@ namespace GatherBuddy.AutoGather
                             return;
                         }
 
-                        // If flying direct path to offset, complete navigation first, since offset is expected to be on the ground.
-                        // Otherwise, stop once in range to interact.
-                        if (vSeparation < 3 && !(_navState.offset && Dalamud.Conditions[ConditionFlag.InFlight] && IsPathing))
+                        if (!Dalamud.Conditions[ConditionFlag.InFlight] && gameObject.IsTargetable)
                         {
                             StopNavigation();
                             EnqueueNodeInteraction(gameObject, targetItem);
-                        }
-                        else
-                        {
-                            Navigate(gameObject.Position, false, nodeId: gameObject.BaseId);
                         }
                     }
                 }
@@ -187,41 +224,93 @@ namespace GatherBuddy.AutoGather
 
         private void MoveToCloseSpearfishingNode(IGameObject gameObject, Classes.Fish targetFish, FishingSpot expectedSpot)
         {
-            var hSeparation = Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2());
-            var vSeparation = Math.Abs(gameObject.Position.Y - Player.Position.Y);
-
-            if (hSeparation < 3.5)
+            if (WithinNodeInteractionRange(Player.Position, gameObject.Position))
             {
-                if (vSeparation < 3)
+                if (Dalamud.Conditions[ConditionFlag.Mounted])
                 {
-                    if (Dalamud.Conditions[ConditionFlag.Mounted])
-                    {
-                        EnqueueDismount();
-                    }
-                    else
-                    {
-                        EnqueueSpearfishingNodeInteraction(gameObject, targetFish, expectedSpot);
-                    }
+                    EnqueueDismount();
+                }
+                else
+                {
+                    EnqueueSpearfishingNodeInteraction(gameObject, targetFish, expectedSpot);
                 }
 
                 if (!Dalamud.Conditions[ConditionFlag.Diving])
                 {
-                    TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Gathering]) { Navigate(gameObject.Position, false, nodeId: gameObject.BaseId); } });
+                    TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Gathering]) { Navigate(gameObject.Position, false, nodeId: gameObject.BaseId, underwaterNode: true); } });
                 }
             }
-            else if (hSeparation < Math.Max(GatherBuddy.Config.AutoGatherConfig.MountUpDistance, 5))
+            else if (Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2()) < Math.Max(GatherBuddy.Config.AutoGatherConfig.MountUpDistance, 5)
+                && !Dalamud.Conditions[ConditionFlag.InFlight] && !Dalamud.Conditions[ConditionFlag.Diving])
             {
-                Navigate(gameObject.Position, false, nodeId: gameObject.BaseId);
+                Navigate(gameObject.Position, false, nodeId: gameObject.BaseId, underwaterNode: true);
             }
             else
             {
-                Navigate(gameObject.Position, ShouldFly(gameObject.Position), nodeId: gameObject.BaseId);
+                Navigate(gameObject.Position, ShouldFly(gameObject.Position), nodeId: gameObject.BaseId, underwaterNode: true);
             }
+        }
+
+        private static bool MountTransition
+            => Dalamud.Conditions[ConditionFlag.Mounting] || Dalamud.Conditions[ConditionFlag.Mounting71]
+            || Dalamud.Conditions[ConditionFlag.MountOrOrnamentTransition];
+
+        private static bool NavigationMovementAllowed => !MountTransition && VNavmesh.Path.GetMovementAllowed();
+
+        private void ResetNavigationProgress()
+        {
+            _advancedUnstuck.ResetTracking();
+            _fishingApproachProgress.Reset();
+            _waypointProgress.Reset();
+        }
+
+        private bool CheckActiveWaypoint(bool isPathing, bool isPathGenerating)
+        {
+            if (CurrentDestination == default || !isPathing
+                || (isPathGenerating && _navState.stage != PathfindingStage.RetryCombinedPathfinding)
+                || !NavigationMovementAllowed)
+            {
+                _waypointProgress.Reset();
+                return false;
+            }
+
+            var now = Environment.TickCount64;
+            if (!_waypointProgress.ShouldSample(now))
+                return false;
+
+            var remaining = VNavmesh.Path.ListWaypoints();
+            if (remaining.Count == 0)
+            {
+                _waypointProgress.Reset();
+                return false;
+            }
+
+            var player = Player.Position;
+            var waypoint = remaining[0];
+            var distance = _navState.flying && !_navState.mountingUp
+                ? Vector3.Distance(player, waypoint)
+                : Vector2.Distance(player.ToVector2(), waypoint.ToVector2());
+            var timeout = Math.Max(8f, 3 * GatherBuddy.Config.AutoGatherConfig.NavResetThreshold);
+            var stalled = _waypointProgress.IsStalled(waypoint, distance, now, timeout);
+            if (!stalled && Vector3.DistanceSquared(remaining[^1], _navState.activePathEnd) < 1f)
+                return false;
+
+            var reason = stalled ? "未接近当前路径点" : "执行中的路径终点不匹配";
+            GatherBuddy.Log.Warning($"{reason}，角色={player}，下一路径点={waypoint}，剩余点数={remaining.Count}，实际终点={remaining[^1]}，已接受终点={_navState.activePathEnd}");
+            if (_fishingApproachTarget is { } fish && CurrentDestination == _fishingApproachPosition)
+                FailFishingApproach(fish, reason, "正在寻找可抵达的钓点...", true, false);
+            else
+            {
+                StopNavigation();
+                AutoStatus = "正在从当前位置重新寻路...";
+            }
+
+            return true;
         }
 
         private void StopNavigation()
         {
-            // Reset navigation logic here
+            _fishingApproachPathObserved = false;
             StopPathfinding();
 
             _navState = default;
@@ -233,6 +322,7 @@ namespace GatherBuddy.AutoGather
 
         private void StopPathfinding()
         {
+            ResetNavigationProgress();
             if (_navState.cts != null && _navState.task != null)
             {
                 var cts = _navState.cts;
@@ -255,8 +345,25 @@ namespace GatherBuddy.AutoGather
             playerObject->SetRotation(angle.Rad);
         }
 
-        private void Navigate(Vector3 destination, bool shouldFly, bool direct = false, uint? nodeId = null)
+        private bool IsWaitingToRetryNavigation(Vector3 destination)
+            => _failedPath is { } failure && failure.Destination == destination
+            && Environment.TickCount64 < failure.RetryAt && Vector3.DistanceSquared(failure.From, Player.Position) < 9f;
+
+        private void Navigate(Vector3 destination, bool shouldFly, bool direct = false, uint? nodeId = null, bool underwaterNode = false)
         {
+            if (!NavReady)
+            {
+                AutoStatus = "等待 vnavmesh 导航网格就绪...";
+                return;
+            }
+
+            if (IsWaitingToRetryNavigation(destination))
+            {
+                AutoStatus = "未找到可用路径，等待重试...";
+                return;
+            }
+            _failedPath = null;
+
             var canMount = Vector2.Distance(destination.ToVector2(), Player.Position.ToVector2()) >= GatherBuddy.Config.AutoGatherConfig.MountUpDistance && CanMount();
             if (!Dalamud.Conditions[ConditionFlag.Mounted] && canMount)
             {
@@ -275,7 +382,8 @@ namespace GatherBuddy.AutoGather
             {
                 _navState.lastTry = Environment.TickCount64;
                 _navState.cts = new CancellationTokenSource();
-                _navState.task = FindCombinedPath(Player.Position, destination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token);
+                _navState.retryStart = Player.Position;
+                _navState.task = FindCombinedPath(_navState.retryStart, destination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token, _navState.interactionNode, _navState.landAtNode);
                 GatherBuddy.Log.Debug($"重新尝试组合寻路到 {destination}");
                 return;
             }
@@ -285,31 +393,46 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            StopPathfinding();
+            StopNavigation();
 
             shouldFly &= canMount || Dalamud.Conditions[ConditionFlag.Mounted];
             shouldFly |= Dalamud.Conditions[ConditionFlag.Diving];
 
             var offsettedDestination = GetCorrectedDestination(destination, Player.Position, nodeId);
-            _navState = default;
             _navState.destination = destination;
+            _navState.pathDestination = offsettedDestination;
+            _navState.interactionNode = nodeId.HasValue ? destination : null;
+            _navState.landAtNode = nodeId.HasValue && !underwaterNode && !Dalamud.Conditions[ConditionFlag.Diving];
+            if (_navState.landAtNode && WithinNodeHorizontalRange(Player.Position, destination))
+            {
+                if (!Dalamud.Conditions[ConditionFlag.InFlight])
+                    shouldFly = false;
+                else if (AboveNode(Player.Position, destination) || WithinNodeInteractionRange(Player.Position, destination))
+                {
+                    BeginNodeLanding(null);
+                    return;
+                }
+            }
             _navState.flying = shouldFly;
             _navState.mountingUp = shouldFly && !Dalamud.Conditions[ConditionFlag.Mounted] && !Dalamud.Conditions[ConditionFlag.Diving];
             _navState.direct = direct || !shouldFly || landingDistance == 0 || destination != offsettedDestination || Dalamud.Conditions[ConditionFlag.Diving];
             _navState.offset = destination != offsettedDestination;
-            _navState.cts = new CancellationTokenSource();
+            StartPathfinding(landingDistance);
+        }
 
+        private void StartPathfinding(float landingDistance)
+        {
+            _navState.cts = new CancellationTokenSource();
+            _navState.stage = PathfindingStage.InitialCombinedPathfinding;
+            _navState.retriedDirect = false;
             if (_navState.direct)
             {
-                _navState.task = VNavmesh.Nav.PathfindCancelable(Player.Position, offsettedDestination, shouldFly, _navState.cts.Token);
-                GatherBuddy.Log.Debug($"开始直接寻路到 {offsettedDestination}（原始: {destination}），飞行: {shouldFly}");
+                _navState.task = FindDirectPath(Player.Position, _navState.pathDestination, _navState.flying, _navState.cts.Token, _navState.interactionNode, _navState.landAtNode);
             }
             else
             {
                 _navState.lastTry = Environment.TickCount64;
-                _navState.stage = PathfindingStage.InitialCombinedPathfinding;
-                _navState.task = FindCombinedPath(Player.Position, destination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token);
-                GatherBuddy.Log.Debug($"开始组合寻路到 {destination}");
+                _navState.task = FindCombinedPath(Player.Position, _navState.pathDestination, landingDistance, Dalamud.Conditions[ConditionFlag.InFlight], _navState.cts.Token, _navState.interactionNode, _navState.landAtNode);
             }
         }
 
@@ -320,35 +443,72 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            var landingDistance = GatherBuddy.Config.AutoGatherConfig.LandingDistance;
-            var player = Player.Position;
-            List<Vector3> path;
-
-            if (_navState.flying && _navState.stage == PathfindingStage.Done
-                && !Dalamud.Conditions[ConditionFlag.Diving]
-                && (path = VNavmesh.Path.ListWaypoints()).Count < _navState.landWP)
+            if (!NavReady)
             {
-                // Switch vnavmesh to no-fly mode when close to landing point
-                path = [.. path]; // Clone, because Stop() clears the list
-                VNavmesh.Path.Stop();
-                VNavmesh.Path.MoveTo(path, false);
-                _navState.flying = false;
-                Dismount(); // Try to land (not dismount)
-                GatherBuddy.Log.Debug($"切换到地面移动，剩余 {path.Count} 个路径点");
+                StopNavigation();
+                AutoStatus = "等待 vnavmesh 导航网格就绪...";
                 return;
             }
 
-            if (_navState.flying && _navState.mountingUp && Dalamud.Conditions[ConditionFlag.Mounted])
+            var player = Player.Position;
+            if (_navState.landing is { } landing)
             {
-                // Switch vnavmesh to fly mode when mounted up
-                path = [.. VNavmesh.Path.ListWaypoints()
-                    // Remove waypoints that are too close.
-                    .SkipWhile(p => Vector2.DistanceSquared(player.AsVector2(), p.AsVector2()) < 16f)];
-
-                VNavmesh.Path.Stop();
-                VNavmesh.Path.MoveTo(path, true);
+                UpdateNodeLanding(landing);
+                return;
+            }
+            if (_navState.landAtNode && _navState.flying && !_navState.mountingUp && _navState.groundWaypointCount == 0
+                && _navState.task == null && Dalamud.Conditions[ConditionFlag.InFlight] && !IsPathing
+                && (AboveNode(player, CurrentDestination) || WithinNodeInteractionRange(player, CurrentDestination)))
+            {
+                BeginNodeLanding(null);
+                return;
+            }
+            if (_navState.mountingUp && Dalamud.Conditions[ConditionFlag.Mounted])
+            {
                 _navState.mountingUp = false;
-                GatherBuddy.Log.Debug($"切换到飞行移动，剩余 {path.Count} 个路径点");
+                if (_navState.task == null || IsPathing)
+                {
+                    // Ground movement ignores height and may already have consumed an ascent waypoint.
+                    VNavmesh.Path.Stop();
+                    StopPathfinding();
+                    StartPathfinding(GatherBuddy.Config.AutoGatherConfig.LandingDistance);
+                    return;
+                }
+            }
+
+            if (_navState.flying && !_navState.mountingUp && _navState.stage == PathfindingStage.Done && _navState.groundWaypointCount > 0
+                && !Dalamud.Conditions[ConditionFlag.Diving]
+                && VNavmesh.Path.NumWaypoints() <= _navState.groundWaypointCount)
+            {
+                List<Vector3> remaining = [.. VNavmesh.Path.ListWaypoints()];
+                _navState.flying = false;
+                _waypointProgress.Reset();
+                if (remaining.Count > 0)
+                {
+                    if (Vector3.DistanceSquared(remaining[^1], _navState.activePathEnd) >= 1f)
+                    {
+                        StopNavigation();
+                        return;
+                    }
+
+                    const float landingTolerance = 3f;
+                    if (_navState.landAtNode && WithinNodeHorizontalRange(player, _navState.landingPoint))
+                    {
+                        BeginNodeLanding(remaining);
+                        return;
+                    }
+                    if (Dalamud.Conditions[ConditionFlag.InFlight]
+                        && Vector3.DistanceSquared(player, _navState.landingPoint) > landingTolerance * landingTolerance)
+                    {
+                        GatherBuddy.Log.Warning($"飞行路径点已耗尽但角色尚未到达落点，重新寻路。角色={player}，计划落点={_navState.landingPoint}");
+                        StopNavigation();
+                        return;
+                    }
+
+                    VNavmesh.Path.Stop();
+                    VNavmesh.Path.MoveTo(remaining, false);
+                    TryDismount();
+                }
                 return;
             }
 
@@ -357,37 +517,85 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
+            NavigationPath? route;
             try
             {
-                path = _navState.task.Result;
+                route = _navState.task.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                StopNavigation();
+                return;
             }
             catch (Exception ex)
             {
                 GatherBuddy.Log.Error($"寻路任务抛出异常: {ex.Message}");
-                StopNavigation();
-                _advancedUnstuck.Force();
-                return;
+                route = null;
             }
             _navState.cts.Dispose();
             _navState.task = null;
             _navState.cts = null;
 
-            if (path.Count == 0)
+            if (route != null && _navState.offset && !WithinNodeInteractionRange(route.Waypoints[^1], _navState.destination)
+                && !(_navState.landAtNode && _navState.flying && AboveNode(route.Waypoints[^1], _navState.destination)))
+            {
+                GatherBuddy.Log.Warning($"路径终点 {route.Waypoints[^1]} 超出采集点 {_navState.destination} 的交互范围，偏移目标={_navState.pathDestination}");
+                route = null;
+            }
+
+            if (route == null)
             {
                 if (_navState.direct || _navState.stage == PathfindingStage.FallbackDirectPathfinding)
                 {
-                    GatherBuddy.Log.Error($"VNavmesh 未能找到路径");
+                    if (!_navState.retriedDirect)
+                    {
+                        _navState.retriedDirect = true;
+                        _navState.cts = new CancellationTokenSource();
+                        var token = _navState.cts.Token;
+                        _navState.task = _navState.flying && _navState.interactionNode is { } node && !Dalamud.Conditions[ConditionFlag.Diving]
+                            ? RetryNodeFlight(player, node, Dalamud.Conditions[ConditionFlag.InFlight], token, _navState.landAtNode)
+                            : FindDirectPath(player, _navState.pathDestination, _navState.flying, token, _navState.interactionNode, _navState.landAtNode);
+                        GatherBuddy.Log.Debug($"直接寻路失败，从当前位置重新计算到 {_navState.pathDestination} 的路径");
+                        return;
+                    }
+
+                    if (_navState.flying && _navState.interactionNode.HasValue
+                        && !Dalamud.Conditions[ConditionFlag.InFlight] && !Dalamud.Conditions[ConditionFlag.Diving])
+                    {
+                        _navState.flying = _navState.mountingUp = false;
+                        _navState.direct = true;
+                        _navState.stage = PathfindingStage.InitialCombinedPathfinding;
+                        _navState.pathDestination = _navState.destination;
+                        _navState.offset = false;
+                        _navState.cts = new CancellationTokenSource();
+                        _navState.task = FindDirectPath(player, _navState.destination, false, _navState.cts.Token, _navState.interactionNode, _navState.landAtNode);
+                        GatherBuddy.Log.Debug("飞行寻路失败，角色仍在地面，尝试地面路线");
+                        return;
+                    }
+
+                    GatherBuddy.Log.Warning($"未找到可执行路径，角色={player}，请求终点={_navState.pathDestination}，目标={CurrentDestination}，飞行={_navState.flying}");
+                    if (_fishingApproachTarget is { } fish && CurrentDestination == _fishingApproachPosition)
+                    {
+                        FailFishingApproach(fish, "未找到通往钓位的路径", "正在寻找可抵达的钓点...", false, false);
+                        return;
+                    }
+                    _failedPath = (CurrentDestination, player, Environment.TickCount64 + 5000);
                     StopNavigation();
-                    _advancedUnstuck.Force();
+                    AutoStatus = "未找到可用路径，等待重试...";
                 }
                 else if (_navState.stage == PathfindingStage.InitialCombinedPathfinding)
                 {
                     GatherBuddy.Log.Debug($"VNavmesh 未能找到组合路径，回退到直接路径");
                     _navState.stage++;
                     _navState.cts = new CancellationTokenSource();
-                    _navState.task = VNavmesh.Nav.PathfindCancelable(player, _navState.destination, _navState.flying, _navState.cts.Token);
+                    _navState.task = FindDirectPath(player, _navState.destination, _navState.flying, _navState.cts.Token, _navState.interactionNode, _navState.landAtNode);
                 }
-                else if (_navState.stage != PathfindingStage.RetryCombinedPathfinding)
+                else if (_navState.stage == PathfindingStage.RetryCombinedPathfinding)
+                {
+                    if (!IsPathing)
+                        StopNavigation();
+                }
+                else
                 {
                     GatherBuddy.Log.Error($"BUG: 在非预期阶段 {_navState.stage} 寻路失败");
                     AbortAutoGather();
@@ -395,159 +603,252 @@ namespace GatherBuddy.AutoGather
             }
             else
             {
-                var pathtype = "unknown";
-                if (_navState.direct)
+                var path = route.Waypoints;
+                if (_navState.stage == PathfindingStage.RetryCombinedPathfinding
+                    && !TryJoinFlightLeg(path, route.GroundWaypointCount, _navState.retryStart, player))
                 {
-                    pathtype = "direct";
-                }
-                else
-                {
-                    switch (_navState.stage)
-                    {
-                        case PathfindingStage.InitialCombinedPathfinding:
-                        case PathfindingStage.RetryCombinedPathfinding:
-                            pathtype = "combined";
-                            _navState.stage = PathfindingStage.Done;
-                            // Extract landing waypoint that is passed at the end of the list by FindCombinedPath()
-                            var landWP = path[^1];
-                            path.RemoveAt(path.Count - 1);
-                            _navState.landWP = path.Count - path.FindLastIndex(x => x == landWP);
-                            break;
-                        case PathfindingStage.FallbackDirectPathfinding:
-                            pathtype = "fallback direct";
-                            _navState.stage++;
-                            break;
-                    }
-                }
-
-                if (IsPathing)
-                {
-                    RemovePassedWaypoints(path);
-                }
-
-                VNavmesh.Path.Stop();
-                VNavmesh.Path.MoveTo(path, _navState.flying && !_navState.mountingUp);
-                GatherBuddy.Log.Debug($"VNavmesh 开始沿 {pathtype} 路径移动，{path.Count} 个路径点");
-            }
-
-            static void RemovePassedWaypoints(List<Vector3> path)
-            {
-                var p = Player.Position;
-                var t = path[^1];
-                var fwd = new Vector3(t.X - p.X, 0f, t.Z - p.Z);
-                if (fwd.LengthSquared() < 1f)
-                {
+                    // Keep the current fallback only while it is still running.
+                    if (!IsPathing)
+                        StopNavigation();
                     return;
                 }
 
-                fwd = Vector3.Normalize(fwd);
-
-                var n = 0;
-                while (n < path.Count)
+                if (route.GroundWaypointCount > 0)
                 {
-                    var next = new Vector3(path[n].X - p.X, 0f, path[n].Z - p.Z);
-                    if (Vector3.Dot(fwd, next) > 0)
-                    {
-                        break;
-                    }
-
-                    n++;
+                    _navState.stage = PathfindingStage.Done;
+                    _navState.groundWaypointCount = route.GroundWaypointCount;
+                    _navState.landingPoint = path[^(route.GroundWaypointCount + 1)];
                 }
-                path.RemoveRange(0, n);
+                else if (_navState.landAtNode && _navState.flying && AboveNode(path[^1], CurrentDestination)
+                    && !WithinNodeInteractionRange(path[^1], CurrentDestination))
+                {
+                    _navState.stage = PathfindingStage.Done;
+                }
+                else if (_navState.stage == PathfindingStage.FallbackDirectPathfinding)
+                {
+                    _navState.stage = PathfindingStage.RetryCombinedPathfinding;
+                }
+
+                VNavmesh.Path.Stop();
+                _navState.activePathEnd = path[^1];
+                VNavmesh.Path.MoveTo(path, _navState.flying && !_navState.mountingUp);
+                GatherBuddy.Log.Debug($"开始导航，目标={_navState.destination}，寻路目标={_navState.pathDestination}，路径终点={path[^1]}，路径点={path.Count}");
             }
         }
 
-        private unsafe void Dismount()
+        private static bool TryJoinFlightLeg(List<Vector3> path, int groundCount, Vector3 start, Vector3 player)
         {
-            ActionManager.Instance()->UseAction(ActionType.GeneralAction, 23); // Hotkey Z
+            // Only skip points when the player is actually on a segment of the replacement route.
+            for (var i = 0; i < path.Count - groundCount; ++i)
+            {
+                var end = path[i];
+                var delta = end - start;
+                var lengthSquared = delta.LengthSquared();
+                var t = lengthSquared == 0 ? 0 : Math.Clamp(Vector3.Dot(player - start, delta) / lengthSquared, 0f, 1f);
+                if (Vector3.DistanceSquared(player, start + t * delta) <= 1f)
+                {
+                    path.RemoveRange(0, i);
+                    return true;
+                }
+
+                start = end;
+            }
+
+            return false;
         }
 
-        private static async Task<List<Vector3>> FindCombinedPath(Vector3 player, Vector3 target, float landingDistance, bool flying, CancellationToken token)
+        private void BeginNodeLanding(List<Vector3>? groundPath)
         {
-            var point = flying ? VNavmesh.Query.Mesh.PointOnFloor(player, false, 5f) : player;
-            if (point == null)
+            StopPathfinding();
+            VNavmesh.Path.Stop();
+            var player = Player.Position;
+            _navState.landing = new NodeLanding(player.Y, groundPath);
+            AutoStatus = "正在降落，等待着地...";
+            if (!Dalamud.Conditions[ConditionFlag.InFlight])
+                return;
+
+            // Descend to the first landable surface under the mount, including on multi-level maps.
+            var floor = VNavmesh.Query.Mesh.PointOnFloor(player, false, 1f);
+            if (floor is { } point && point.Y < player.Y && Vector3.DistanceSquared(point, player) > 0.25f)
             {
+                VNavmesh.Path.MoveTo([point], true);
+            }
+        }
+
+        private void UpdateNodeLanding(NodeLanding landing)
+        {
+            if (Dalamud.Conditions[ConditionFlag.Diving])
+            {
+                StopNavigation();
+                return;
+            }
+
+            var inFlight = Dalamud.Conditions[ConditionFlag.InFlight];
+            var player = Player.Position;
+            var now = Environment.TickCount64;
+            AutoStatus = inFlight ? "正在降落，等待着地..." : "等待下坐骑...";
+            if (!inFlight && (landing.Stage is NodeLandingStage.Descending or NodeLandingStage.LandingRequested))
+            {
+                // The first request in the air can land the mount without dismounting.
+                VNavmesh.Path.Stop();
+                landing.Stage = NodeLandingStage.Landed;
+                landing.LastProgress = now;
+                return;
+            }
+
+            if (!NavigationMovementAllowed || (inFlight && landing.LastHeight - player.Y >= 0.5f))
+            {
+                landing.LastHeight = player.Y;
+                landing.LastProgress = now;
+                return;
+            }
+
+            if (!inFlight && !Dalamud.Conditions[ConditionFlag.Mounted])
+            {
+                if (CanAct)
+                    FinishNodeLanding(landing, player);
+                return;
+            }
+
+            if (inFlight && landing.Stage == NodeLandingStage.Descending
+                && (!IsPathing || now - landing.LastProgress >= 3000) && TryDismount())
+            {
+                VNavmesh.Path.Stop();
+                landing.Stage = NodeLandingStage.LandingRequested;
+                landing.LastProgress = now;
+            }
+            else if (!inFlight && landing.Stage == NodeLandingStage.Landed && TryDismount())
+            {
+                landing.Stage = NodeLandingStage.DismountRequested;
+                landing.LastProgress = now;
+            }
+
+            if (now - landing.LastProgress < 8000)
+                return;
+
+            var failedAction = inFlight ? "降落" : "下坐骑";
+            GatherBuddy.Log.Warning($"未能{failedAction}，稍后重试。角色={player}，采集点={CurrentDestination}");
+            _failedPath = (CurrentDestination, player, now + 5000);
+            StopNavigation();
+            AutoStatus = $"未能{failedAction}，等待重试...";
+        }
+
+        private void FinishNodeLanding(NodeLanding landing, Vector3 player)
+        {
+            // Reuse the ground leg only if we landed on its planned surface.
+            if (landing.GroundPath is { } ground && Vector3.DistanceSquared(player, _navState.landingPoint) <= 9f)
+            {
+                _navState.landing = null;
+                _navState.flying = false;
+                VNavmesh.Path.MoveTo(ground, false);
+                return;
+            }
+
+            StopNavigation();
+            if (landing.Stage == NodeLandingStage.DismountRequested)
+                EnqueueMovementAfterDismount();
+        }
+
+        private bool TryDismount(bool moveAfterDismount = true)
+            => Dalamud.Conditions[ConditionFlag.Mounted] && CanAct
+            && UseTravelAction(moveAfterDismount ? ActionType.GeneralAction : ActionType.Mount, moveAfterDismount ? 23u : 0u);
+
+        private static async Task<List<Vector3>> FindWaypoints(Vector3 start, Vector3 target, bool fly, CancellationToken token, Vector3? interactionNode = null, Vector3? overheadTarget = null)
+        {
+            var path = await VNavmesh.Nav.PathfindCancelable(start, target, fly, token);
+            if (path.Count == 0)
+                return path;
+
+            var end = path[^1];
+            var inRange = interactionNode is { } node ? WithinNodeInteractionRange(end, node) : Vector3.DistanceSquared(end, target) < 1f;
+            if ((!inRange && !(overheadTarget is { } landing && AboveNode(end, landing)))
+                || !path.TrueForAll(p => float.IsFinite(p.X) && float.IsFinite(p.Y) && float.IsFinite(p.Z)))
+            {
+                GatherBuddy.Log.Warning($"拒绝无效寻路结果，起点={start}，请求终点={target}，采集点={interactionNode}，实际终点={end}，飞行={fly}");
                 return [];
             }
 
-            var groundPath = await VNavmesh.Nav.PathfindCancelable(point.Value, target, false, token);
-            if (groundPath.Count == 0)
+            return path;
+        }
+
+        private static async Task<NavigationPath?> RetryNodeFlight(Vector3 start, Vector3 node, bool inFlight, CancellationToken token, bool landAtNode)
+        {
+            // A node can lie inside scenery. Retry the flight to a reachable surface near it.
+            var target = node;
+            var floor = inFlight ? VNavmesh.Query.Mesh.PointOnFloor(start, false, 5f) : start;
+            if (floor.HasValue)
             {
-                return [];
+                var ground = await FindWaypoints(floor.Value, node, false, token, node);
+                if (ground.Count > 0)
+                    target = ground[^1];
+            }
+            return await FindDirectPath(start, target, true, token, node, landAtNode);
+        }
+
+        private static async Task<NavigationPath?> FindDirectPath(Vector3 start, Vector3 target, bool fly, CancellationToken token, Vector3? interactionNode = null, bool landAtNode = false)
+        {
+            var path = await FindWaypoints(start, target, fly, token, interactionNode, fly && landAtNode ? interactionNode : null);
+            return path.Count == 0 ? null : new NavigationPath(path);
+        }
+
+        private static async Task<NavigationPath?> FindCombinedPath(Vector3 player, Vector3 target, float landingDistance, bool flying, CancellationToken token, Vector3? interactionNode = null, bool landAtNode = false)
+        {
+            var floor = flying ? VNavmesh.Query.Mesh.PointOnFloor(player, false, 5f) : player;
+            if (floor == null)
+                return null;
+
+            var ground = await FindWaypoints(floor.Value, target, false, token, interactionNode);
+            if (ground.Count < 2)
+                return null;
+
+            var landing = FindLandingPoint(ground, target, landingDistance);
+            var meshPoint = VNavmesh.Query.Mesh.NearestPoint(landing, landingDistance, 10f);
+            if (meshPoint == null || Math.Abs(target.Y - meshPoint.Value.Y) > 10f)
+                return null;
+
+            var flight = await FindWaypoints(player, meshPoint.Value, true, token, overheadTarget: landAtNode ? interactionNode : null);
+            if (flight.Count == 0)
+                return null;
+
+            if (landAtNode && interactionNode is { } node && AboveNode(flight[^1], node)
+                && !WithinNodeInteractionRange(flight[^1], node))
+                return new NavigationPath(flight);
+
+            // Snapping can put the landing point across a barrier from the original ground segment.
+            // Ask for a connected ground leg starting at the actual end of the flight.
+            var approachTarget = interactionNode.HasValue ? ground[^1] : target;
+            var approach = await FindWaypoints(flight[^1], approachTarget, false, token, interactionNode);
+            if (approach.Count == 0)
+                return null;
+
+            flight.AddRange(approach);
+            return new NavigationPath(flight, approach.Count);
+        }
+
+        private static Vector3 FindLandingPoint(List<Vector3> ground, Vector3 target, float radius)
+        {
+            var radiusSquared = radius * radius;
+            for (var i = ground.Count - 2; i >= 0; --i)
+            {
+                var start = ground[i];
+                var end = ground[i + 1];
+                if (Vector3.DistanceSquared(start, target) <= radiusSquared)
+                    continue;
+
+                // Select the point on this segment entering the landing sphere.
+                var delta = end - start;
+                var lengthSquared = delta.LengthSquared();
+                if (lengthSquared == 0 || Vector3.DistanceSquared(end, target) > radiusSquared)
+                    return end;
+
+                var fromCenter = start - target;
+                var b = Vector3.Dot(fromCenter, delta);
+                var c = fromCenter.LengthSquared() - radiusSquared;
+                var t = (-b - MathF.Sqrt(MathF.Max(0, b * b - lengthSquared * c))) / lengthSquared;
+                return Vector3.Lerp(start, end, Math.Clamp(t, 0f, 1f));
             }
 
-            var n = FindIntersection(groundPath, target, landingDistance);
-            var landingWP = GetPointAtRadius(groundPath[n], groundPath[n + 1], target, landingDistance);
-            var meshWP = VNavmesh.Query.Mesh.NearestPoint(landingWP, landingDistance, 10f); // Diadem fix
-            if (meshWP == null)
-            {
-                return [];
-            }
-
-            if (Math.Abs(target.Y - meshWP.Value.Y) > 10f)
-            {
-                return []; // Sanity check
-            }
-
-            var flyPath = await VNavmesh.Nav.PathfindCancelable(player, meshWP.Value, true, token);
-            if (flyPath.Count == 0)
-            {
-                return [];
-            }
-
-            if (flyPath.Count > 1 && Vector3.DistanceSquared(flyPath[^1], flyPath[^2]) < 0.01f)
-            {
-                flyPath.RemoveAt(flyPath.Count - 1);
-            }
-
-            landingWP = flyPath[^1];
-            flyPath.AddRange(groundPath.Skip(n + 1));
-            flyPath.Add(landingWP); // Pass landing waypoint at the end of the list; it will be handled separately.
-            return flyPath;
-
-            int FindIntersection(List<Vector3> wp, Vector3 p, float radius)
-            {
-                var r2 = radius * radius;
-                for (var i = wp.Count - 2; i > 0; i--)
-                {
-                    if (Vector3.DistanceSquared(wp[i], p) > r2)
-                    {
-                        return i;
-                    }
-                }
-                return 0;
-            }
-
-            Vector3 GetPointAtRadius(Vector3 p1, Vector3 p2, Vector3 target, float radius)
-            {
-                var d = (p2 - p1).ToVector2();        // Segment direction vector.
-                var f = (p1 - target).ToVector2();    // Vector from target to segment start.
-
-                // Quadratic coefficients: at^2 + bt + c = 0.
-                var a = Vector2.Dot(d, d);
-                var b = 2 * Vector2.Dot(f, d);
-                var c = Vector2.Dot(f, f) - radius * radius;
-
-                var discriminant = b * b - 4 * a * c;
-
-                // If discriminant < 0, there is no intersection (math safety).
-                if (discriminant < 0)
-                {
-                    return p1;
-                }
-
-                discriminant = (float)Math.Sqrt(discriminant);
-
-                // Calculate the two possible intersection points on the infinite line.
-                var t1 = (-b - discriminant) / (2 * a);
-                var t2 = (-b + discriminant) / (2 * a);
-
-                // Since one point is inside and one is outside, one 't' will be between 0 and 1.
-                var t = (t1 >= 0 && t1 <= 1) ? t1 : t2;
-
-                // Final point on the segment.
-                return p1 + (p2 - p1) * t;
-            }
+            return ground[0];
         }
 
         private static Vector3 GetCorrectedDestination(in Vector3 destination, in Vector3 player, uint? nodeId)
@@ -627,10 +928,12 @@ namespace GatherBuddy.AutoGather
             }
 
             GatherBuddy.Log.Debug($"[MoveToTerritory] 传送到 {aetheryte.Name}");
-            EnqueueActionWithDelay(() => Teleporter.Teleport(aetheryte.Id));
-            TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.BetweenAreas]);
-            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.BetweenAreas]);
-            TaskManager.DelayNext(1500);
+            TaskManager.Enqueue(() => Teleporter.Teleport(aetheryte.Id) ? true : (bool?)null, $"传送至 {aetheryte.Name}");
+            // A transfer can finish between frames. The aetheryte may also be in a gateway zone.
+            TaskManager.Enqueue(() => Dalamud.ClientState.TerritoryType == aetheryte.Territory.Id
+                                   && CanAct && GenericHelpers.IsScreenReady(),
+                30000, abortOnTimeout: true, name: $"等待抵达 {aetheryte.Name}");
+            TaskManager.DelayNext((int)GatherBuddy.Config.AutoGatherConfig.ExecutionDelay);
 
             return true;
         }

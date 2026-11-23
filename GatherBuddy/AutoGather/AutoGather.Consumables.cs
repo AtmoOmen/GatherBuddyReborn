@@ -217,10 +217,7 @@ namespace GatherBuddy.AutoGather
             }
         }
 
-        private unsafe void UseItem(uint itemId)
-        {
-            ActionManager.Instance()->UseAction(ActionType.Item, itemId, extraParam: 65535);
-        }
+        private void UseItem(uint itemId) => UseTravelAction(ActionType.Item, itemId);
 
         // Cordial, food and potion have no cast time and can be used while mounted
         private bool DoUseConsumablesWithoutCastTime(ConfigPreset config, bool skipThrottle = false)
@@ -235,9 +232,9 @@ namespace GatherBuddy.AutoGather
                     && Player.Object.CurrentGp <= config.Consumables.Cordial.MaxGP
                     && Player.Object.CurrentGp < Player.Object.MaxGp
                     && GetInventoryItemCount(config.Consumables.Cordial.ItemId) > 0
+                    && TryQueueTravelAction(ActionType.Item, config.Consumables.Cordial.ItemId)
                 )
                 {
-                    EnqueueActionWithDelay(() => UseItem(config.Consumables.Cordial.ItemId));
                     return true;
                 }
 
@@ -245,9 +242,9 @@ namespace GatherBuddy.AutoGather
                     && config.Consumables.Food.ItemId > 0
                     && !GetIsFoodBuffUp(config.Consumables.Food.ItemId)
                     && GetInventoryItemCount(config.Consumables.Food.ItemId) > 0
+                    && TryQueueTravelAction(ActionType.Item, config.Consumables.Food.ItemId)
                     )
                 {
-                    EnqueueActionWithDelay(() => UseItem(config.Consumables.Food.ItemId));
                     return true;
                 }
 
@@ -255,9 +252,9 @@ namespace GatherBuddy.AutoGather
                     && config.Consumables.Potion.ItemId > 0
                     && !GetIsPotionBuffUp(config.Consumables.Potion.ItemId)
                     && GetInventoryItemCount(config.Consumables.Potion.ItemId) > 0
+                    && TryQueueTravelAction(ActionType.Item, config.Consumables.Potion.ItemId)
                     )
                 {
-                    EnqueueActionWithDelay(() => UseItem(config.Consumables.Potion.ItemId));
                     return true;
                 }
             }
