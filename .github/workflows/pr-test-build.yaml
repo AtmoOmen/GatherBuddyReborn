@@ -1,16 +1,42 @@
-name: Pull Request Test Build
+name: Build and Release Mainland Plugin
 on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+concurrency:
+  group: mainland-plugin-${{ github.ref }}
+  queue: max
 jobs:
   Build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      baseline: ${{ steps.version.outputs.baseline }}
+      title: ${{ steps.version.outputs.title }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
         with:
-          submodules: true
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Resolve version from merged upstream tags
+        id: version
+        shell: pwsh
+        run: |
+          $release = ./scripts/Resolve-CnReleaseVersion.ps1 -Commit $env:GITHUB_SHA
+          "PLUGIN_VERSION=$($release.Version)" >> $env:GITHUB_ENV
+          "PLUGIN_TITLE=$($release.Title)" >> $env:GITHUB_ENV
+          "version=$($release.Version)" >> $env:GITHUB_OUTPUT
+          "baseline=$($release.Baseline)" >> $env:GITHUB_OUTPUT
+          "title=$($release.Title)" >> $env:GITHUB_OUTPUT
+          Write-Host "Building $($release.Title) as $($release.Version)"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -19,6 +45,9 @@ jobs:
           dotnet-version: |
             10.0.x
             11.0.x
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install verified mainland Dalamud references
         shell: pwsh
@@ -29,10 +58,16 @@ jobs:
         run: ./scripts/Initialize-CnRebornMaterial.ps1
 
       - name: Restore Nuget Packages
-        run: dotnet restore Gatherbuddy/Gatherbuddy.csproj
+        run: dotnet restore GatherBuddy/GatherBuddy.csproj
 
       - name: Build Plugin
-        run: dotnet build --no-restore -c Release Gatherbuddy/Gatherbuddy.csproj --output .\build
+        shell: pwsh
+        run: >-
+          dotnet build --no-restore -c Release GatherBuddy/GatherBuddy.csproj --output build
+          -p:Version=$env:PLUGIN_VERSION -p:AssemblyVersion=$env:PLUGIN_VERSION
+          -p:FileVersion=$env:PLUGIN_VERSION -p:PackageVersion=$env:PLUGIN_VERSION
+          -p:InformationalVersion=$env:PLUGIN_TITLE
+
       - name: Verify compiled mainland references
         shell: pwsh
         run: ./scripts/verify-dalamud-cn.ps1 -OutputDirectory build
@@ -47,6 +82,89 @@ jobs:
             exit 1
           }
           Copy-Item -Path ".\target\release\raphael-cli.exe" -Destination "..\build\raphael-cli.exe" -Force
+          Copy-Item -LiteralPath ./LICENSE -Destination ../build/LICENSE.raphael-rs.txt
           cd ..
           Remove-Item -Recurse -Force raphael-rs-temp
           Write-Host "Successfully built and copied raphael-cli.exe"
+
+      - name: Add license and source notices
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath ./build-configuration/vendor/RebornMaterial/LICENSE -Destination ./build/LICENSE.RebornMaterial-LGPL-3.0.txt
+          Copy-Item -LiteralPath ./build-configuration/GPL-3.0.txt -Destination ./build/LICENSE.RebornMaterial-GPL-3.0.txt
+          Copy-Item -LiteralPath ./build-configuration/RebornMaterial-NOTICE.txt -Destination ./build/RebornMaterial-NOTICE.txt
+          Copy-Item -LiteralPath ./LICENSE -Destination ./build/LICENSE.GatherBuddyReborn.txt
+
+      - name: Package Plugin
+        shell: pwsh
+        run: ./scripts/package-release-cn.ps1
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v7
+        with:
+          name: gbr-cn-package
+          path: publish/latest.zip
+          if-no-files-found: error
+          overwrite: true
+
+  Release:
+    if: github.repository == 'AtmoOmen/GatherBuddyReborn' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release package
+        uses: actions/download-artifact@v8
+        with:
+          name: gbr-cn-package
+
+      - name: Check release slot
+        id: release-slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_VERSION: ${{ needs.Build.outputs.version }}
+        shell: bash
+        run: |
+          ref="refs/tags/$PLUGIN_VERSION"
+          refs=$(git ls-remote --tags "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git")
+          newest_version=$(
+            { printf '%s\n' "$PLUGIN_VERSION"
+              cut -f2 <<< "$refs" | sed -nE 's,^refs/tags/((0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){3})$,\1,p'
+            } | sort -V | tail -n 1
+          )
+          if [[ "$newest_version" != "$PLUGIN_VERSION" ]]; then
+            echo "A newer tag $newest_version already exists" >&2
+            exit 1
+          fi
+          tagged_commit=$(awk -v ref="$ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
+          if [[ -n "$tagged_commit" && "$tagged_commit" != "$GITHUB_SHA" ]]; then
+            echo "Tag $PLUGIN_VERSION already points to $tagged_commit" >&2
+            exit 1
+          fi
+          if [[ -n "$tagged_commit" ]]; then
+            published=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+              jq -c --arg tag "$PLUGIN_VERSION" '.[] | select(.tag_name == $tag and .draft == false)')
+            if [[ -n "$published" ]]; then
+              if ! jq -e '.prerelease == false and any(.assets[]; .name == "latest.zip" and .state == "uploaded" and .size > 0)' <<< "$published" >/dev/null; then
+                echo "Existing release $PLUGIN_VERSION does not have an uploaded stable latest.zip" >&2
+                exit 1
+              fi
+              echo "published=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Publish Plugin
+        if: steps.release-slot.outputs.published != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.Build.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.Build.outputs.title }}
+          body: 基于 FFXIV-CombatReborn/GatherBuddyReborn ${{ needs.Build.outputs.baseline }}。构建提交 ${{ github.sha }}。
+          files: latest.zip
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          prerelease: false
+          make_latest: true
+          token: ${{ github.token }}
