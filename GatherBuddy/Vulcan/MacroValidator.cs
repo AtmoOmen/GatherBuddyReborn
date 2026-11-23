@@ -18,6 +18,15 @@ public class MacroValidationResult
 {
     public bool IsValid { get; init; }
     public MacroValidationFailure Failure { get; init; }
+    internal string FailureText => Failure switch
+    {
+        MacroValidationFailure.NoStats => "无法读取能力值",
+        MacroValidationFailure.CPExhausted => "制作力不足",
+        MacroValidationFailure.DurabilityFailed => "耐久耗尽",
+        MacroValidationFailure.InsufficientProgress => "进展未达到要求",
+        MacroValidationFailure.ActionUnusable => "有技能无法使用",
+        _ => "验证失败",
+    };
     public int FailedAtStep { get; init; }
     public int FinalProgress { get; init; }
     public int RequiredProgress { get; init; }
@@ -28,7 +37,7 @@ public class MacroValidationResult
 
 public static class MacroValidator
 {
-    private static readonly Dictionary<(uint, string, uint, bool, uint, bool, int), MacroValidationResult> _cache = [];
+    private static readonly Dictionary<(uint, string, uint, bool, uint, bool, int, int), MacroValidationResult> _cache = [];
 
     public static MacroValidationResult? GetOrCompute(uint recipeId, string? macroId, RecipeCraftSettings? settings = null, CraftingListConsumableSettings? listConsumables = null)
     {
@@ -48,15 +57,6 @@ public static class MacroValidator
         var medicineId = ResolveId(settings?.MedicineMode, settings?.MedicineItemId, listConsumables?.MedicineItemId);
         var medicineHQ = ResolveHQ(settings?.MedicineMode, settings?.MedicineHQ ?? false, listConsumables?.MedicineHQ ?? false);
 
-        var qualityPolicy = CraftingQualityPolicyResolver.Resolve(recipe.Value, settings);
-        var startingQuality = qualityPolicy.CalculateGuaranteedInitialQuality(recipe.Value);
-
-        var key = (recipeId, macroId, foodId ?? 0, foodHQ, medicineId ?? 0, medicineHQ, startingQuality);
-        if (_cache.TryGetValue(key, out var cached))
-        {
-            return cached;
-        }
-
         var macro = CraftingGameInterop.UserMacroLibrary.GetMacroByStringId(macroId);
         if (macro == null)
         {
@@ -67,6 +67,14 @@ public static class MacroValidator
         var baseStats = GearsetStatsReader.ReadGearsetStatsForJob(jobId);
         var stats = baseStats != null ? GearsetStatsReader.ApplyConsumablesToStats(baseStats, foodId, foodHQ, medicineId, medicineHQ) : null;
 
+        var qualityPolicy = CraftingQualityPolicyResolver.Resolve(recipe.Value, settings);
+        var startingQuality = stats == null ? 0 : qualityPolicy.CalculateGuaranteedInitialQuality(recipe.Value, stats.Level);
+        var key = (recipeId, macroId, foodId ?? 0, foodHQ, medicineId ?? 0, medicineHQ, startingQuality, stats?.Level ?? 0);
+        if (_cache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
         var result = Validate(macro, recipe.Value, stats, startingQuality);
         _cache[key] = result;
         return result;
@@ -74,7 +82,7 @@ public static class MacroValidator
 
     public static void Invalidate(uint recipeId, string macroId)
     {
-        var toRemove = new List<(uint, string, uint, bool, uint, bool, int)>();
+        var toRemove = new List<(uint, string, uint, bool, uint, bool, int, int)>();
         foreach (var key in _cache.Keys)
         {
             if (key.Item1 == recipeId && key.Item2 == macroId)
@@ -91,7 +99,7 @@ public static class MacroValidator
 
     public static void InvalidateByMacroId(string macroId)
     {
-        var toRemove = new List<(uint, string, uint, bool, uint, bool, int)>();
+        var toRemove = new List<(uint, string, uint, bool, uint, bool, int, int)>();
         foreach (var key in _cache.Keys)
         {
             if (key.Item2 == macroId)
@@ -115,7 +123,11 @@ public static class MacroValidator
             return new MacroValidationResult { IsValid = false, Failure = MacroValidationFailure.NoStats };
         }
 
-        var recipeInfo = CraftingStateBuilder.BuildRecipeInfo(recipe);
+        if (!CraftingStateBuilder.TryBuildRecipeInfo(recipe, stats.Level, out var recipeInfo))
+        {
+            return new MacroValidationResult { IsValid = false, Failure = MacroValidationFailure.NoStats };
+        }
+
         var craft = GameStateBuilder.BuildCraftState(recipeInfo, stats);
         var step = GameStateBuilder.BuildInitialStepState(craft, startingQuality);
 

@@ -23,7 +23,7 @@ public partial class Interface
 {
     internal static bool DrawLocationInput(IGatherable item, ILocation? current, out ILocation? ret)
     {
-        const string noPreferred = "No preferred location";
+        const string noPreferred = "无首选地点";
         var width = SetInputWidth * 0.85f;
         ret = current;
         if (item.Locations.Count == 1)
@@ -109,7 +109,7 @@ public partial class Interface
         DrawTimeIntervalTooltip(uptime, uptimeDependency, item, !char.IsLetter(timeString[0]));
     }
 
-    private static readonly string[] UpcomingUptimeHeaders = ["Day", "Time", "Starts in", "Duration", "Downtime"];
+    private static readonly string[] UpcomingUptimeHeaders = ["日期", "时间", "距开始", "持续时间", "间隔时间"];
 
     internal static void DrawTimeIntervalTooltip(TimeInterval uptime, bool uptimeDependency = false, IGatherable? item = null, bool displayNextWindow = true)
     {
@@ -122,7 +122,7 @@ public partial class Interface
 
         if (uptimeDependency)
         {
-            M3Badge.Draw("Depends on another fish's uptime", M3.Scheme.Warning);
+            M3Badge.Draw("取决于另一种鱼的可捕获时段", M3.Scheme.Warning);
         }
 
         if (!displayNextWindow)
@@ -139,7 +139,7 @@ public partial class Interface
         var uptimes = GatherBuddy.UptimeManager.GetUpcomingUptimes(item, GatherBuddy.Config.UpcomingUptimesCount);
         if (uptimes.Count <= 0)
         {
-            ImGui.TextUnformatted($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}\n\nLoading the next {GatherBuddy.Config.UpcomingUptimesCount} windows...");
+            ImGui.TextUnformatted($"{uptime.Start}\n{uptime.End}\n{uptime.DurationString()}\n\n正在加载接下来的 {GatherBuddy.Config.UpcomingUptimesCount} 个可采集时段…");
             return;
         }
 
@@ -239,12 +239,12 @@ public partial class Interface
         }
 
         Next(ImGui.GetTextLineHeight());
-        M3Text.Draw($"{table.CurrentItems} of {table.TotalItems} {name.ToLowerInvariant()} shown", M3TextStyle.Muted);
+        M3Text.Draw($"显示 {table.CurrentItems} / {table.TotalItems} 项{name}", M3TextStyle.Muted);
         if (table.TotalColumns != table.VisibleColumns)
         {
             Next(ImGui.GetTextLineHeight());
             var hidden = table.TotalColumns - table.VisibleColumns;
-            M3Text.Draw(hidden == 1 ? "1 column hidden" : $"{hidden} columns hidden", M3TextStyle.Muted);
+            M3Text.Draw(hidden == 1 ? "已隐藏 1 列" : $"{hidden} 列已隐藏", M3TextStyle.Muted);
         }
 
         if (typeof(T) != typeof(ExtendedFish))
@@ -255,8 +255,8 @@ public partial class Interface
         if (File.Exists(GatherBuddy.GameData.OverrideFile))
         {
             Next(M3Widgets.ChipHeight);
-            if (M3Widgets.Chip("##reimport", "Reimport fish overrides", false, FontAwesomeIcon.Redo,
-                    "Read the fish data override file again.\nRight-click to move it to a backup instead.")
+            if (M3Widgets.Chip("##reimport", "重新导入鱼类修正数据", false, FontAwesomeIcon.Redo,
+                    "重新读取鱼类修正数据文件。\n右键点击可将文件移为备份。")
              && GatherBuddy.GameData.ReimportOverrides())
             {
                 GatherBuddy.UptimeManager.ResetModifiedUptimes();
@@ -271,7 +271,7 @@ public partial class Interface
             }
 
             using var menu = M3Menu.BeginContext("##overrideMenu");
-            if (menu.IsOpen && M3Menu.Item("##backup", "Move to backup", FontAwesomeIcon.Archive))
+            if (menu.IsOpen && M3Menu.Item("##backup", "移为备份", FontAwesomeIcon.Archive))
             {
                 try
                 {
@@ -287,7 +287,7 @@ public partial class Interface
         if (GatherBuddy.GameData.OverriddenFish > 0)
         {
             Next(ImGui.GetTextLineHeight());
-            M3Text.Draw($"{GatherBuddy.GameData.OverriddenFish} fish overridden", M3TextStyle.Muted);
+            M3Text.Draw($"{GatherBuddy.GameData.OverriddenFish} 种鱼使用修正数据", M3TextStyle.Muted);
         }
     }
 
@@ -312,7 +312,7 @@ public partial class Interface
         }
 
         if (M3Widgets.Pill("##clippy", text, M3.Scheme.Tertiary, icon,
-                "Click for some help navigating this table.\nControl + Shift + Right-Click to permanently hide this button.", true))
+                "点击查看表格操作说明。\n按住 Ctrl + Shift 并右键点击可永久隐藏该按钮。", true))
         {
             ImGui.OpenPopup(popupName);
         }
@@ -334,23 +334,23 @@ public partial class Interface
 
         using (ImRaii.PushFont(M3.TitleMedium))
         {
-            ImGui.TextUnformatted("Getting around the tables");
+            ImGui.TextUnformatted("表格操作说明");
         }
 
         ImGui.Dummy(new Vector2(width, M3.Space1));
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
-        M3Widgets.SectionLabel("Filters");
-        M3Text.Bullet("Text filters like \"Filter items\" only show entries that contain the given text. They are case-insensitive and are not kept for your next session.");
+        M3Widgets.SectionLabel("筛选");
+        M3Text.Bullet("「筛选物品」等文本筛选会保留包含输入文字的条目，忽略大小写。重启插件后会清除输入内容。");
         M3Text.Bullet("文本过滤器还支持正则表达式，例如 \"(blue|green)\" 会匹配所有包含蓝色或绿色的条目。");
-        M3Text.Bullet("Button filters like \"Next Uptime\", \"Node Type\" or \"Fish Type\" open a menu of what to show.");
-        M3Text.Bullet("Those filters are kept across sessions. A column with an active filter shows a tinted button with a filter icon; right-click it to clear the filter.");
-        M3Widgets.SectionLabel("Columns");
-        M3Text.Bullet("Click the blank space of a header to sort the table by that column, ascending or descending. A small triangle shows the direction.");
-        M3Text.Bullet("Right-click the blank space of a header to open the table's context menu, where you can hide columns you are not interested in.");
-        M3Text.Bullet("Resize text columns by dragging the small separators between them. Sizes are kept across sessions.");
-        M3Text.Bullet("Reorder most columns by dragging the blank space of their header. The order is kept across sessions.");
-        M3Widgets.SectionLabel("Items");
-        M3Text.Bullet("Right-click item names and a few other columns (like bait and fishing spot) for menus with more options.");
+        M3Text.Bullet("点击下次刷新、采集点类型或鱼类类型等按钮，可打开菜单选择要显示的内容。");
+        M3Text.Bullet("这些筛选会保存。启用筛选的列会显示带筛选图标的着色按钮，右键点击可清除该筛选。");
+        M3Widgets.SectionLabel("列");
+        M3Text.Bullet("点击表头的空白处可按此列进行升序或降序排序，三角图标指示排序方向。");
+        M3Text.Bullet("右键点击表头的空白处可打开表格菜单，其中可以隐藏不需要的列。");
+        M3Text.Bullet("拖动列之间的分隔线可调整文本列宽，插件会保存列宽。");
+        M3Text.Bullet("拖动表头空白处可调整多数列的顺序，插件会保存列顺序。");
+        M3Widgets.SectionLabel("物品");
+        M3Text.Bullet("右键点击物品名、鱼饵或钓场等列，可打开包含更多选项的菜单。");
         ImGui.PopTextWrapPos();
 
         ImGui.Dummy(new Vector2(0f, M3.Space2));

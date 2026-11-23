@@ -18,7 +18,7 @@ public partial class VulcanWindow
         public Recipe Recipe;
         public ISharedImmediateTexture Icon = null!;
         public string Name = string.Empty;
-        public string JobAbbreviation = string.Empty;
+        public string JobName = string.Empty;
         public uint JobId;
         public uint Level;
         public uint ItemEquipLevel;
@@ -61,7 +61,7 @@ public partial class VulcanWindow
                 var job = classJobSheet.GetRow(JobId);
                 if (job.RowId > 0)
                 {
-                    JobAbbreviation = job.Abbreviation.ExtractText();
+                    JobName = job.Name.ExtractText();
                 }
             }
 
@@ -106,7 +106,7 @@ public partial class VulcanWindow
                 var job = classJobSheet.GetRow(JobId);
                 if (job.RowId > 0)
                 {
-                    JobAbbreviation = job.Abbreviation.ExtractText();
+                    JobName = job.Name.ExtractText();
                 }
             }
 
@@ -123,13 +123,13 @@ public partial class VulcanWindow
                 ImGui.TextUnformatted(Name);
             }
 
-            M3Text.Draw($"Level {Level} {JobAbbreviation}, makes {Recipe.AmountResult}, recipe {Recipe.RowId}", M3TextStyle.Muted);
+            M3Text.Draw($"{JobName} {Level} 级 · 每次制作 {Recipe.AmountResult} 个 · 配方 ID {Recipe.RowId}", M3TextStyle.Muted);
             M3Widgets.Divider(4f);
 
             var directIngredients = RecipeManager.GetIngredients(Recipe);
             if (directIngredients.Count > 0)
             {
-                M3Widgets.SectionLabel("Ingredients");
+                M3Widgets.SectionLabel("材料");
                 var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
                 var size = iconSize.Y * 0.75f;
                 foreach (var (itemId, needed) in directIngredients)
@@ -159,7 +159,7 @@ public partial class VulcanWindow
             }
 
             M3Widgets.Divider(4f);
-            M3Widgets.SectionLabel("Craft settings");
+            M3Widgets.SectionLabel("制作设置");
             var sheet = Dalamud.GameData.GetExcelSheet<Item>();
             if (sheet == null)
             {
@@ -174,10 +174,10 @@ public partial class VulcanWindow
                 }
             }
 
-            Setting("Food", settings.FoodItemId);
-            Setting("Medicine", settings.MedicineItemId);
-            Setting("Manual", settings.ManualItemId);
-            Setting("Squadron manual", settings.SquadronManualItemId);
+            Setting("食物", settings.FoodItemId);
+            Setting("药品", settings.MedicineItemId);
+            Setting("工程学指南", settings.ManualItemId);
+            Setting("军用及民用指南", settings.SquadronManualItemId);
         }
         private static unsafe int GetInventoryCount(uint itemId)
         {

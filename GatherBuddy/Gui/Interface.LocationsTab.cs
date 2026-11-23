@@ -190,7 +190,7 @@ public partial class Interface
             {
                 var overwritten = location.DefaultAetheryte != location.ClosestAetheryte;
                 var index = location.ClosestAetheryte == null ? -1 : _aetherytes.IndexOf(location.ClosestAetheryte);
-                if (M3Widgets.Combo("##aetheryte", ref index, _aetherytes.Count, i => _aetherytes[i].Name, ImGui.GetContentRegionAvail().X, "None",
+                if (M3Widgets.Combo("##aetheryte", ref index, _aetherytes.Count, i => _aetherytes[i].Name, ImGui.GetContentRegionAvail().X, "无",
                         search: true))
                 {
                     _plugin.LocationManager.SetAetheryte(location, _aetherytes[index]);
@@ -199,7 +199,7 @@ public partial class Interface
                 if (overwritten)
                 {
                     MarkChanged();
-                    M3Tooltip.Hovered($"Right-click to restore default. ({location.DefaultAetheryte?.Name ?? "None"})");
+                    M3Tooltip.Hovered($"右键点击可恢复默认值（{location.DefaultAetheryte?.Name ?? "无"})");
                     if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                     {
                         _plugin.LocationManager.SetAetheryte(location, location.DefaultAetheryte);
@@ -395,7 +395,7 @@ public partial class Interface
                 if (locationCount > 0)
                 {
                     tt +=
-                        $"\n\nMarkers stored for this location:\n\n{FormatMarkers(location.Markers)}";
+                        $"\n\n此地点保存的地图标记\n\n{FormatMarkers(location.Markers)}";
                 }
 
                 Ui.CenterInRow(M3Widgets.ComboHeight, ImGui.GetFrameHeight());

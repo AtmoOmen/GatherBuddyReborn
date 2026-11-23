@@ -189,7 +189,7 @@ public partial class Interface
         => M3Widgets.Combo(id, ref index, GatherGroupCache.AllGatherables.Length, i => GatherGroupCache.AllGatherables[i].Name[GatherBuddy.Language],
             width, "选择物品", true);
 
-    private static readonly string[] GatherGroupColumns = ["##delete", "Item", "Eorzea time", "Location", "Length", "Annotation"];
+    private static readonly string[] GatherGroupColumns = ["##delete", "物品", "艾欧泽亚时间", "地点", "持续时长", "备注"];
     private static readonly string[] GatherGroupColumnLabels = ["", "物品", "艾欧泽亚时间", "地点", "时长", "备注"];
 
     private static void DrawTimeInput(string label, float width, int value, Action<int> setter)

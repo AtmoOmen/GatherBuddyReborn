@@ -94,7 +94,7 @@ public static class MobDropInfoCache
 {
     private const float ClusterMergeDistance = 0.7f;
     private const float ClusterMergeDistanceSquared = ClusterMergeDistance * ClusterMergeDistance;
-    private const string UnknownZoneName = "Unknown zone";
+    private const string UnknownZoneName = "未知区域";
     private const string OverrideResourceName = "GatherBuddy.CustomInfo.mob_drop_overrides.json";
 
     private static Dictionary<uint, MobDropItemInfo> _dropsByItemId = [];

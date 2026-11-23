@@ -1723,7 +1723,7 @@ public class CraftingQueueProcessor
 
     private void PauseForInventoryFull(string message)
     {
-        var pauseReason = $"{message} Clear inventory, then press Resume to continue the current queue.";
+        var pauseReason = $"{message} 腾出背包空间后，点击「继续」恢复当前制作队列。";
         GatherBuddy.Log.Warning($"[CraftingQueueProcessor] {pauseReason}");
         Pause(pauseReason);
     }

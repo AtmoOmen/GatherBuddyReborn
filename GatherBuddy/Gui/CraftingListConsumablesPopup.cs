@@ -32,14 +32,14 @@ public class CraftingListConsumablesPopup
 
     private static readonly (string Label, SolverOverrideMode Mode, string? Tooltip)[] SolverChoices =
     [
-        ("Default, use the solver", SolverOverrideMode.Default, null),
-        ("Standard solver", SolverOverrideMode.StandardSolver, null),
-        ("Raphael solver", SolverOverrideMode.RaphaelSolver, null),
-        ("Progress only", SolverOverrideMode.ProgressOnlySolver, "Only progress-building actions, no quality steps. Fast NQ crafts."),
+        ("默认求解器", SolverOverrideMode.Default, null),
+        ("标准求解器", SolverOverrideMode.StandardSolver, null),
+        ("Raphael 求解器", SolverOverrideMode.RaphaelSolver, null),
+        ("仅完成制作", SolverOverrideMode.ProgressOnlySolver, "跳过提升品质的技能，尽快完成制作。"),
     ];
 
     internal static RebornUI.HostedPanelWindow CreateWindow()
-        => new("GatherBuddyCraftingListDefaults", "List Defaults", new Vector2(500f, 540f), new Vector2(460f, 300f), bodyScrolls: false);
+        => new("GatherBuddyCraftingListDefaults", "清单默认设置", new Vector2(500f, 540f), new Vector2(460f, 300f), bodyScrolls: false);
 
     public void OpenListDefaults(CraftingListDefinition list)
     {
@@ -71,12 +71,12 @@ public class CraftingListConsumablesPopup
         }
 
         ImGui.Dummy(new Vector2(0, M3.Space1));
-        if (M3Widgets.Button("##saveDefaults", "Save defaults", M3ButtonStyle.Filled, FontAwesomeIcon.Save))
+        if (M3Widgets.Button("##saveDefaults", "保存默认设置", M3ButtonStyle.Filled, FontAwesomeIcon.Save))
         {
             Save();
             if (_list != null)
             {
-                M3Snackbar.Show($"Saved the defaults for {_list.Name}.");
+                M3Snackbar.Show($"已保存清单「{_list.Name}」的默认设置。");
             }
         }
 
@@ -90,16 +90,16 @@ public class CraftingListConsumablesPopup
     private void DrawListDefaults()
     {
         var allMacros = CraftingGameInterop.UserMacroLibrary.GetAllMacros();
-        using (M3Card.Begin("##listMacros", "Macro or solver", FontAwesomeIcon.Scroll, M3.AccentFor(0), subtitle: "Items and precrafts can still pick their own."))
+        using (M3Card.Begin("##listMacros", "制作宏或求解器", FontAwesomeIcon.Scroll, M3.AccentFor(0), subtitle: "成品和半成品可以分别设置自己的制作方式。"))
         {
-            DrawMacroSelector("Precrafts", "##PrecraftMacro", ref _workingDefaultPrecraftMacroId, ref _workingDefaultPrecraftSolverOverride, allMacros);
-            DrawMacroSelector("Final crafts", "##FinalMacro", ref _workingDefaultFinalMacroId, ref _workingDefaultFinalSolverOverride, allMacros);
+            DrawMacroSelector("半成品", "##PrecraftMacro", ref _workingDefaultPrecraftMacroId, ref _workingDefaultPrecraftSolverOverride, allMacros);
+            DrawMacroSelector("成品", "##FinalMacro", ref _workingDefaultFinalMacroId, ref _workingDefaultFinalSolverOverride, allMacros);
         }
 
-        using (M3Card.Begin("##listConsumables", "Consumables", FontAwesomeIcon.Utensils, M3.AccentFor(1)))
+        using (M3Card.Begin("##listConsumables", "消耗品", FontAwesomeIcon.Utensils, M3.AccentFor(1)))
         {
-            M3Widgets.LabeledCheckbox("Assume all HQ materials##ListUseAllHQ", ref _workingUseAllHQ,
-                tooltip: "Treat all HQ-capable ingredients as HQ by default, both for planning and for Raphael warmup.\nItem and precraft settings can still override this.");
+            M3Widgets.LabeledCheckbox("默认使用 HQ 材料##ListUseAllHQ", ref _workingUseAllHQ,
+                tooltip: "制定制作计划和提前进行 Raphael 求解时，默认将所有支持 HQ 的材料按 HQ 计算。\n成品和半成品的个别设置可覆盖此选项。");
 
             var foodItemId = _workingDefaults.FoodItemId;
             var foodHq = _workingDefaults.FoodHQ;
@@ -108,10 +108,10 @@ public class CraftingListConsumablesPopup
             var manualItemId = _workingDefaults.ManualItemId;
             var squadronManualItemId = _workingDefaults.SquadronManualItemId;
 
-            DrawConsumableSelector("Food", "##ListFood", _foodItems, ref foodItemId, ref foodHq);
-            DrawConsumableSelector("Medicine", "##ListMedicine", _medicineItems, ref medicineItemId, ref medicineHq);
-            DrawManualSelector("Manual", "##ListManual", _manualItems, ref manualItemId);
-            DrawManualSelector("Squadron manual", "##ListSquadron", _squadronManualItems, ref squadronManualItemId);
+            DrawConsumableSelector("食物", "##ListFood", _foodItems, ref foodItemId, ref foodHq);
+            DrawConsumableSelector("药品", "##ListMedicine", _medicineItems, ref medicineItemId, ref medicineHq);
+            DrawManualSelector("工程学指南", "##ListManual", _manualItems, ref manualItemId);
+            DrawManualSelector("军用及民用指南", "##ListSquadron", _squadronManualItems, ref squadronManualItemId);
 
             _workingDefaults.FoodItemId = foodItemId;
             _workingDefaults.FoodHQ = foodHq;
@@ -182,11 +182,11 @@ public class CraftingListConsumablesPopup
     private static string GetMacroSelectionName(string? macroId, SolverOverrideMode solverOverride, List<UserMacro> allMacros)
         => solverOverride switch
         {
-            SolverOverrideMode.StandardSolver => "Standard solver",
-            SolverOverrideMode.RaphaelSolver => "Raphael solver",
-            SolverOverrideMode.ProgressOnlySolver => "Progress only",
-            _ when !string.IsNullOrEmpty(macroId) => allMacros.Find(m => m.Id == macroId)?.Name ?? "(macro not found)",
-            _ => "Default, use the solver",
+            SolverOverrideMode.StandardSolver => "标准求解器",
+            SolverOverrideMode.RaphaelSolver => "Raphael 求解器",
+            SolverOverrideMode.ProgressOnlySolver => "仅完成制作",
+            _ when !string.IsNullOrEmpty(macroId) => allMacros.Find(m => m.Id == macroId)?.Name ?? "（找不到宏）",
+            _ => "默认求解器",
         };
 
     private static string ItemLabel(string name, bool hq)
@@ -198,7 +198,7 @@ public class CraftingListConsumablesPopup
         var current = itemId;
         var currentHq = hq;
         var index = current.HasValue ? items.FindIndex(i => i.ItemId == current.Value && i.IsHQ == currentHq) + 1 : 0;
-        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "None" : ItemLabel(items[i - 1].Name, items[i - 1].IsHQ), SelectorComboWidth, "None",
+        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "无" : ItemLabel(items[i - 1].Name, items[i - 1].IsHQ), SelectorComboWidth, "无",
                 items.Count > 8))
         {
             return;
@@ -221,7 +221,7 @@ public class CraftingListConsumablesPopup
         SelectorLabel(label);
         var current = itemId ?? 0;
         var index = current == 0 ? 0 : items.FindIndex(i => i.ItemId == current) + 1;
-        if (M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "None" : items[i - 1].Name, SelectorComboWidth, "None"))
+        if (M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "无" : items[i - 1].Name, SelectorComboWidth, "无"))
         {
             itemId = index <= 0 ? null : items[index - 1].ItemId;
         }

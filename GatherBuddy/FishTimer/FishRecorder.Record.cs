@@ -299,7 +299,7 @@ public partial class FishRecorder
             return;
         }
 
-        Record.Bite = (ushort)Math.Clamp(Timer.ElapsedMilliseconds, 0, ushort.MaxValue);
+        Record.Bite = (ushort)System.Math.Clamp(Timer.ElapsedMilliseconds, 0, ushort.MaxValue);
         UpdateLure();
         if (!Record.VerifyValidity())
         {

@@ -24,8 +24,7 @@ public sealed class GatherBuddyIpc : IDisposable
 
     [EzIPC]
     public uint Identify(string text)
-        => _plugin.Executor.Identificator.IdentifyGatherable(text)?.ItemId
-         ?? _plugin.Executor.Identificator.IdentifyFish(text)?.ItemId ?? 0;
+        => _plugin.Executor.Identificator.IdentifyItem(text);
 
     [EzIPC]
     public bool IsAutoGatherEnabled()

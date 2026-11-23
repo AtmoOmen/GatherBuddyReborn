@@ -17,8 +17,8 @@ public partial class VulcanWindow
 
     private static readonly M3Segment[] VendorLocationSegments =
     [
-        new("DataShare first", FontAwesomeIcon.Database, "Prefer AllaganTools DataShare locations, then fill gaps from the Level sheet, ENpcPlace supplemental data, and planevent.lgb."),
-        new("LGB first", FontAwesomeIcon.Map, "Prefer planevent.lgb locations, then fill gaps from the Level sheet, ENpcPlace supplemental data, and AllaganTools DataShare."),
+        new("优先使用 DataShare", FontAwesomeIcon.Database, "优先使用 Allagan Tools 的 DataShare 坐标，缺失时从 Level 表、ENpcPlace 补充数据和 planevent.lgb 中查找。"),
+        new("优先使用 LGB", FontAwesomeIcon.Map, "优先使用 planevent.lgb 坐标，缺失时从 Level 表、ENpcPlace 补充数据和 Allagan Tools 的 DataShare 中查找。"),
     ];
 
     private void DrawDebugPage()
@@ -29,10 +29,10 @@ public partial class VulcanWindow
             return;
         }
 
-        using (M3Card.Begin("##debugMenus", "Context menus", FontAwesomeIcon.Bars, M3.AccentFor(0)))
+        using (M3Card.Begin("##debugMenus", "右键菜单", FontAwesomeIcon.Bars, M3.AccentFor(0)))
         {
             var maxRecentLists = GatherBuddy.Config.MaxRecentCraftingListsInContextMenu;
-            if (M3Widgets.RowNumber("Recent lists in menus", ref maxRecentLists, 1, 1, 50, supporting: "How many recent crafting lists context menus offer."))
+            if (M3Widgets.RowNumber("菜单中的最近清单", ref maxRecentLists, 1, 1, 50, supporting: "右键菜单中显示的最近制作清单数量。"))
             {
                 GatherBuddy.Config.MaxRecentCraftingListsInContextMenu = Math.Clamp(maxRecentLists, 1, 50);
                 GatherBuddy.Config.Save();
@@ -41,50 +41,50 @@ public partial class VulcanWindow
 
         DrawVendorNpcLocationDebug();
 
-        using (M3Card.Begin("##debugRepair", "Repair", FontAwesomeIcon.Wrench, M3.AccentFor(2)))
+        using (M3Card.Begin("##debugRepair", "修理", FontAwesomeIcon.Wrench, M3.AccentFor(2)))
         {
-            M3Widgets.RowValue("Lowest equipped condition", $"{Crafting.RepairManager.GetMinEquippedPercent()}%");
-            M3Widgets.RowValue("Can repair yourself", Crafting.RepairManager.CanRepairAny() ? "Yes" : "No");
+            M3Widgets.RowValue("已穿戴装备的最低耐久度", $"{Crafting.RepairManager.GetMinEquippedPercent()}%");
+            M3Widgets.RowValue("可以自行修理", Crafting.RepairManager.CanRepairAny() ? "是" : "否");
             var npcNearby = Crafting.RepairManager.RepairNPCNearby(out _);
-            M3Widgets.RowValue("Repair NPC nearby", npcNearby ? "Yes" : "No");
+            M3Widgets.RowValue("附近修理工", npcNearby ? "是" : "否");
             if (npcNearby)
             {
-                M3Widgets.RowValue("NPC repair price", $"{Crafting.RepairManager.GetNPCRepairPrice():N0} gil");
+                M3Widgets.RowValue("修理工报价", $"{Crafting.RepairManager.GetNPCRepairPrice():N0} 金币");
             }
         }
 
-        using (M3Card.Begin("##debugMateria", "Materia extraction", FontAwesomeIcon.Gem, M3.AccentFor(3)))
+        using (M3Card.Begin("##debugMateria", "精制魔晶石", FontAwesomeIcon.Gem, M3.AccentFor(3)))
         {
-            M3Widgets.RowValue("Extraction unlocked", Crafting.MateriaManager.IsExtractionUnlocked() ? "Yes" : "No");
-            M3Widgets.RowValue("Items ready", Crafting.MateriaManager.ReadySpiritbondItemCount().ToString());
-            M3Widgets.RowValue("Free inventory slots", Crafting.MateriaManager.HasFreeInventorySlots() ? "Yes" : "No");
+            M3Widgets.RowValue("已解锁魔晶石精制", Crafting.MateriaManager.IsExtractionUnlocked() ? "是" : "否");
+            M3Widgets.RowValue("可精制的装备", Crafting.MateriaManager.ReadySpiritbondItemCount().ToString());
+            M3Widgets.RowValue("背包空位", Crafting.MateriaManager.HasFreeInventorySlots() ? "是" : "否");
         }
 
-        using (M3Card.Begin("##debugGearset", "Gearset stats", FontAwesomeIcon.UserCog, M3.AccentFor(4)))
+        using (M3Card.Begin("##debugGearset", "套装能力值", FontAwesomeIcon.UserCog, M3.AccentFor(4)))
         {
             var jobIndex = Math.Max(0, Array.IndexOf(DebugJobIds, _debugSelectedJobId));
-            if (M3Widgets.RowCombo("Job", ref jobIndex, DebugJobIds.Length, i => GetDebugJobName(DebugJobIds[i])))
+            if (M3Widgets.RowCombo("职业", ref jobIndex, DebugJobIds.Length, i => GetDebugJobName(DebugJobIds[i])))
             {
                 _debugSelectedJobId = DebugJobIds[jobIndex];
                 _debugLastTestResult = null;
             }
 
-            if (M3Widgets.Button("##readStats", "Read stats", M3ButtonStyle.Tonal, FontAwesomeIcon.Search))
+            if (M3Widgets.Button("##readStats", "读取能力值", M3ButtonStyle.Tonal, FontAwesomeIcon.Search))
             {
                 var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
                 _debugLastTestResult = stats != null
-                    ? $"Success: Craftsmanship={stats.Craftsmanship}, Control={stats.Control}, CP={stats.CP}, Manipulation={stats.Manipulation}"
-                    : "Failed: Could not read gearset stats for this job";
+                    ? $"读取成功，作业精度{stats.Craftsmanship}，加工精度{stats.Control}，制作力{stats.CP}，掌握已解锁{stats.Manipulation}"
+                    : "无法读取该职业的套装能力值";
             }
 
             ImGui.SameLine(0, M3.Space2);
-            if (M3Widgets.Button("##updateGearset", "Update saved gearset", M3ButtonStyle.Text, FontAwesomeIcon.Save,
+            if (M3Widgets.Button("##updateGearset", "更新已保存的套装", M3ButtonStyle.Text, FontAwesomeIcon.Save,
                     tooltip: "使用当前装备更新所选职业的已保存装备套装, 需要切换至该职业"))
             {
                 var refreshResult = GearsetStatsReader.RefreshGearsetFromCurrentEquipped(_debugSelectedJobId);
                 var stats = GearsetStatsReader.ReadGearsetStatsForJob(_debugSelectedJobId);
                 _debugLastTestResult = stats != null
-                    ? $"{refreshResult} 当前读取结果: 作业精度={stats.Craftsmanship}, 加工精度={stats.Control}, CP={stats.CP}, 掌握={stats.Manipulation}"
+                    ? $"{refreshResult} 当前读取结果: 作业精度={stats.Craftsmanship}, 加工精度={stats.Control}，制作力{stats.CP}, 掌握={stats.Manipulation}"
                     : refreshResult;
             }
 
@@ -99,16 +99,16 @@ public partial class VulcanWindow
 
     private static void DrawVendorNpcLocationDebug()
     {
-        using var card = M3Card.Begin("##debugVendorLocations", "Vendor NPC locations", FontAwesomeIcon.MapMarkerAlt, M3.AccentFor(1));
+        using var card = M3Card.Begin("##debugVendorLocations", "商人坐标", FontAwesomeIcon.MapMarkerAlt, M3.AccentFor(1));
         var dataShareFirst = GatherBuddy.Config.VendorNpcLocationsDataShareFirst;
         var index = dataShareFirst ? 0 : 1;
-        if (M3Widgets.RowSegmented("Source to prefer", ref index, VendorLocationSegments))
+        if (M3Widgets.RowSegmented("数据来源偏好", ref index, VendorLocationSegments))
         {
             SetVendorNpcLocationSourcePreference(index == 0);
         }
 
-        M3Widgets.RowValue("Source order", dataShareFirst ? "DataShare, Level, supplemental, LGB" : "LGB, Level, supplemental, DataShare");
-        M3Widgets.RowValue("Cache", GetVendorNpcLocationCacheStatus());
+        M3Widgets.RowValue("查找顺序", dataShareFirst ? "DataShare、Level 表、补充数据、LGB" : "LGB、Level 表、补充数据、DataShare");
+        M3Widgets.RowValue("缓存", GetVendorNpcLocationCacheStatus());
     }
 
     private static string PressedButtons(params (GamepadButtons Button, string Name)[] buttons)
@@ -123,30 +123,30 @@ public partial class VulcanWindow
             }
         }
 
-        return pressed.Count > 0 ? string.Join(", ", pressed) : "None";
+        return pressed.Count > 0 ? string.Join(", ", pressed) : "无";
     }
 
     private static void DrawGamepadInputTest()
     {
-        using var card = M3Card.Begin("##debugGamepad", "Gamepad input", FontAwesomeIcon.Gamepad, M3.AccentFor(5));
+        using var card = M3Card.Begin("##debugGamepad", "手柄输入", FontAwesomeIcon.Gamepad, M3.AccentFor(5));
         var gamepad = Dalamud.GamepadState;
-        M3Widgets.RowValue("Left stick", $"X {gamepad.LeftStick.X:F3}, Y {gamepad.LeftStick.Y:F3}");
-        M3Widgets.RowValue("Right stick", $"X {gamepad.RightStick.X:F3}, Y {gamepad.RightStick.Y:F3}");
-        M3Widgets.RowValue("D-pad", PressedButtons((GamepadButtons.DpadUp, "Up"), (GamepadButtons.DpadDown, "Down"), (GamepadButtons.DpadLeft, "Left"),
-            (GamepadButtons.DpadRight, "Right")));
-        M3Widgets.RowValue("Face buttons", PressedButtons((GamepadButtons.South, "A/叉"), (GamepadButtons.East, "B/圈"),
-            (GamepadButtons.West, "X/Square"), (GamepadButtons.North, "Y/Triangle")));
-        M3Widgets.RowValue("Shoulder buttons", PressedButtons((GamepadButtons.L1, "L1"), (GamepadButtons.R1, "R1"), (GamepadButtons.L2, "L2"),
+        M3Widgets.RowValue("左摇杆", $"X {gamepad.LeftStick.X:F3}, Y {gamepad.LeftStick.Y:F3}");
+        M3Widgets.RowValue("右摇杆", $"X {gamepad.RightStick.X:F3}, Y {gamepad.RightStick.Y:F3}");
+        M3Widgets.RowValue("方向键", PressedButtons((GamepadButtons.DpadUp, "上"), (GamepadButtons.DpadDown, "下"), (GamepadButtons.DpadLeft, "左"),
+            (GamepadButtons.DpadRight, "右")));
+        M3Widgets.RowValue("面板按键", PressedButtons((GamepadButtons.South, "A/叉"), (GamepadButtons.East, "B/圈"),
+            (GamepadButtons.West, "X／方块键"), (GamepadButtons.North, "Y／三角键")));
+        M3Widgets.RowValue("肩键", PressedButtons((GamepadButtons.L1, "L1"), (GamepadButtons.R1, "R1"), (GamepadButtons.L2, "L2"),
             (GamepadButtons.R2, "R2")));
 
         var io = ImGui.GetIO();
-        M3Widgets.RowValue("Navigation active", io.NavActive ? "Yes" : "No");
-        M3Widgets.RowValue("Navigation visible", io.NavVisible ? "Yes" : "No");
-        M3Widgets.RowValue("Config flags", io.ConfigFlags.ToString());
+        M3Widgets.RowValue("导航已激活", io.NavActive ? "是" : "否");
+        M3Widgets.RowValue("导航可见", io.NavVisible ? "是" : "否");
+        M3Widgets.RowValue("配置标志", io.ConfigFlags.ToString());
 
         var navKeyboardEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableKeyboard) != 0;
         var navGamepadEnabled = (io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) != 0;
-        if (M3Widgets.Button("##gamepadNav", navGamepadEnabled ? "Turn off gamepad navigation" : "Turn on gamepad navigation", M3ButtonStyle.Tonal,
+        if (M3Widgets.Button("##gamepadNav", navGamepadEnabled ? "关闭手柄导航" : "开启手柄导航", M3ButtonStyle.Tonal,
                 FontAwesomeIcon.Gamepad))
         {
             io = ImGui.GetIO();
@@ -155,7 +155,7 @@ public partial class VulcanWindow
         }
 
         ImGui.SameLine(0, M3.Space2);
-        if (M3Widgets.Button("##keyboardNav", navKeyboardEnabled ? "Turn off keyboard navigation" : "Turn on keyboard navigation", M3ButtonStyle.Tonal,
+        if (M3Widgets.Button("##keyboardNav", navKeyboardEnabled ? "关闭键盘导航" : "开启键盘导航", M3ButtonStyle.Tonal,
                 FontAwesomeIcon.Keyboard))
         {
             io = ImGui.GetIO();
@@ -163,7 +163,7 @@ public partial class VulcanWindow
             GatherBuddy.Log.Information($"[VulcanWindow] {(navKeyboardEnabled ? "Disabled" : "Enabled")} ImGui keyboard navigation");
         }
 
-        M3Text.Draw("Press Tab or use the D-pad to start navigating.", M3TextStyle.Muted);
+        M3Text.Draw("按 Tab 键或手柄方向键进入导航。", M3TextStyle.Muted);
     }
     private static string GetDebugJobName(uint jobId) => jobId switch
     {

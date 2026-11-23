@@ -148,11 +148,11 @@ public partial class VulcanWindow
             var classJob = classJobSheet.GetRow(classJobId);
             if (classJob.RowId > 0)
             {
-                return classJob.Abbreviation.ExtractText();
+                return classJob.Name.ExtractText();
             }
         }
 
-        return "Unknown";
+        return "未知职业";
     }
 
     private unsafe int GetInventoryCount(uint itemId)

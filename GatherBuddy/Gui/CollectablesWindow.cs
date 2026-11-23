@@ -15,7 +15,7 @@ namespace GatherBuddy.Gui;
 
 public sealed class CollectablesWindow : M3PanelWindow
 {
-    public const string WindowId = "Collectables###GatherBuddyCollectablesWindow";
+    public const string WindowId = "收藏品###GatherBuddyCollectablesWindow";
     private const string SetupGuideDialogId = "Collectables Setup Guide###GatherBuddyCollectablesSetupGuide";
 
     private static readonly M3PluginRequirement[] RequiredCollectablePlugins =
@@ -26,9 +26,9 @@ public sealed class CollectablesWindow : M3PanelWindow
 
     private static readonly M3WindowAction[] CollectablesWindowActions =
     [
-        new("##collectables_guide", FontAwesomeIcon.QuestionCircle, "Setup guide"),
-        new("##collectables_vulcan", FontAwesomeIcon.Hammer, "Open Vulcan"),
-        new("##collectables_vendor_lists", FontAwesomeIcon.ShoppingCart, "Open Vendor Buy Lists"),
+        new("##collectables_guide", FontAwesomeIcon.QuestionCircle, "设置指南"),
+        new("##collectables_vulcan", FontAwesomeIcon.Hammer, "打开 Vulcan"),
+        new("##collectables_vendor_lists", FontAwesomeIcon.ShoppingCart, "打开商店购买清单"),
     ];
 
     private static readonly Vector2 DefaultSize = new(760f, 680f);
@@ -41,7 +41,7 @@ public sealed class CollectablesWindow : M3PanelWindow
     private bool _openSetupGuide;
 
     public CollectablesWindow()
-        : base(WindowId, "Collectables", DefaultSize, DefaultConstraints)
+        : base(WindowId, "收藏品", DefaultSize, DefaultConstraints)
     {
         RespectCloseHotkey = true;
         IsOpen = false;
@@ -79,7 +79,7 @@ public sealed class CollectablesWindow : M3PanelWindow
                 return (string.Empty, null);
             }
 
-            var text = string.IsNullOrWhiteSpace(manager.StatusText) ? "Idle" : manager.StatusText;
+            var text = string.IsNullOrWhiteSpace(manager.StatusText) ? "空闲" : manager.StatusText;
             return (text, manager.IsRunning ? M3.Scheme.Primary : null);
         }
     }
@@ -137,8 +137,8 @@ public sealed class CollectablesWindow : M3PanelWindow
         var gap = M3.Space2;
         var controlSize = new Vector2(pill.X + gap + button.X, MathF.Max(pill.Y, button.Y));
 
-        var row = M3SettingRow.Begin(running ? "A collectables run is going" : "Turn in now",
-            running ? "Stop it here if you need to." : "Runs collectable turn-ins straight away.", controlSize);
+        var row = M3SettingRow.Begin(running ? "正在缴纳收藏品" : "立即缴纳",
+            running ? "可在此停止本次缴纳。" : "立即开始缴纳收藏品。", controlSize);
         var origin = row.ControlPosition;
         ImGui.SetCursorScreenPos(origin + new Vector2(0f, (controlSize.Y - pill.Y) * 0.5f));
         M3Widgets.PluginPill("##collectables_plugins", RequiredCollectablePlugins, true);
@@ -161,12 +161,12 @@ public sealed class CollectablesWindow : M3PanelWindow
 
     private static void DrawAutomationCard(CollectableManager manager, CollectableConfig config)
     {
-        using var card = M3Card.Begin("collectables_automation", "Automation", FontAwesomeIcon.Robot, M3.AccentFor(1));
+        using var card = M3Card.Begin("collectables_automation", "自动化", FontAwesomeIcon.Robot, M3.AccentFor(1));
 
         var turnInsAvailable = CollectableTurnInRequirements.IsAvailable;
         var previousHardFailReason = config.AutoTurnInHardFailReason;
-        SettingRows.PluginSwitch("Auto turn in collectables",
-            turnInsAvailable ? "Lets Auto-Gather and Vulcan queues run collectable turn-ins automatically." : CollectableTurnInRequirements.UnavailableHelpText,
+        SettingRows.PluginSwitch("自动缴纳收藏品",
+            turnInsAvailable ? "允许自动采集和 Vulcan 制作队列自动触发收藏品缴纳。" : CollectableTurnInRequirements.UnavailableHelpText,
             config.AutoTurnInCollectables, v =>
             {
                 config.AutoTurnInCollectables = v;
@@ -182,25 +182,25 @@ public sealed class CollectablesWindow : M3PanelWindow
                 }
             }, true, turnInsAvailable || config.AutoTurnInCollectables, RequiredCollectablePlugins);
 
-        SettingRows.Switch("Run vendor purchase list after turn-in",
-            "Runs the selected buy list after turn-ins, or during scrip-cap recovery if space must be cleared.",
+        SettingRows.Switch("缴纳后执行商店购买清单",
+            "缴纳后执行所选购买清单。票据快达到上限时，也可先执行清单以腾出余量。",
             config.BuyAfterEachCollect, v => config.BuyAfterEachCollect = v);
-        SettingRows.Switch("Return home after Vulcan queue turn-ins",
-            "After a queue is interrupted for collectables, return home before crafting resumes.",
+        SettingRows.Switch("Vulcan 队列缴纳后返回住宅",
+            "制作队列因缴纳收藏品暂停后，返回住宅再继续制作。",
             HomeNavigationHelper.ShouldReturnHomeAfterCollectables(), v => GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle = v);
-        SettingRows.Switch("Use inventory-full threshold",
-            "Turn in when your inventory fills up, instead of after carrying a number of collectables.",
+        SettingRows.Switch("按背包占用量触发缴纳",
+            "按已占用的背包格数触发缴纳。",
             config.UseInventoryFullThreshold, v => config.UseInventoryFullThreshold = v);
 
         using var sub = M3SubGroup.Begin();
         if (config.UseInventoryFullThreshold)
         {
-            SettingRows.Number("Inventory threshold", "Turn in once this many inventory slots are used.",
-                config.InventoryFullThreshold, 1, 140, v => config.InventoryFullThreshold = v, 1, "slots");
+            SettingRows.Number("背包占用阈值", "占用的背包格数达到此值时缴纳。",
+                config.InventoryFullThreshold, 1, 140, v => config.InventoryFullThreshold = v, 1, "格");
         }
         else
         {
-            SettingRows.Number("Collectable threshold", "Turn in once you are carrying this many collectables.",
+            SettingRows.Number("收藏品数量阈值", "持有的收藏品数量达到此值时缴纳。",
                 config.CollectableInventoryThreshold, 1, 140, v => config.CollectableInventoryThreshold = v);
         }
     }
@@ -259,18 +259,18 @@ public sealed class CollectablesWindow : M3PanelWindow
         using var card = M3Card.Begin("collectables_purchase", "购买清单", FontAwesomeIcon.ShoppingCart, M3.AccentFor(0), M3CardStyle.Filled,
             "选择收藏品交付后消耗工票时使用的购买清单。");
 
-        SettingRows.Number("Reserve scrips", "Keep at least this many of each scrip when buy lists spend scrips.",
+        SettingRows.Number("保留票据", "购买清单消耗票据时，每种票据至少保留此数量。",
             config.ReserveScripAmount, 0, 4000, v => config.ReserveScripAmount = v, 50);
 
         if (VendorBuyListManager.Lists.Count == 0)
         {
-            M3Text.Draw("No vendor buy lists yet. Make one in Vendor Buy Lists, or from Vulcan's Vendors page.", M3TextStyle.Muted, true);
+            M3Text.Draw("还没有商店购买清单。可在商店购买清单窗口或 Vulcan 的商店页创建。", M3TextStyle.Muted, true);
             return;
         }
 
-        DrawPurchaseList("Gathering purchase list", "For Auto-Gather runs and gathering manual turn-ins.", config.GatheringPurchaseListId,
+        DrawPurchaseList("采集购买清单", "用于自动采集触发的缴纳以及手动缴纳采集收藏品。", config.GatheringPurchaseListId,
             id => config.GatheringPurchaseListId = id, selectedGatheringList);
-        DrawPurchaseList("Crafting purchase list", "For Vulcan queue runs and crafting manual turn-ins.", config.CraftingPurchaseListId,
+        DrawPurchaseList("制作购买清单", "用于 Vulcan 队列触发的缴纳以及手动缴纳制作收藏品。", config.CraftingPurchaseListId,
             id => config.CraftingPurchaseListId = id, selectedCraftingList);
     }
 
@@ -291,8 +291,8 @@ public sealed class CollectablesWindow : M3PanelWindow
 
         var active = VendorBuyListManager.ActiveList;
         using var sub = M3SubGroup.Begin();
-        if (M3Widgets.RowButton($"Use the active vendor list##{label}_active", "使用当前清单",
-                active != null ? $"The active list is {active.Name}." : "There is no active vendor list.", M3ButtonStyle.Text, FontAwesomeIcon.ArrowLeft,
+        if (M3Widgets.RowButton($"使用当前商店购买清单##{label}_active", "使用当前清单",
+                active != null ? $"当前清单为 {active.Name}." : "当前没有启用的商店购买清单。", M3ButtonStyle.Text, FontAwesomeIcon.ArrowLeft,
                 active != null && active.Id != selectedListId)
          && active != null)
         {
@@ -309,7 +309,7 @@ public sealed class CollectablesWindow : M3PanelWindow
 
     private static void DrawStatusCard(VendorBuyListDefinition? selectedGatheringList, VendorBuyListDefinition? selectedCraftingList)
     {
-        using var card = M3Card.Begin("collectables_status", "Inventory", FontAwesomeIcon.Box, M3.AccentFor(1));
+        using var card = M3Card.Begin("collectables_status", "背包", FontAwesomeIcon.Box, M3.AccentFor(1));
 
         CollectableInventoryHelper.InitializeAsync();
         if (!CollectableInventoryHelper.IsTurnInItemMetadataReady)
@@ -322,7 +322,7 @@ public sealed class CollectablesWindow : M3PanelWindow
         {
             var thresholdState = CollectableInventoryHelper.GetThresholdState(GatherBuddy.Config.CollectableConfig);
             M3Widgets.RowValue("携带的收藏品", thresholdState.CollectableCount.ToString());
-            M3Widgets.RowValue("Inventory", $"{thresholdState.UsedSlots} / {thresholdState.TotalSlots}");
+            M3Widgets.RowValue("背包", $"{thresholdState.UsedSlots} / {thresholdState.TotalSlots}");
         }
 
         if (!GatherBuddy.Config.CollectableConfig.BuyAfterEachCollect)
@@ -348,7 +348,7 @@ public sealed class CollectablesWindow : M3PanelWindow
     private static void DrawSetupGuide()
     {
         using var dialog = M3Dialog.Begin(SetupGuideDialogId, "收藏品设置指南",
-            "Build the scrip purchase list in Vulcan's Vendors page, then assign it here so collectables runs know what to buy after turn-ins.",
+            "先在 Vulcan 的商店页创建票据购买清单，再在此选用该清单，指定缴纳后要购买的物品。",
             FontAwesomeIcon.QuestionCircle, 600f);
         if (!dialog.IsOpen)
         {
@@ -357,17 +357,17 @@ public sealed class CollectablesWindow : M3PanelWindow
 
         var width = ImGui.GetContentRegionAvail().X;
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
-        GuideStep("1. Build the purchase list in Vulcan Vendors",
-            "Open Vulcan, switch to the Vendors page, search for the scrip item you want, set the quantity, then use the + button to add it to the active vendor list. "
-          + "Right-click the + button to make a new list or add the item to another list.");
-        GuideStep("2. Review the list in Vendor Buy Lists",
-            "Open Vendor Buy Lists to rename the list, adjust target quantities, and confirm the vendor route if an item has several NPCs.");
-        GuideStep("3. Assign the list in Collectables",
-            "Pick a gathering purchase list for Auto-Gather runs and gathering manual turn-ins, and a crafting purchase list for Vulcan queue runs and "
-          + "crafting manual turn-ins. 'Use active list' copies the active vendor list into that slot.");
-        GuideStep("4. Turn on the purchase behaviour you want",
-            "Turn on 'Run vendor purchase list after turn-in' to let collectables runs spend scrips. Reserve scrips keeps a buffer so the list never spends your last scrip. "
-          + "Turn on 'Auto turn in collectables' to let Auto-Gather and Vulcan queues start turn-ins on their own.");
+        GuideStep("1. 在 Vulcan 的商店页创建购买清单",
+            "打开 Vulcan 并进入商店页，搜索要用票据兑换的物品，设置数量，再点击加号将其加入当前购买清单。 "
+          + "右键点击加号可新建清单，或将物品添加到其他清单。");
+        GuideStep("2. 在商店购买清单中检查物品",
+            "打开商店购买清单，可重命名清单、调整目标数量，并为有多个商人的物品指定购买地点。");
+        GuideStep("3. 在收藏品窗口指定购买清单",
+            "采集购买清单用于自动采集和手动缴纳采集收藏品，制作购买清单用于 Vulcan 队列和 "
+          + "手动缴纳制作收藏品。点击「使用当前清单」可选用当前商店购买清单。");
+        GuideStep("4. 启用需要的自动化选项",
+            "开启「缴纳后执行商店购买清单」可在缴纳后使用票据购物。「保留票据」用于设置每种票据至少留下的数量。 "
+          + "开启「自动缴纳收藏品」后，自动采集和 Vulcan 队列可以自行触发缴纳。");
         ImGui.PopTextWrapPos();
 
         ImGui.Dummy(new Vector2(0f, M3.Space1));

@@ -18,7 +18,7 @@ public sealed partial class VendorBuyListWindow
     private bool _focusTeamCraftImportListName;
 
     internal static RebornUI.HostedPanelWindow CreateTeamCraftImportWindow()
-        => new("GatherBuddyVendorTeamCraftImport", "Vendor TeamCraft Import", new Vector2(540f, 480f), new Vector2(420f, 380f), bodyScrolls: false);
+        => new("GatherBuddyVendorTeamCraftImport", "导入商店购买清单", new Vector2(540f, 480f), new Vector2(420f, 380f), bodyScrolls: false);
 
     private void OpenTeamCraftImportWindow(VendorBuyListManager manager)
     {
@@ -50,7 +50,7 @@ public sealed partial class VendorBuyListWindow
             return;
         }
 
-        M3Text.Draw("Paste a TeamCraft or Allagan Tools list below. Only the 'Vendors' section is used when the list has one.", M3TextStyle.Muted, true);
+        M3Text.Draw("在下方粘贴 Teamcraft 或 Allagan Tools 清单。有「Vendors」（商店）部分时，仅导入其中的物品。", M3TextStyle.Muted, true);
         ImGui.Dummy(new Vector2(0f, M3.Space1));
         NormalizeTeamCraftImportTargetListId(manager);
         var footerHeight = M3Widgets.ButtonHeight + M3.Space3 + ImGui.GetStyle().ItemSpacing.Y;
@@ -92,8 +92,8 @@ public sealed partial class VendorBuyListWindow
 
     private static readonly M3Segment[] TeamCraftDestinationSegments =
     [
-        new("New list", FontAwesomeIcon.Plus),
-        new("Existing list", FontAwesomeIcon.ListUl),
+        new("新建清单", FontAwesomeIcon.Plus),
+        new("已有清单", FontAwesomeIcon.ListUl),
     ];
 
     private void DrawTeamCraftImportForm(VendorBuyListManager manager)
@@ -128,7 +128,7 @@ public sealed partial class VendorBuyListWindow
                 }
             }
 
-            M3Text.Draw("Target list", M3TextStyle.Label);
+            M3Text.Draw("目标清单", M3TextStyle.Label);
             if (M3Widgets.Combo("##vendorTeamCraftImportTargetList", ref index, lists.Count, i => lists[i].Name, width, "选择清单",
                     lists.Count > 8)
              && index >= 0 && index < lists.Count)
@@ -139,7 +139,7 @@ public sealed partial class VendorBuyListWindow
         }
         else
         {
-            M3Text.Draw("List name", M3TextStyle.Label);
+            M3Text.Draw("清单名称", M3TextStyle.Label);
             if (_focusTeamCraftImportListName)
             {
                 ImGui.SetKeyboardFocusHere();
@@ -150,7 +150,7 @@ public sealed partial class VendorBuyListWindow
         }
 
         ImGui.Dummy(new Vector2(0f, M3.Space1));
-        M3Text.Draw("Vendor items", M3TextStyle.Label);
+        M3Text.Draw("商人物品", M3TextStyle.Label);
         var errorHeight = _teamCraftImportError != null ? ImGui.GetTextLineHeight() * 2f + 32f * M3.Scale : 0f;
         var vendorItemsHeight = Math.Max(VulcanUiScaling.Scaled(150f), ImGui.GetContentRegionAvail().Y - errorHeight);
         ImGui.InputTextMultiline("##vendorTeamCraftImportText", ref _teamCraftImportText, 500000, new Vector2(-1, vendorItemsHeight));

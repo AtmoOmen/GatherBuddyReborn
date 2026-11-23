@@ -25,13 +25,13 @@ namespace GatherBuddy.AutoGather
     public partial class AutoGather
     {
         public static bool IsPathing
-            => GatherBuddy.Config.AutoGatherConfig.UseNavigation && VNavmesh.Path.IsRunning();
+            => GatherBuddy.Config.AutoGatherConfig.UseNavigation && VNavmesh.Enabled && VNavmesh.Path.IsRunning();
 
         public bool IsPathGenerating
             => _navState.task != null;
 
         public static bool NavReady
-            => GatherBuddy.Config.AutoGatherConfig.UseNavigation && VNavmesh.Nav.IsReady();
+            => GatherBuddy.Config.AutoGatherConfig.UseNavigation && VNavmesh.Enabled && VNavmesh.Nav.IsReady();
 
         private bool IsBlacklisted(Vector3 g)
         {
@@ -53,8 +53,30 @@ namespace GatherBuddy.AutoGather
             RetryCombinedPathfinding = 2,
             Done = 3
         }
-        private (Task<List<Vector3>>? task, CancellationTokenSource? cts, Vector3 destination, bool flying, bool mountingUp, bool direct, bool offset, PathfindingStage stage, long lastTry, int landWP) _navState;
+        private sealed record NavigationPath(List<Vector3> Waypoints, int GroundWaypointCount = 0);
+
+        private enum NodeLandingStage
+        {
+            Descending,
+            LandingRequested,
+            Landed,
+            DismountRequested
+        }
+
+        private sealed class NodeLanding(float height, List<Vector3>? groundPath)
+        {
+            public float LastHeight = height;
+            public long LastProgress = Environment.TickCount64;
+            public NodeLandingStage Stage;
+            public readonly List<Vector3>? GroundPath = groundPath;
+        }
+
+        private (Task<NavigationPath?>? task, CancellationTokenSource? cts, Vector3 destination, Vector3 pathDestination,
+            Vector3? interactionNode, Vector3 activePathEnd, bool landAtNode, NodeLanding? landing,
+            bool retriedDirect, bool flying, bool mountingUp, bool direct, bool offset, PathfindingStage stage,
+            long lastTry, int groundWaypointCount, Vector3 landingPoint, Vector3 retryStart, ILocation? farNodeLocation, Vector2? farNodeMarker) _navState;
         public Vector3 CurrentDestination { get { return _navState.destination; } }
+        private (Vector3 Destination, Vector3 From, long RetryAt)? _failedPath;
 
         public bool LureSuccess { get; private set; } = false;
 

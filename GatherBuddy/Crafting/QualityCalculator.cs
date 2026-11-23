@@ -6,7 +6,7 @@ namespace GatherBuddy.Crafting;
 
 public static class QualityCalculator
 {
-    public static int CalculateInitialQuality(Recipe recipe, Dictionary<uint, int> ingredientPreferences)
+    public static int CalculateInitialQuality(Recipe recipe, Dictionary<uint, int> ingredientPreferences, int? jobLevel = null)
     {
         if (recipe.MaterialQualityFactor == 0)
         {
@@ -57,8 +57,21 @@ public static class QualityCalculator
             return 0;
         }
 
-        var lt = recipe.RecipeLevelTable.Value;
-        long recipeMaxQuality = lt.Quality * recipe.QualityFactor / 100;
+        long recipeMaxQuality;
+        if (jobLevel is int level)
+        {
+            if (!CraftingStateBuilder.TryResolveRecipeParameters(recipe, level, out _, out _, out var quality, out _))
+            {
+                return 0;
+            }
+
+            recipeMaxQuality = quality;
+        }
+        else
+        {
+            // The settings preview may not know the level of the crafting job.
+            recipeMaxQuality = (long)recipe.RecipeLevelTable.Value.Quality * recipe.QualityFactor / 100;
+        }
         long materialQualityFactor = recipe.MaterialQualityFactor;
 
         var startingQuality = sumLevelHQ * recipeMaxQuality * materialQualityFactor / 100 / sumLevel;

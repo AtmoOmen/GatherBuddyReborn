@@ -580,7 +580,7 @@ public class CraftingListEditor
 
     private const string ConfirmFailedMacrosDialogId = "Start crafting anyway###gbr_confirm_failed_macros";
     private const string RecipePickerPopupId = "##recipe_picker_menu";
-    private const string ArtisanLoadedTooltip = "Artisan plugin is loaded. Please unload Artisan to use Vulcan's crafting system.";
+    private const string ArtisanLoadedTooltip = "Artisan 已加载。使用 Vulcan 制作前，请先禁用 Artisan。";
     private static readonly M3PluginRequirement[] AllaganToolsPlugin = [new("InventoryTools", "Allagan Tools")];
     private static readonly Vector4 HueQuickSynth = new(0.30f, 0.90f, 0.90f, 1f);
 
@@ -595,7 +595,7 @@ public class CraftingListEditor
         DrawQueueHeader(hasRecipes);
         if (!hasRecipes)
         {
-            M3Widgets.EmptyState("##queue_empty", "Nothing to craft yet", "Add recipes on the right to build the queue.", FontAwesomeIcon.Hammer);
+            M3Widgets.EmptyState("##queue_empty", "制作队列为空", "在右侧添加配方以生成制作队列。", FontAwesomeIcon.Hammer);
             return;
         }
 
@@ -615,8 +615,8 @@ public class CraftingListEditor
 
     private void DrawQueueHeader(bool hasRecipes)
     {
-        const string title = "Craft queue";
-        const string precraftsLabel = "Precrafts";
+        const string title = "制作队列";
+        const string precraftsLabel = "半成品";
         var start = ImGui.GetCursorPos();
         var width = ImGui.GetContentRegionAvail().X;
         float titleHeight;
@@ -637,7 +637,7 @@ public class CraftingListEditor
             var chipWidth = M3Widgets.ChipWidth(precraftsLabel, FontAwesomeIcon.LayerGroup);
             ImGui.SetCursorPos(new Vector2(start.X + MathF.Max(0f, width - chipWidth), start.Y + (rowHeight - M3Widgets.ChipHeight) * 0.5f));
             if (M3Widgets.Chip("##queue_show_precrafts", precraftsLabel, _showPrecrafts, FontAwesomeIcon.LayerGroup,
-                    "Show the precrafts that get made before the final items"))
+                    "显示制作成品之前需要制作的半成品。"))
             {
                 _showPrecrafts = !_showPrecrafts;
             }
@@ -693,10 +693,10 @@ public class CraftingListEditor
             var style = hardFails > 0 ? M3ButtonStyle.Danger : M3ButtonStyle.Filled;
             Vector4? accent = hardFails == 0 && warnings > 0 ? M3.Scheme.Warning : null;
             var tooltip = hardFails > 0
-                ? $"{hardFails} macro(s) will fail their craft. Click to confirm and start anyway."
+                ? $"{hardFails} 个宏预计无法完成制作。点击可确认并继续。"
                 : warnings > 0
-                    ? $"{warnings} macro(s) have warnings."
-                    : "Gather anything that's missing, then craft the queue.";
+                    ? $"{warnings} 个宏有警告。"
+                    : "先收集缺少的材料，再执行制作队列。";
             if (M3Widgets.Button("##queue_start", "采集并制作", style, FontAwesomeIcon.Play, width, tooltip: tooltip, accent: accent))
             {
                 if (hardFails > 0)
@@ -715,12 +715,12 @@ public class CraftingListEditor
         var gap = M3.Space1;
         var third = MathF.Floor((width - gap * 2f) / 3f);
         if (ToolButton("##queue_gather_list", "采集清单", FontAwesomeIcon.Leaf, third, M3ButtonStyle.Outlined,
-                "Make a gather list from this list's materials"))
+                "根据这份清单所需材料创建自动采集清单。"))
         {
             var materials = new Dictionary<uint, int>(GetCachedMaterials());
-            var gatherListName = $"{_list.Name}...Auto-Generated";
+            var gatherListName = $"{_list.Name}（自动生成）";
             CraftingGatherBridge.CreatePersistentGatherList(gatherListName, materials);
-            M3Snackbar.Show($"Made the gather list '{gatherListName}'.");
+            M3Snackbar.Show($"已创建采集清单「{gatherListName}」。");
         }
 
         ImGui.SameLine(0, gap);
@@ -728,7 +728,7 @@ public class CraftingListEditor
         var materialsShown = materialsWindow is { IsOpen: true, IsMinimized: false };
         if (ToolButton("##queue_materials", "材料", FontAwesomeIcon.Boxes, third,
                 materialsShown ? M3ButtonStyle.Tonal : M3ButtonStyle.Outlined,
-                materialsShown ? "Hide the materials window" : "Show what this list needs")
+                materialsShown ? "隐藏材料窗口" : "查看此清单所需的材料。")
          && materialsWindow != null)
         {
             if (materialsShown)
@@ -747,7 +747,7 @@ public class CraftingListEditor
         var treeShown = treeWindow is { IsOpen: true, IsMinimized: false };
         if (ToolButton("##queue_tree", "制作树", FontAwesomeIcon.Sitemap, MathF.Max(1f, width - third * 2f - gap * 2f),
                 treeShown ? M3ButtonStyle.Tonal : M3ButtonStyle.Outlined,
-                treeShown ? "Hide the crafting tree" : "Show how the recipes break down")
+                treeShown ? "隐藏制作树" : "展开查看配方及其所需材料。")
          && treeWindow != null)
         {
             if (treeShown)
@@ -775,8 +775,8 @@ public class CraftingListEditor
             return;
         }
 
-        using var dialog = M3Dialog.Begin(ConfirmFailedMacrosDialogId, "Start anyway?",
-            $"{hardFails} macro(s) are predicted to fail their craft, so those items may not be finished.", FontAwesomeIcon.ExclamationTriangle, 380f);
+        using var dialog = M3Dialog.Begin(ConfirmFailedMacrosDialogId, "仍然开始制作吗？",
+            $"{hardFails} 个宏预计无法完成制作，对应的物品可能无法制成。", FontAwesomeIcon.ExclamationTriangle, 380f);
         if (!dialog.IsOpen)
         {
             return;
@@ -785,7 +785,7 @@ public class CraftingListEditor
         if (M3Dialog.Actions(
             [
                 new M3DialogAction("取消"),
-                new M3DialogAction("Start anyway", M3ButtonStyle.Danger, FontAwesomeIcon.Play),
+                new M3DialogAction("仍然开始", M3ButtonStyle.Danger, FontAwesomeIcon.Play),
             ]) == 1)
         {
             OnStartCrafting?.Invoke(_list);
@@ -806,9 +806,9 @@ public class CraftingListEditor
 
     private void DrawListInfoCard()
     {
-        using var card = M3Card.Begin("##list_info_card", "List", FontAwesomeIcon.ClipboardList, M3.AccentFor(0));
+        using var card = M3Card.Begin("##list_info_card", "清单", FontAwesomeIcon.ClipboardList, M3.AccentFor(0));
         var width = CardContentWidth();
-        if (M3TextField.Draw("##listName", "List name", ref _editingName, width, 128))
+        if (M3TextField.Draw("##listName", "清单名称", ref _editingName, width, 128))
         {
             _nameConflict = false;
         }
@@ -843,8 +843,8 @@ public class CraftingListEditor
         DrawNotes(width);
         ImGui.Dummy(new Vector2(0f, M3.Space1));
 
-        const string exportLabel = "Copy export string";
-        const string teamCraftLabel = "Copy TeamCraft link";
+        const string exportLabel = "复制清单导出文本";
+        const string teamCraftLabel = "复制 Teamcraft 链接";
         var flow = new M3Flow(M3.Space1, width);
         flow.Next(M3Widgets.ButtonWidth(FontAwesomeIcon.Copy, exportLabel));
         if (M3Widgets.Button("##exportList", exportLabel, M3ButtonStyle.Text, FontAwesomeIcon.Copy,
@@ -925,9 +925,9 @@ public class CraftingListEditor
 
     private void DrawQueueOptionsCard()
     {
-        using var card = M3Card.Begin("##queue_options_card", "Queue options", FontAwesomeIcon.SlidersH, M3.AccentFor(1));
+        using var card = M3Card.Begin("##queue_options_card", "队列选项", FontAwesomeIcon.SlidersH, M3.AccentFor(1));
         var skipIfEnough = _list.SkipIfEnough;
-        if (M3Widgets.RowSwitch("Skip if already have enough##sie", ref skipIfEnough, "Leave out precrafts you already have enough of."))
+        if (M3Widgets.RowSwitch("持有数量足够时跳过##sie", ref skipIfEnough, "跳过持有数量已经足够的半成品。"))
         {
             _list.SkipIfEnough = skipIfEnough;
             InvalidateQueueCache();
@@ -942,8 +942,8 @@ public class CraftingListEditor
         {
             using var skipOptions = M3SubGroup.Begin();
             var skipFinalIfEnough = _list.SkipFinalIfEnough;
-            if (M3Widgets.RowSwitch("Include final crafts##sife", ref skipFinalIfEnough,
-                    "Also reduce final crafts based on how many you already have. Useful for resuming an interrupted list."))
+            if (M3Widgets.RowSwitch("同时检查成品##sife", ref skipFinalIfEnough,
+                    "根据持有数量扣减待制作的成品数，适合继续执行之前中断的清单。"))
             {
                 _list.SkipFinalIfEnough = skipFinalIfEnough;
                 InvalidateQueueCache();
@@ -954,7 +954,7 @@ public class CraftingListEditor
         }
 
         var quickSynthAll = _list.QuickSynthAll;
-        if (M3Widgets.RowSwitch("Quick synth all##qsa", ref quickSynthAll, "Force quick synthesis on eligible items in this list."))
+        if (M3Widgets.RowSwitch("全部使用简易制作##qsa", ref quickSynthAll, "对清单中支持简易制作的配方使用简易制作。"))
         {
             _list.QuickSynthAll = quickSynthAll;
             SaveListAndRefresh(true);
@@ -964,16 +964,16 @@ public class CraftingListEditor
         {
             using var quickSynthOptions = M3SubGroup.Begin();
             var quickSynthAllPreferNQ = _list.QuickSynthAllPreferNQ;
-            if (M3Widgets.RowSwitch("偏好 NQ###Prefer NQ##qsapnq", ref quickSynthAllPreferNQ,
-                    "Turn on quick synthesis' 'Synthesize NQ items only' option for these crafts."))
+            if (M3Widgets.RowSwitch("仅制作 NQ###Prefer NQ##qsapnq", ref quickSynthAllPreferNQ,
+                    "开启简易制作的「仅制作 NQ」选项。"))
             {
                 _list.QuickSynthAllPreferNQ = quickSynthAllPreferNQ;
                 SaveListAndRefresh(true);
             }
 
             var quickSynthAllPrecraftsOnly = _list.QuickSynthAllPrecraftsOnly;
-            if (M3Widgets.RowSwitch("Precrafts only##qsapo", ref quickSynthAllPrecraftsOnly,
-                    "Apply Quick synth all and Prefer NQ only to generated precrafts, leaving the final items unchanged."))
+            if (M3Widgets.RowSwitch("仅应用于半成品##qsapo", ref quickSynthAllPrecraftsOnly,
+                    "只对自动加入队列的半成品应用「全部使用简易制作」和「仅制作 NQ」设置。"))
             {
                 _list.QuickSynthAllPrecraftsOnly = quickSynthAllPrecraftsOnly;
                 SaveListAndRefresh(true);
@@ -982,10 +982,10 @@ public class CraftingListEditor
 
         var allaganEnabled = AllaganTools.Enabled;
         var retainerRestock = _list.RetainerRestock;
-        if (M3Widgets.RowPluginSwitch("Restock from retainers##rrr", ref retainerRestock, AllaganToolsPlugin,
+        if (M3Widgets.RowPluginSwitch("从雇员取回材料##rrr", ref retainerRestock, AllaganToolsPlugin,
                 allaganEnabled
-                    ? "在生成采集清单前从雇员取出所需材料。遵循 HQ/NQ 偏好"
-                    : "Requires Allagan Tools to be installed and enabled.",
+                    ? "在生成采集清单前，按 HQ/NQ 设置从雇员取回所需材料。"
+                    : "需要安装并启用 Allagan Tools。",
                 enabled: allaganEnabled))
         {
             _list.RetainerRestock = retainerRestock;
@@ -1008,36 +1008,36 @@ public class CraftingListEditor
 
     private void DrawConsumablesCard()
     {
-        using var card = M3Card.Begin("##consumables_card", "Consumables & macros", FontAwesomeIcon.Flask, M3.AccentFor(2));
+        using var card = M3Card.Begin("##consumables_card", "消耗品与宏", FontAwesomeIcon.Flask, M3.AccentFor(2));
         var consumables = _list.Consumables;
         var hasAny = false;
         if (consumables.FoodItemId.HasValue)
         {
-            M3Widgets.RowValue("Food", GetItemLabel(consumables.FoodItemId.Value, consumables.FoodHQ));
+            M3Widgets.RowValue("食物", GetItemLabel(consumables.FoodItemId.Value, consumables.FoodHQ));
             hasAny = true;
         }
 
         if (consumables.MedicineItemId.HasValue)
         {
-            M3Widgets.RowValue("Medicine", GetItemLabel(consumables.MedicineItemId.Value, consumables.MedicineHQ));
+            M3Widgets.RowValue("药品", GetItemLabel(consumables.MedicineItemId.Value, consumables.MedicineHQ));
             hasAny = true;
         }
 
         if (consumables.ManualItemId.HasValue)
         {
-            M3Widgets.RowValue("Manual", GetItemLabel(consumables.ManualItemId.Value, false));
+            M3Widgets.RowValue("工程学指南", GetItemLabel(consumables.ManualItemId.Value, false));
             hasAny = true;
         }
 
         if (consumables.SquadronManualItemId.HasValue)
         {
-            M3Widgets.RowValue("Squadron manual", GetItemLabel(consumables.SquadronManualItemId.Value, false));
+            M3Widgets.RowValue("军用及民用指南", GetItemLabel(consumables.SquadronManualItemId.Value, false));
             hasAny = true;
         }
 
         if (_list.UseAllHQ)
         {
-            M3Widgets.RowValue("HQ materials", "全部 HQ");
+            M3Widgets.RowValue("HQ 材料", "全部 HQ");
             hasAny = true;
         }
 
@@ -1055,7 +1055,7 @@ public class CraftingListEditor
 
     private void DrawAddRecipeCard()
     {
-        using var card = M3Card.Begin("##add_recipe_card", "Add recipe", FontAwesomeIcon.Plus, M3.AccentFor(0));
+        using var card = M3Card.Begin("##add_recipe_card", "添加配方", FontAwesomeIcon.Plus, M3.AccentFor(0));
         EnsureRecipesLoaded();
         DrawRecipePicker(CardContentWidth());
         ImGui.Dummy(new Vector2(0f, M3.Space1));
@@ -1066,8 +1066,8 @@ public class CraftingListEditor
 
         var canAdd = _selectedRecipe != null;
         var tooltip = canAdd
-            ? $"Add {_recipeLabels.GetValueOrDefault(_selectedRecipe!.Value.RowId, "it")} x{_searchQuantity} to the list"
-            : "Pick a recipe first";
+            ? $"将 {_searchQuantity} 个「{_recipeLabels.GetValueOrDefault(_selectedRecipe!.Value.RowId, "所选配方")}」添加到清单"
+            : "请先选择配方。";
         var clicked = M3Widgets.Button("##addRecipeBtn", "添加到清单", M3ButtonStyle.Filled, FontAwesomeIcon.Plus, enabled: canAdd, tooltip: tooltip);
         if (!clicked && canAdd && ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
         {
@@ -1096,8 +1096,8 @@ public class CraftingListEditor
         var open = ImGui.IsPopupOpen(RecipePickerPopupId);
         var selected = _selectedRecipe;
         var label = selected.HasValue
-            ? _recipeLabels.GetValueOrDefault(selected.Value.RowId, "Pick a recipe")
-            : "Search for a recipe to add";
+            ? _recipeLabels.GetValueOrDefault(selected.Value.RowId, "选择配方")
+            : "搜索要添加的配方";
         var icon = selected.HasValue ? M3ActionIcon.GameIcon(selected.Value.ItemResult.Value.Icon) : null;
         if (M3Widgets.PickerField("##recipe_picker_field", label, width, open, !selected.HasValue, icon))
         {
@@ -1244,11 +1244,11 @@ public class CraftingListEditor
     private void DrawRecipeListCard()
     {
         var count = _list.Recipes.Count;
-        using var card = M3Card.Begin("##recipe_list_card", "Recipes", FontAwesomeIcon.ListUl, M3.AccentFor(1),
-            subtitle: count > 1 ? "Click to select. Hold Ctrl or Shift to select more. Right-click a recipe for its settings." : null);
+        using var card = M3Card.Begin("##recipe_list_card", "配方", FontAwesomeIcon.ListUl, M3.AccentFor(1),
+            subtitle: count > 1 ? "点击选择配方，按住 Ctrl 或 Shift 可多选。右键点击配方可打开制作设置。" : null);
         if (count == 0)
         {
-            M3Text.Draw("No recipes yet. Add one above.", M3TextStyle.Muted);
+            M3Text.Draw("此清单尚无配方，请从上方添加。", M3TextStyle.Muted);
             return;
         }
 
@@ -1299,7 +1299,7 @@ public class CraftingListEditor
     private void DrawRecipeBulkActions(List<int> indicesToRemove)
     {
         var selectionCount = _selectedRecipeIndices.Count;
-        Ui.RowText($"{selectionCount} selected", M3Widgets.ButtonHeight, M3TextStyle.Muted);
+        Ui.RowText($"{selectionCount} 项已选中", M3Widgets.ButtonHeight, M3TextStyle.Muted);
         ImGui.SameLine(0, M3.Space2);
         if (M3Widgets.Button("##skipSelected", "跳过", M3ButtonStyle.Text, FontAwesomeIcon.Ban,
                 tooltip: $"将 {selectionCount} 个已选配方标记为跳过"))
@@ -1496,16 +1496,16 @@ public class CraftingListEditor
         _rowTags.Clear();
         if (row.EffectiveQuickSynth)
         {
-            _rowTags.Add(new RowTag("QS", M3.CustomColor(HueQuickSynth).Color, "Quick synthesis"));
+            _rowTags.Add(new RowTag("简易制作", M3.CustomColor(HueQuickSynth).Color, "简易制作"));
         }
         else if (row.ForcePreferNQ)
         {
-            _rowTags.Add(new RowTag("NQ", s.OnSurfaceVariant, "Prefer NQ: crafted from NQ ingredients"));
+            _rowTags.Add(new RowTag("NQ", s.OnSurfaceVariant, "优先使用 NQ 材料制作。"));
         }
 
         if (willBeSkipped)
         {
-            _rowTags.Add(new RowTag("Skipped", s.Error, "Skipped: you already have enough"));
+            _rowTags.Add(new RowTag("已跳过", s.Error, "因持有数量足够而跳过。"));
         }
 
         var nameColor = willBeSkipped ? s.Error : row.IsOriginalRecipe ? s.OnSurface : s.OnSurfaceVariant;
@@ -1525,7 +1525,7 @@ public class CraftingListEditor
             return;
         }
 
-        if (M3Menu.Item("##queue_settings", "Craft settings...", FontAwesomeIcon.Cog))
+        if (M3Menu.Item("##queue_settings", "制作设置…", FontAwesomeIcon.Cog))
         {
             if (row.IsOriginalRecipe)
             {
@@ -1546,7 +1546,7 @@ public class CraftingListEditor
         if (altRecipes.Count > 1)
         {
             var picked = false;
-            using (var jobs = M3Menu.BeginSub("##queue_change_job", "Change job", FontAwesomeIcon.ExchangeAlt))
+            using (var jobs = M3Menu.BeginSub("##queue_change_job", "切换制作职业", FontAwesomeIcon.ExchangeAlt))
             {
                 if (jobs.IsOpen)
                 {
@@ -1566,10 +1566,10 @@ public class CraftingListEditor
         if (row.Recipe.CanQuickSynth)
         {
             var recipeOptions = planningList.GetRecipeOptions(row.Recipe.RowId, row.IsOriginalRecipe);
-            if (M3Menu.Item("##queue_quick_synth", "Quick synthesis", FontAwesomeIcon.FastForward, !row.ForceQuickSynth, row.EffectiveQuickSynth,
+            if (M3Menu.Item("##queue_quick_synth", "简易制作", FontAwesomeIcon.FastForward, !row.ForceQuickSynth, row.EffectiveQuickSynth,
                     tooltip: row.ForceQuickSynth
                         ? "由全部快速制作强制启用。禁用清单级覆盖可编辑单个物品的快速制作设置"
-                        : "Use quick synthesis for this recipe (NQ only)"))
+                        : "对此配方使用简易制作（仅制作 NQ）。"))
             {
                 _list.SetRecipeQuickSynth(row.Recipe.RowId, !recipeOptions.NQOnly, row.IsOriginalRecipe);
                 SaveListAndRefresh(true);
@@ -1577,7 +1577,7 @@ public class CraftingListEditor
         }
         else
         {
-            M3Menu.Item("##queue_quick_synth", "Quick synthesis unavailable", FontAwesomeIcon.FastForward, false,
+            M3Menu.Item("##queue_quick_synth", "无法简易制作", FontAwesomeIcon.FastForward, false,
                 tooltip: "配方必须已解锁且曾制作过才能使用快速制作");
         }
     }
@@ -1635,7 +1635,7 @@ public class CraftingListEditor
         if (_list.PrecraftRecipeOverrides.ContainsKey(resultItemId))
         {
             M3Menu.Divider();
-            if (M3Menu.Item("##job_reset", "Reset to default", FontAwesomeIcon.Undo))
+            if (M3Menu.Item("##job_reset", "恢复默认设置", FontAwesomeIcon.Undo))
             {
                 picked = true;
                 _list.PrecraftRecipeOverrides.Remove(resultItemId);
@@ -1769,26 +1769,26 @@ public class CraftingListEditor
         _rowTags.Clear();
         if (row.EffectiveQuickSynth)
         {
-            _rowTags.Add(new RowTag("QS", M3.CustomColor(HueQuickSynth).Color, "Quick synthesis"));
+            _rowTags.Add(new RowTag("简易制作", M3.CustomColor(HueQuickSynth).Color, "简易制作"));
         }
         else if (row.ForcePreferNQ)
         {
-            _rowTags.Add(new RowTag("NQ", s.OnSurfaceVariant, "Prefer NQ: crafted from NQ ingredients"));
+            _rowTags.Add(new RowTag("NQ", s.OnSurfaceVariant, "优先使用 NQ 材料制作。"));
         }
 
         if (row.HasCustomSettings)
         {
-            _rowTags.Add(new RowTag("Settings", s.Primary, "Has its own craft settings. Right-click for Craft settings."));
+            _rowTags.Add(new RowTag("设置", s.Primary, "此配方有单独的制作设置，右键点击可查看。"));
         }
 
         if (row.HasIngredientPreferences)
         {
-            _rowTags.Add(new RowTag("HQ", s.Tertiary, "Uses HQ ingredient preferences"));
+            _rowTags.Add(new RowTag("HQ", s.Tertiary, "此配方已指定 HQ 材料的用量。"));
         }
 
         if (skipping)
         {
-            _rowTags.Add(new RowTag("Skipped", s.Error, "Skipped in the queue"));
+            _rowTags.Add(new RowTag("已跳过", s.Error, "在队列中跳过"));
         }
 
         var nameColor = skipping ? M3.Alpha(s.OnSurfaceVariant, 0.7f) : s.OnSurface;
@@ -1813,12 +1813,12 @@ public class CraftingListEditor
             }
         }
 
-        M3Tooltip.Hovered("Click - or + to change it by 1.\nHold Ctrl for 10, Shift for 100.");
+        M3Tooltip.Hovered("点击减号或加号可调整 1。\n按住 Ctrl 调整 10，按住 Shift 调整 100。");
 
         ImGui.SameLine(0, gap);
         ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, top.Y + (rowHeight - buttonSize) * 0.5f));
         if (M3Widgets.IconButton("##skip", skipping ? FontAwesomeIcon.Check : FontAwesomeIcon.Ban,
-                skipping ? "Re-enable this recipe in the queue." : "Skip this recipe in the queue.", tint: skipping ? s.Primary : null,
+                skipping ? "在队列中重新启用这个配方。" : "在队列中跳过这个配方。", tint: skipping ? s.Primary : null,
                 diameter: buttonSize))
         {
             item.Options.Skipping = !skipping;
@@ -1875,7 +1875,7 @@ public class CraftingListEditor
             return;
         }
 
-        if (M3Menu.Item("##recipe_settings", "Craft settings...", FontAwesomeIcon.Cog))
+        if (M3Menu.Item("##recipe_settings", "制作设置…", FontAwesomeIcon.Cog))
         {
             _craftSettingsPopup.OpenForListItem(item, _list, row.ItemName);
         }
@@ -1887,7 +1887,7 @@ public class CraftingListEditor
         }
 
         var picked = false;
-        using (var jobs = M3Menu.BeginSub("##recipe_change_job", "Change job", FontAwesomeIcon.ExchangeAlt))
+        using (var jobs = M3Menu.BeginSub("##recipe_change_job", "切换制作职业", FontAwesomeIcon.ExchangeAlt))
         {
             if (jobs.IsOpen)
             {
@@ -1965,8 +1965,8 @@ public class CraftingListEditor
 
     private static string ValidationTooltip(MacroValidationResult validation)
         => validation.IsValid
-            ? $"Macro: PASS\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}\nQuality: {validation.FinalQuality}\nDurability: {validation.FinalDurability}"
-            : $"Macro: {validation.Failure} at step {validation.FailedAtStep}\nProgress: {validation.FinalProgress}/{validation.RequiredProgress}";
+            ? $"宏验证通过\n进展 {validation.FinalProgress}/{validation.RequiredProgress}\n品质 {validation.FinalQuality}\n耐久 {validation.FinalDurability}"
+            : $"第 {validation.FailedAtStep} 工次 · {validation.FailureText}\n进展 {validation.FinalProgress}/{validation.RequiredProgress}";
 
     private static Vector4 RaphaelColor(RaphaelAssessment assessment)
     {
@@ -1987,7 +1987,7 @@ public class CraftingListEditor
     }
 
     private static string RaphaelTooltip(RaphaelAssessment assessment)
-        => $"Raphael: {assessment.Summary}\n{assessment.Details}";
+        => $"Raphael · {assessment.Summary}\n{assessment.Details}";
 
     private string? DrawRowContent(ImDrawListPtr drawList, Vector2 min, Vector2 max, bool hovered, RaphaelAssessment? raphael,
         MacroValidationResult? validation, string? prefix, float prefixWidth, string name, string? quantity, Vector4 nameColor, bool strike, Recipe recipe)
@@ -2798,7 +2798,7 @@ public class CraftingListEditor
             var classJob = classJobSheet.GetRow(classJobId);
             if (classJob.RowId > 0)
             {
-                return classJob.Abbreviation.ExtractText();
+                return classJob.Name.ExtractText();
             }
         }
         return "未知";

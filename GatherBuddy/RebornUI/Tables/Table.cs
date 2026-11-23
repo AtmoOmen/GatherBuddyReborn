@@ -189,7 +189,7 @@ public class Table<T>
         ImGui.TableSetupScrollFreeze(1, 1);
         foreach (var header in Headers)
         {
-            ImGui.TableSetupColumn(header.Label, header.Flags, header.Width);
+            ImGui.TableSetupColumn(header.DisplayLabel, header.Flags, header.Width);
         }
 
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers, TableFilter.Height + M3.Space1);

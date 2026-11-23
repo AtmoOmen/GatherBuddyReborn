@@ -50,7 +50,7 @@ public class RecipeCraftSettingsPopup
     }
 
     internal static RebornUI.HostedPanelWindow CreateWindow()
-        => new("GatherBuddyRecipeCraftSettings", "Craft Settings", new Vector2(500f, 600f), new Vector2(460f, 320f), bodyScrolls: false);
+        => new("GatherBuddyRecipeCraftSettings", "制作设置", new Vector2(500f, 600f), new Vector2(460f, 320f), bodyScrolls: false);
 
     private void Activate()
     {
@@ -64,7 +64,7 @@ public class RecipeCraftSettingsPopup
 
     private string Subtitle
         => _editingList == null ? _recipeName
-            : _isPrecraftMode ? $"{_recipeName} · precraft in {_editingList.Name}"
+            : _isPrecraftMode ? $"{_recipeName} · 半成品所属清单 {_editingList.Name}"
             : $"{_recipeName} · {_editingList.Name}";
 
     private readonly List<IngredientData> _ingredients = [];
@@ -198,14 +198,14 @@ public class RecipeCraftSettingsPopup
         {
             if (body)
             {
-                using (M3Card.Begin("##craftSolver", "Macro or solver", FontAwesomeIcon.Scroll, M3.AccentFor(0)))
+                using (M3Card.Begin("##craftSolver", "制作宏或求解器", FontAwesomeIcon.Scroll, M3.AccentFor(0)))
                 {
                     DrawMacroSelector();
                     DrawMacroValidationStatus();
                     DrawRaphaelValidationStatus();
                 }
 
-                using (M3Card.Begin("##craftConsumables", "Consumables", FontAwesomeIcon.Utensils, M3.AccentFor(1)))
+                using (M3Card.Begin("##craftConsumables", "消耗品", FontAwesomeIcon.Utensils, M3.AccentFor(1)))
                 {
                     DrawFoodSelector();
                     DrawMedicineSelector();
@@ -218,7 +218,7 @@ public class RecipeCraftSettingsPopup
         }
 
         ImGui.Dummy(new Vector2(0, M3.Space1));
-        if (M3Widgets.Button("##save", "Save", M3ButtonStyle.Filled, FontAwesomeIcon.Save))
+        if (M3Widgets.Button("##save", "保存", M3ButtonStyle.Filled, FontAwesomeIcon.Save))
         {
             if (!string.IsNullOrEmpty(_resolvedMacroId))
             {
@@ -246,12 +246,12 @@ public class RecipeCraftSettingsPopup
 
             QueueCurrentRaphaelWarmup();
             OnSaved?.Invoke();
-            M3Snackbar.Show($"Saved the craft settings for {_recipeName}.");
+            M3Snackbar.Show($"已保存「{_recipeName}」的制作设置。");
         }
 
         ImGui.SameLine(0, M3.Space2);
-        if (M3Widgets.Button("##clearAll", "Clear all", M3ButtonStyle.Text, FontAwesomeIcon.Eraser,
-                tooltip: "Remove every setting for this recipe."))
+        if (M3Widgets.Button("##clearAll", "清除全部设置", M3ButtonStyle.Text, FontAwesomeIcon.Eraser,
+                tooltip: "清除此配方的全部自定义设置。"))
         {
             _editingSettings.Clear();
             if (_editingListItem != null && _editingList != null)
@@ -276,7 +276,7 @@ public class RecipeCraftSettingsPopup
         }
 
         ImGui.SameLine(0, M3.Space2);
-        if (M3Widgets.Button("##cancel", "Close", M3ButtonStyle.Text))
+        if (M3Widgets.Button("##cancel", "关闭", M3ButtonStyle.Text))
         {
             Close();
         }
@@ -416,7 +416,7 @@ public class RecipeCraftSettingsPopup
         SaveIngredientPreferences();
         if (!UsesRaphaelSolverForEdit())
         {
-            M3Text.Draw("Raphael isn't used with this choice.", M3TextStyle.Faint);
+            M3Text.Draw("所选制作方式无需 Raphael 求解。", M3TextStyle.Faint);
             return;
         }
 
@@ -556,40 +556,34 @@ public class RecipeCraftSettingsPopup
 
         if (_validationResult == null || _validationResult.Failure == MacroValidationFailure.NoStats)
         {
-            M3Text.Draw("Validation: no gear stats are available for this job.", M3TextStyle.Faint);
+            M3Text.Draw("当前无法读取该职业的装备能力值，无法验证。", M3TextStyle.Faint);
             return;
         }
 
-        var details = $"Progress: {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n"
+        var details = $"进展 {_validationResult.FinalProgress}/{_validationResult.RequiredProgress}\n"
           + $"品质: {_validationResult.FinalQuality}\n"
-          + $"Remaining durability: {_validationResult.FinalDurability}";
+          + $"剩余耐久 {_validationResult.FinalDurability}";
         if (_validationResult.IsValid)
         {
-            M3Badge.Draw("Validation: passes", M3.Scheme.Success, "The macro completes the craft.\n" + details
+            M3Badge.Draw("验证通过", M3.Scheme.Success, "该宏可以完成制作。\n" + details
               + (_validationResult.SkippedConditionGatedCount > 0
-                    ? $"\nSkipped {_validationResult.SkippedConditionGatedCount} condition-gated actions"
+                    ? $"\n已跳过 {_validationResult.SkippedConditionGatedCount} 个条件未满足的技能。"
                     : string.Empty));
             return;
         }
 
-        var (color, label) = _validationResult.Failure switch
-        {
-            MacroValidationFailure.CPExhausted => (M3.Scheme.Error, "fails, CP runs out"),
-            MacroValidationFailure.DurabilityFailed => (M3.Scheme.Error, "fails, durability breaks"),
-            MacroValidationFailure.InsufficientProgress => (M3.Scheme.Warning, "warning, not enough progress"),
-            MacroValidationFailure.ActionUnusable => (M3.Scheme.Warning, "warning, an action can't be used"),
-            _ => (M3.Scheme.Error, "fails"),
-        };
-        M3Badge.Draw($"Validation: {label} at step {_validationResult.FailedAtStep}", color, details);
+        var isWarning = _validationResult.Failure is MacroValidationFailure.InsufficientProgress or MacroValidationFailure.ActionUnusable;
+        var color = isWarning ? M3.Scheme.Warning : M3.Scheme.Error;
+        M3Badge.Draw($"第 {_validationResult.FailedAtStep} 工次 · {_validationResult.FailureText}", color, details);
     }
 
-    private static readonly M3Segment[] MacroModeSegments = [new("继承", FontAwesomeIcon.LevelDownAlt, "Use the list's choice"), new("指定", FontAwesomeIcon.Check)];
+    private static readonly M3Segment[] MacroModeSegments = [new("继承", FontAwesomeIcon.LevelDownAlt, "沿用清单设置"), new("指定", FontAwesomeIcon.Check)];
 
     private static readonly M3Segment[] OverrideModeSegments =
     [
-        new("Inherit", FontAwesomeIcon.LevelDownAlt, "Use the list's choice"),
-        new("None", FontAwesomeIcon.Ban, "Use nothing"),
-        new("Specific", FontAwesomeIcon.Check),
+        new("继承", FontAwesomeIcon.LevelDownAlt, "沿用清单设置"),
+        new("无", FontAwesomeIcon.Ban, "不使用物品"),
+        new("指定物品", FontAwesomeIcon.Check),
     ];
 
     private bool InListContext
@@ -612,7 +606,7 @@ public class RecipeCraftSettingsPopup
         if (mode == 0)
         {
             ImGui.SameLine(0, M3.Space2);
-            Ui.RowText($"List: {inheritedLabel}", M3Widgets.SegmentedHeight, M3TextStyle.Muted);
+            Ui.RowText($"清单 {inheritedLabel}", M3Widgets.SegmentedHeight, M3TextStyle.Muted);
             return false;
         }
 
@@ -627,7 +621,7 @@ public class RecipeCraftSettingsPopup
 
     private void DrawMacroSelector()
     {
-        SettingLabel("Macro");
+        SettingLabel("宏");
         var allMacros = CraftingGameInterop.UserMacroLibrary.GetAllMacros();
         if (InListContext)
         {
@@ -649,10 +643,10 @@ public class RecipeCraftSettingsPopup
 
     private static readonly (string Label, SolverOverrideMode Mode, string? Tooltip)[] SolverChoices =
     [
-        ("Default, use the solver", SolverOverrideMode.Default, null),
-        ("Standard solver", SolverOverrideMode.StandardSolver, null),
-        ("Raphael solver", SolverOverrideMode.RaphaelSolver, null),
-        ("Progress only", SolverOverrideMode.ProgressOnlySolver, "Only progress-building actions, no quality steps. Fast NQ crafts."),
+        ("默认求解器", SolverOverrideMode.Default, null),
+        ("标准求解器", SolverOverrideMode.StandardSolver, null),
+        ("Raphael 求解器", SolverOverrideMode.RaphaelSolver, null),
+        ("仅完成制作", SolverOverrideMode.ProgressOnlySolver, "跳过提升品质的技能，尽快完成制作。"),
     ];
 
     private void DrawMacroCombo(List<UserMacro> allMacros)
@@ -703,11 +697,11 @@ public class RecipeCraftSettingsPopup
     private static string GetMacroSelectionName(string? macroId, SolverOverrideMode solverOverride, List<UserMacro> allMacros)
         => solverOverride switch
         {
-            SolverOverrideMode.StandardSolver => "Standard solver",
-            SolverOverrideMode.RaphaelSolver => "Raphael solver",
-            SolverOverrideMode.ProgressOnlySolver => "Progress only",
-            _ when !string.IsNullOrEmpty(macroId) => allMacros.Find(m => m.Id == macroId)?.Name ?? "(macro not found)",
-            _ => "Default, use the solver",
+            SolverOverrideMode.StandardSolver => "标准求解器",
+            SolverOverrideMode.RaphaelSolver => "Raphael 求解器",
+            SolverOverrideMode.ProgressOnlySolver => "仅完成制作",
+            _ when !string.IsNullOrEmpty(macroId) => allMacros.Find(m => m.Id == macroId)?.Name ?? "（找不到宏）",
+            _ => "默认求解器",
         };
 
     private static string ItemLabel(string name, bool hq)
@@ -718,8 +712,8 @@ public class RecipeCraftSettingsPopup
         var current = itemId;
         var currentHq = hq;
         var index = current.HasValue ? items.FindIndex(i => i.ItemId == current.Value && i.IsHQ == currentHq) + 1 : 0;
-        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "None" : ItemLabel(items[i - 1].Name, items[i - 1].IsHQ),
-                ImGui.GetContentRegionAvail().X - M3Card.RightInset, "None", items.Count > 8))
+        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "无" : ItemLabel(items[i - 1].Name, items[i - 1].IsHQ),
+                ImGui.GetContentRegionAvail().X - M3Card.RightInset, "无", items.Count > 8))
         {
             return false;
         }
@@ -742,7 +736,7 @@ public class RecipeCraftSettingsPopup
     {
         var current = itemId ?? 0;
         var index = current == 0 ? 0 : items.FindIndex(i => i.ItemId == current) + 1;
-        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "None" : items[i - 1].Name, ImGui.GetContentRegionAvail().X - M3Card.RightInset, "None"))
+        if (!M3Widgets.Combo(id, ref index, items.Count + 1, i => i == 0 ? "无" : items[i - 1].Name, ImGui.GetContentRegionAvail().X - M3Card.RightInset, "无"))
         {
             return false;
         }
@@ -753,7 +747,7 @@ public class RecipeCraftSettingsPopup
 
     private void DrawFoodSelector()
     {
-        SettingLabel("Food");
+        SettingLabel("食物");
         if (InListContext)
         {
             var mode = (int)_editingSettings.FoodMode;
@@ -777,7 +771,7 @@ public class RecipeCraftSettingsPopup
 
     private void DrawMedicineSelector()
     {
-        SettingLabel("Medicine");
+        SettingLabel("药品");
         if (InListContext)
         {
             var mode = (int)_editingSettings.MedicineMode;
@@ -801,12 +795,12 @@ public class RecipeCraftSettingsPopup
 
     private void DrawManualSelector()
     {
-        SettingLabel("Manual");
+        SettingLabel("工程学指南");
         if (InListContext)
         {
             var mode = (int)_editingSettings.ManualMode;
             var listManualId = _editingList?.Consumables.ManualItemId;
-            var specific = DrawModeChoice("##ManualMode", ref mode, OverrideModeSegments, listManualId.HasValue ? GetItemName(listManualId.Value) : "None", 2);
+            var specific = DrawModeChoice("##ManualMode", ref mode, OverrideModeSegments, listManualId.HasValue ? GetItemName(listManualId.Value) : "无", 2);
             _editingSettings.ManualMode = (ConsumableOverrideMode)mode;
             if (!specific)
             {
@@ -823,12 +817,12 @@ public class RecipeCraftSettingsPopup
 
     private void DrawSquadronManualSelector()
     {
-        SettingLabel("Squadron manual");
+        SettingLabel("军用及民用指南");
         if (InListContext)
         {
             var mode = (int)_editingSettings.SquadronManualMode;
             var listSquadronId = _editingList?.Consumables.SquadronManualItemId;
-            var specific = DrawModeChoice("##SquadronMode", ref mode, OverrideModeSegments, listSquadronId.HasValue ? GetItemName(listSquadronId.Value) : "None", 2);
+            var specific = DrawModeChoice("##SquadronMode", ref mode, OverrideModeSegments, listSquadronId.HasValue ? GetItemName(listSquadronId.Value) : "无", 2);
             _editingSettings.SquadronManualMode = (ConsumableOverrideMode)mode;
             if (!specific)
             {
@@ -1147,13 +1141,13 @@ public class RecipeCraftSettingsPopup
         }
 
         var recipe = RecipeManager.GetRecipe(_recipeId);
-        var subtitle = recipe.HasValue ? $"Starting quality {CalculateCurrentQuality(recipe.Value)} of {CalculateMaxQuality(recipe.Value)}" : null;
-        using var card = M3Card.Begin("##craftIngredients", "Ingredient quality", FontAwesomeIcon.Gem, M3.AccentFor(2), subtitle: subtitle);
-        M3Widgets.LabeledCheckbox("优先 NQ###Prefer NQ##ingredientNQ", ref _useAllNQ,
-            tooltip: "Use NQ materials by default, falling back to HQ only when there isn't enough NQ.\nThe HQ amounts below still apply.");
+        var subtitle = recipe.HasValue ? $"初期品质 {CalculateCurrentQuality(recipe.Value)} / {CalculateMaxQuality(recipe.Value)}" : null;
+        using var card = M3Card.Begin("##craftIngredients", "材料品质", FontAwesomeIcon.Gem, M3.AccentFor(2), subtitle: subtitle);
+        M3Widgets.LabeledCheckbox("优先使用 NQ 材料###Prefer NQ##ingredientNQ", ref _useAllNQ,
+            tooltip: "默认使用 NQ 材料，数量不足时使用 HQ 材料。\n下方指定的 HQ 材料数量仍然生效。");
         if (_editingList is { UseAllHQ: true })
         {
-            M3Text.Draw("The list uses all HQ by default. Change the amounts below to override it for this item.", M3TextStyle.Muted, true);
+            M3Text.Draw("此清单默认使用 HQ 材料。修改下方的数量可覆盖此配方的默认设置。", M3TextStyle.Muted, true);
         }
 
         using var style = M3Table.PushStyle();
@@ -1164,22 +1158,22 @@ public class RecipeCraftSettingsPopup
             return;
         }
 
-        ImGui.TableSetupColumn("Ingredient", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, IngredientCountColumnWidth);
+        ImGui.TableSetupColumn("材料", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("所需", ImGuiTableColumnFlags.WidthFixed, IngredientCountColumnWidth);
         ImGui.TableSetupColumn("NQ", ImGuiTableColumnFlags.WidthFixed, IngredientCountColumnWidth);
         ImGui.TableSetupColumn("HQ", ImGuiTableColumnFlags.WidthFixed, IngredientCountColumnWidth);
-        ImGui.TableSetupColumn("Use HQ", ImGuiTableColumnFlags.WidthFixed, IngredientUseHqColumnWidth);
+        ImGui.TableSetupColumn("使用 HQ", ImGuiTableColumnFlags.WidthFixed, IngredientUseHqColumnWidth);
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
         ImGui.TableNextColumn();
         M3Table.Header("材料", center: false);
         ImGui.TableNextColumn();
-        M3Table.Header("Need");
+        M3Table.Header("所需");
         ImGui.TableNextColumn();
-        M3Table.Header("NQ", "In your bags");
+        M3Table.Header("NQ", "背包持有数量");
         ImGui.TableNextColumn();
-        M3Table.Header("HQ", "In your bags");
+        M3Table.Header("HQ", "背包持有数量");
         ImGui.TableNextColumn();
-        M3Table.Header("使用 HQ", "How many HQ ones to use");
+        M3Table.Header("使用 HQ", "要使用的 HQ 材料数量");
 
         var rowHeight = M3Widgets.NumberFieldHeight;
         var lineHeight = ImGui.GetTextLineHeight();
@@ -1210,7 +1204,7 @@ public class RecipeCraftSettingsPopup
             else
             {
                 Ui.CenterInRow(rowHeight, lineHeight);
-                M3Table.CenteredText("N/A", M3Text.ColorOf(M3TextStyle.Faint));
+                M3Table.CenteredText("不适用", M3Text.ColorOf(M3TextStyle.Faint));
             }
         }
     }

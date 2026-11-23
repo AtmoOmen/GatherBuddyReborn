@@ -19,23 +19,26 @@ namespace GatherBuddy.AutoGather
     {
         private unsafe void EnqueueNodeInteraction(IGameObject gameObject, Gatherable targetItem)
         {
-            var targetSystem = TargetSystem.Instance();
-            Dalamud.ToastGui.ErrorToast -= HandleNodeInteractionErrorToast;
-            Dalamud.ToastGui.ErrorToast += HandleNodeInteractionErrorToast;
-
-            if (targetSystem == null)
-            {
-                return;
-            }
-
-            // Delay interaction by one frame after stopping movement to avoid the "Unable to execute command while in flight" error.
+            var objectId = gameObject.GameObjectId;
+            var attempted = false;
+            // Recheck the live node after movement stops; it may despawn during landing.
             TaskManager.Enqueue(() =>
             {
+                var node = Dalamud.Objects.SearchById(objectId);
+                var targetSystem = TargetSystem.Instance();
+                if (targetSystem == null || node == null || !node.IsTargetable || !CanAct
+                    || Dalamud.Conditions[ConditionFlag.InFlight] || Dalamud.Conditions[ConditionFlag.Mounted]
+                    || !WithinNodeInteractionRange(Player.Position, node.Position))
+                    return;
+
+                attempted = true;
+                Dalamud.ToastGui.ErrorToast -= HandleNodeInteractionErrorToast;
+                Dalamud.ToastGui.ErrorToast += HandleNodeInteractionErrorToast;
                 _lastNodeInteractionTime = Environment.TickCount64;
-                targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gameObject.Address);
+                targetSystem->OpenObjectInteraction((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)node.Address);
                 GatherBuddy.Log.Debug($"与采集点交互中，"
-                    + $"水平距离: {Vector2.Distance(gameObject.Position.ToVector2(), Player.Position.ToVector2())}， "
-                    + $"垂直距离: {Player.Position.Y - gameObject.Position.Y}， "
+                    + $"水平距离: {Vector2.Distance(node.Position.ToVector2(), Player.Position.ToVector2())}， "
+                    + $"垂直距离: {Player.Position.Y - node.Position.Y}， "
                     + $"条件: {string.Join(' ', Dalamud.Conditions.AsReadOnlySet())}");
             });
 
@@ -43,6 +46,8 @@ namespace GatherBuddy.AutoGather
 
             TaskManager.Enqueue(() =>
             {
+                if (!attempted)
+                    return true;
                 if (Dalamud.Conditions[ConditionFlag.Gathering])
                 {
                     GatherBuddy.Log.Debug($"打开采集点耗时 {Environment.TickCount64 - _lastNodeInteractionTime} 毫秒");
@@ -54,7 +59,7 @@ namespace GatherBuddy.AutoGather
             TaskManager.Enqueue(() =>
             {
                 Dalamud.ToastGui.ErrorToast -= HandleNodeInteractionErrorToast;
-                if (!Dalamud.Conditions[ConditionFlag.Gathering] && Dalamud.Conditions[ConditionFlag.Mounted] && Dalamud.Conditions[ConditionFlag.InFlight] && !Dalamud.Conditions[ConditionFlag.Diving])
+                if (attempted && !Dalamud.Conditions[ConditionFlag.Gathering] && Dalamud.Conditions[ConditionFlag.Mounted] && Dalamud.Conditions[ConditionFlag.InFlight] && !Dalamud.Conditions[ConditionFlag.Diving])
                 {
                     ForceLandAndDismount();
                 }

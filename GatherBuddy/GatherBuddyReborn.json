@@ -3,26 +3,26 @@
   "Name": "GatherBuddy Reborn",
   "InternalName": "GatherBuddyReborn",
   "RepoUrl": "https://github.com/FFXIV-CombatReborn/GatherBuddyReborn",
-  "Description": "Adds commands to simplify gathering by finding nodes and fish and their locations via item name and a UI to keep track of special uptime and weather conditions. Also automatically gathers items based on these conditions using lists that you specify. Automated gathering requires vnavmesh.",
+  "Description": "添加多种命令, 可按物品名称查找采集点、鱼类及其位置, 并提供界面追踪特殊刷新时间与天气条件, 还可基于指定清单和条件自动采集物品, 自动采集需要 vnavmesh",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "TestingDalamudApiLevel": 15,
   "Tags": [
-    "Gathering",
-    "Fishing",
-    "Mining",
-    "Botany",
-    "Weather",
-    "Alarms",
-    "Automatic",
-    "Forager"
+    "采集",
+    "钓鱼",
+    "采矿",
+    "园艺",
+    "天气",
+    "闹钟",
+    "自动",
+    "采集职业"
   ],
   "CategoryTags": [
-    "Jobs",
-    "Utility"
+    "职业",
+    "实用工具"
   ],
   "IsTestingExclusive": false,
   "IconUrl": "https://raw.githubusercontent.com/FFXIV-CombatReborn/RebornAssets/main/IconAssets/GBR_Icon.png",
-  "Punchline": "Simplify Gathering and Fishing to the extreme.",
+  "Punchline": "极致简化采集与钓鱼",
   "AcceptsFeedback": true
 }

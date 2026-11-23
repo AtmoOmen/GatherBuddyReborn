@@ -65,16 +65,16 @@ public partial class VulcanWindow
         SameRow(Ui.LabeledCheckboxHeight, M3.Space2);
         var autoClear = raphaelConfig.AutoClearSolutionCache;
         if (M3Widgets.LabeledCheckbox("队列开始时清除###Clear when a queue starts", ref autoClear,
-                tooltip: "Clears cached solutions each time a new crafting queue starts.\nTurn this off to reuse solutions across queue runs when your stats haven't changed."))
+                tooltip: "每次开始新制作队列时清空求解缓存。\n关闭后，能力值相同时可跨队列复用方案。"))
         {
             raphaelConfig.AutoClearSolutionCache = autoClear;
             GatherBuddy.Config.Save();
         }
 
         SameRow(ImGui.GetFrameHeight(), M3.Space2);
-        M3Badge.Draw($"Active {coordinator.ActiveSolves}", coordinator.ActiveSolves > 0 ? M3.Scheme.Success : M3.Scheme.Outline, "Solves running now");
+        M3Badge.Draw($"正在求解 {coordinator.ActiveSolves}", coordinator.ActiveSolves > 0 ? M3.Scheme.Success : M3.Scheme.Outline, "正在进行的求解任务");
         SameRow(ImGui.GetFrameHeight(), M3.Space1);
-        M3Badge.Draw($"Pending {coordinator.PendingSolves}", coordinator.PendingSolves > 0 ? M3.Scheme.Warning : M3.Scheme.Outline, "Solves waiting in the queue");
+        M3Badge.Draw($"等待求解 {coordinator.PendingSolves}", coordinator.PendingSolves > 0 ? M3.Scheme.Warning : M3.Scheme.Outline, "排队等待的求解任务");
 
         ImGui.Dummy(new Vector2(0, M3.Space2));
 
@@ -130,7 +130,7 @@ public partial class VulcanWindow
                 _selectedSolutionKey = solution.Key;
             }
 
-            M3Tooltip.Hovered($"{name}\nLevel {req.Level}, {req.Craftsmanship}/{req.Control}/{req.CP}, {solution.ActionIds.Count} steps");
+            M3Tooltip.Hovered($"{name}\n等级 {req.Level} · {solution.ActionIds.Count} 工次\n作业精度 {req.Craftsmanship} · 加工精度 {req.Control} · 制作力 {req.CP}");
         }, iconSize + M3.Space2 + ImGui.GetStyle().ItemSpacing.Y);
     }
     private void DrawSolutionDetail()
@@ -166,19 +166,19 @@ public partial class VulcanWindow
                 ImGui.TextUnformatted(name);
             }
 
-            M3Text.Draw($"Recipe {req.RecipeId}, solved {solution.GeneratedAt.ToLocalTime():yyyy-MM-dd HH:mm}", M3TextStyle.Muted);
+            M3Text.Draw($"配方 ID {req.RecipeId} · 求解时间 {solution.GeneratedAt.ToLocalTime():yyyy-MM-dd HH:mm}", M3TextStyle.Muted);
         }
 
         ImGui.Dummy(new Vector2(0, M3.Space2));
         using (M3Card.Begin("##solveParameters", "求解参数", FontAwesomeIcon.SlidersH, M3.AccentFor(0)))
         {
-            M3Widgets.RowValue("Level", req.Level.ToString());
-            M3Widgets.RowValue("Craftsmanship", req.Craftsmanship.ToString());
-            M3Widgets.RowValue("Control", req.Control.ToString());
-            M3Widgets.RowValue("CP", req.CP.ToString());
-            M3Widgets.RowValue("Manipulation", req.Manipulation ? "Yes" : "No");
-            M3Widgets.RowValue("Specialist", req.Specialist ? "Yes" : "No");
-            M3Widgets.RowValue("Initial quality", req.InitialQuality.ToString());
+            M3Widgets.RowValue("等级", req.Level.ToString());
+            M3Widgets.RowValue("作业精度", req.Craftsmanship.ToString());
+            M3Widgets.RowValue("加工精度", req.Control.ToString());
+            M3Widgets.RowValue("制作力", req.CP.ToString());
+            M3Widgets.RowValue("掌握", req.Manipulation ? "是" : "否");
+            M3Widgets.RowValue("专家", req.Specialist ? "是" : "否");
+            M3Widgets.RowValue("初期品质", req.InitialQuality.ToString());
         }
 
         M3Widgets.SectionLabel($"技能 ({solution.ActionIds.Count})");

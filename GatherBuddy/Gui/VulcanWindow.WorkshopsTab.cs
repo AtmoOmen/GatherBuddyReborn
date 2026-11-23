@@ -127,7 +127,7 @@ public partial class VulcanWindow
 
     private void DrawWorkshopProjectsPanel(IReadOnlyList<WorkshopProjectNode> projects)
     {
-        DrawSearchInputWithInlineClear("##workshopProjectSearch", "Search projects", ref _workshopProjectSearch, 256);
+        DrawSearchInputWithInlineClear("##workshopProjectSearch", "搜索工程", ref _workshopProjectSearch, 256);
         var filteredProjects = projects;
         if (!string.IsNullOrWhiteSpace(_workshopProjectSearch))
         {
@@ -143,7 +143,7 @@ public partial class VulcanWindow
             filteredProjects = matches;
         }
 
-        M3Text.Draw(filteredProjects.Count == 1 ? "1 project" : $"{filteredProjects.Count} projects", M3TextStyle.Faint);
+        M3Text.Draw(filteredProjects.Count == 1 ? "1 个工程" : $"{filteredProjects.Count} 个工程", M3TextStyle.Faint);
         using var list = ImRaii.Child("##WorkshopProjectsList", new Vector2(-1, -1), false);
         if (!list)
         {
@@ -166,7 +166,7 @@ public partial class VulcanWindow
                 _selectedWorkshopScope = project;
             }
 
-            M3Tooltip.Hovered($"{project.ProjectName}\n{project.Parts.Count} parts, {project.PhaseCount} phases");
+            M3Tooltip.Hovered($"{project.ProjectName}\n{project.Parts.Count} 个部件， {project.PhaseCount} 个阶段");
         }
     }
 
@@ -184,8 +184,8 @@ public partial class VulcanWindow
 
         var overviewSelected = _selectedWorkshopScope is WorkshopProjectNode selectedProject
             && selectedProject.SequenceId == _selectedWorkshopProject.SequenceId;
-        using (var overview = M3Tree.Node($"##workshopOverview_{_selectedWorkshopProject.SequenceId}", "Whole project", overviewSelected, true,
-                   FontAwesomeIcon.Industry, tooltip: "The full project's requirements, for a list covering the whole workshop project."))
+        using (var overview = M3Tree.Node($"##workshopOverview_{_selectedWorkshopProject.SequenceId}", "整个工程", overviewSelected, true,
+                   FontAwesomeIcon.Industry, tooltip: "列出整个部队工房工程所需的全部材料，可用于创建涵盖整个工程的制作清单。"))
         {
             if (overview.Clicked)
             {
@@ -197,7 +197,7 @@ public partial class VulcanWindow
         {
             var isSelected = _selectedWorkshopScope is WorkshopPartNode selectedPart && selectedPart.PartId == part.PartId;
             using var node = M3Tree.Node($"##workshopPart_{part.PartId}", part.DisplayName, isSelected, part.Phases.Count == 0, FontAwesomeIcon.Cube,
-                defaultOpen: true, tooltip: $"{part.Phases.Count} phases, {part.CraftableRequirementCount} supply items with recipes",
+                defaultOpen: true, tooltip: $"{part.Phases.Count} 个阶段， {part.CraftableRequirementCount} 种有配方的材料",
                 trailing: part.Phases.Count > 0 ? part.Phases.Count.ToString() : null);
             if (node.Clicked || node.DoubleClicked)
             {
@@ -212,8 +212,8 @@ public partial class VulcanWindow
             foreach (var phase in part.Phases)
             {
                 var phaseSelected = _selectedWorkshopScope is WorkshopPhaseNode selectedPhase && selectedPhase.PhaseId == phase.PhaseId;
-                using var phaseNode = M3Tree.Node($"##workshopPhase_{phase.PhaseId}", $"Phase {phase.PhaseIndex}", phaseSelected, true,
-                    tooltip: $"{phase.CraftableRequirementCount} supply items with recipes");
+                using var phaseNode = M3Tree.Node($"##workshopPhase_{phase.PhaseId}", $"阶段 {phase.PhaseIndex}", phaseSelected, true,
+                    tooltip: $"{phase.CraftableRequirementCount} 种有配方的材料");
                 if (phaseNode.Clicked)
                 {
                     _selectedWorkshopScope = phase;
@@ -224,7 +224,7 @@ public partial class VulcanWindow
 
     private static string DescribeUncraftableRequirements(WorkshopScopeNode scope)
     {
-        var builder = new StringBuilder("No recipe for: ");
+        var builder = new StringBuilder("缺少配方的材料 ");
         var first = true;
         foreach (var requirement in scope.Requirements)
         {
@@ -281,29 +281,29 @@ public partial class VulcanWindow
                 ImGui.TextUnformatted(scope.DisplayName);
             }
 
-            M3Text.Draw(scope.Kind == WorkshopScopeKind.Project ? scopeLabel : $"{scopeLabel} of {scope.ProjectName}", M3TextStyle.Muted);
+            M3Text.Draw(scope.Kind == WorkshopScopeKind.Project ? scopeLabel : $"{scope.ProjectName} · {scopeLabel}", M3TextStyle.Muted);
         }
 
         ImGui.Dummy(new Vector2(0, M3.Space2));
         using (M3Card.Begin("##workshopSummary", "摘要", FontAwesomeIcon.ClipboardList, M3.AccentFor(0)))
         {
-            M3Widgets.RowValue("Supplies with recipes", scope.CraftableRequirementCount.ToString(), color: scope.CraftableRequirementCount > 0 ? M3.Scheme.Info : null);
-            M3Widgets.RowValue("Skipped, no recipe", scope.UncraftableRequirementCount.ToString(),
+            M3Widgets.RowValue("有配方的材料", scope.CraftableRequirementCount.ToString(), color: scope.CraftableRequirementCount > 0 ? M3.Scheme.Info : null);
+            M3Widgets.RowValue("因无配方跳过", scope.UncraftableRequirementCount.ToString(),
                 scope.UncraftableRequirementCount > 0 ? DescribeUncraftableRequirements(scope) : null,
                 scope.UncraftableRequirementCount > 0 ? M3.Scheme.Warning : null);
-            M3Widgets.RowValue("Items required", scope.TotalRequiredItemCount.ToString());
-            M3Widgets.RowValue("Crafts", scope.TotalCraftsNeeded.ToString(), color: scope.TotalCraftsNeeded > 0 ? M3.Scheme.Success : null);
+            M3Widgets.RowValue("所需材料数", scope.TotalRequiredItemCount.ToString());
+            M3Widgets.RowValue("制作次数", scope.TotalCraftsNeeded.ToString(), color: scope.TotalCraftsNeeded > 0 ? M3.Scheme.Success : null);
         }
 
         using (M3Card.Begin("##workshopMakeList", "创建制作清单", FontAwesomeIcon.ListUl, M3.AccentFor(1)))
         {
-            if (M3Widgets.RowNumber("Times", ref _workshopLoopCount, 1, 1, 999, supporting: "How many times to make this selection."))
+            if (M3Widgets.RowNumber("制作轮数", ref _workshopLoopCount, 1, 1, 999, supporting: "按选中的范围重复制作的次数。"))
             {
                 _workshopLoopCount = Math.Max(1, _workshopLoopCount);
             }
 
             M3Widgets.RowSwitch("临时###Ephemeral##workshopEphemeral", ref _workshopEphemeral,
-                "Delete the list once crafting completes. You can change this later in the list editor.");
+                "制作完成后删除清单。之后可在清单编辑器中修改此设置。");
 
             if (_workshopListNameScope != scope || _workshopListNameLoopCount != _workshopLoopCount)
             {
@@ -326,10 +326,10 @@ public partial class VulcanWindow
             if (M3Widgets.Button("##addWorkshopToExistingList", "添加到已有清单", M3ButtonStyle.Tonal, FontAwesomeIcon.FolderPlus,
                     enabled: canAddToExistingList,
                     tooltip: canAddToExistingList
-                        ? "Add these recipes to one of your crafting lists."
+                        ? "将这些配方加入一份已有的制作清单。"
                         : scope.CraftableRequirementCount <= 0
                             ? "当前选择没有可加入的有配方工房补给品"
-                            : "Create a crafting list first, then you can add workshop selections to it."))
+                            : "先创建制作清单，再将选中的工房配方添加进去。"))
             {
                 QueueWorkshopAddToListPopup();
             }
@@ -337,7 +337,7 @@ public partial class VulcanWindow
 
         var showRetainer = AllaganTools.Enabled;
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
-        DrawIngredientSectionHeader("Workshop requirements", showRetainer);
+        DrawIngredientSectionHeader("部队工房所需材料", showRetainer);
         if (scope.Requirements.Count == 0)
         {
             M3Text.Draw("未找到当前选择的工房需求。", M3TextStyle.Faint);
@@ -388,7 +388,7 @@ public partial class VulcanWindow
             ImGui.SameLine(0, M3.Space2);
             Ui.RowText(requirement.ItemName, iconSize);
             ImGui.SameLine(0, M3.Space2);
-            Ui.RowText(craftCount == 1 ? "1 craft" : $"{craftCount} crafts", iconSize, M3TextStyle.Muted);
+            Ui.RowText(craftCount == 1 ? "制作 1 次" : $"{craftCount} 次制作", iconSize, M3TextStyle.Muted);
         }
     }
     private void CreateWorkshopCraftingList(WorkshopScopeNode scope, string listName)
@@ -435,7 +435,7 @@ public partial class VulcanWindow
     {
         var scope = _selectedWorkshopScope;
         using var dialog = M3Dialog.Begin(WorkshopAddToListPopupId, "添加到制作清单",
-            scope == null ? "No workshop selection." : $"{scope.DisplayName}, {scope.Kind.ToString().ToLowerInvariant()}, ×{Math.Max(1, _workshopLoopCount)}",
+            scope == null ? "请先选择部队工房工程。" : $"{scope.DisplayName}, {scope.Kind.ToString().ToLowerInvariant()}, ×{Math.Max(1, _workshopLoopCount)}",
             FontAwesomeIcon.FolderPlus, 460f);
         if (!dialog.IsOpen)
         {

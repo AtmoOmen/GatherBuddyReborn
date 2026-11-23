@@ -226,7 +226,7 @@ public partial class Interface
         var (alarm, loc, time) = alarmData.Value;
         var name = alarm.Name.Length != 0 ? alarm.Name : alarm.Item.Name[GatherBuddy.Language];
         var label = M3Navigation.Truncate(name, 200f * M3.Scale);
-        var tooltip = $"Click to /gather this alarm.\n{name}\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "None"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
+        var tooltip = $"点击以通过 /gather 前往此提醒的采集地点。\n{name}\n{loc.Name} - {loc.ClosestAetheryte?.Name ?? "无"}\n{time.Start.LocalTime}\n{time.End.LocalTime}";
 
         flow.Next(M3Widgets.PillSize(label, icon).X);
         if (!M3Widgets.Pill(id, label, item ? s.Secondary : s.Tertiary, icon, tooltip, true))

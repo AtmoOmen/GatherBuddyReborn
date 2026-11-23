@@ -1,0 +1,358 @@
+diff --git a/RebornMaterial/M3PanelWindow.cs b/RebornMaterial/M3PanelWindow.cs
+index 97b6b57df4b56f15f84f3f76d642c78b20ee1b96..c7fcabf61fa85a1ad081b83d9d9a387a3df0ca66 100644
+--- a/RebornMaterial/M3PanelWindow.cs
++++ b/RebornMaterial/M3PanelWindow.cs
+@@ -41,7 +41,7 @@ public abstract class M3PanelWindow(string name, string title, Vector2 initialSi
+ 						M3Services.Log?.Error(ex, $"[RebornMaterial] Exception while drawing {Title}");
+ 					}
+
+-					M3Widgets.Banner("##panel_error", $"Something went wrong while drawing this window: {ex.Message}", M3Severity.Error, FontAwesomeIcon.Bug);
++					M3Widgets.Banner("##panel_error", $"绘制窗口时出错。 {ex.Message}", M3Severity.Error, FontAwesomeIcon.Bug);
+ 				}
+ 			}
+ 		}
+diff --git a/RebornMaterial/M3Plugins.cs b/RebornMaterial/M3Plugins.cs
+index cf9d30cf2f428c24f0aa2395d481e1c118369a2c..b84ba5f660d0ef5939c4403485badb78237511b0 100644
+--- a/RebornMaterial/M3Plugins.cs
++++ b/RebornMaterial/M3Plugins.cs
+@@ -48,16 +48,16 @@ public static class M3Plugins
+ 	{
+ 		var ready = any ? AnyLoaded(plugins) : AllLoaded(plugins);
+ 		var text = new StringBuilder(any
+-			? ready ? "Needs one of these plugins, and one is ready:" : "Needs one of these plugins installed and enabled:"
+-			: ready ? "Everything this needs is installed and enabled:" : "Needs these plugins installed and enabled:");
++			? ready ? "需要下列任一插件，已有可用插件。" : "请安装并启用下列任一插件。"
++			: ready ? "所需插件均已安装并启用。" : "请安装并启用以下所需插件。");
+
+ 		var loaded = Loaded();
+ 		for (var i = 0; i < plugins.Count; i++)
+ 		{
+ 			var plugin = plugins[i];
+-			var state = !loaded.TryGetValue(plugin.InternalName, out var version) ? "not installed or disabled"
+-				: plugin.MinVersion != null && version < plugin.MinVersion ? "outdated"
+-				: "ready";
++			var state = !loaded.TryGetValue(plugin.InternalName, out var version) ? "未安装或已禁用"
++				: plugin.MinVersion != null && version < plugin.MinVersion ? "版本过旧"
++				: "可用";
+
+ 			text.Append("\n• ").Append(plugin.Name);
+ 			if (plugin.MinVersion != null)
+diff --git a/RebornMaterial/M3SettingsPage.cs b/RebornMaterial/M3SettingsPage.cs
+index 2e60c231cb4c8fb63fbed138370c1cfb608d7316..80e79fcb3261abdfc60190977eff0fa969d87966 100644
+--- a/RebornMaterial/M3SettingsPage.cs
++++ b/RebornMaterial/M3SettingsPage.cs
+@@ -79,7 +79,7 @@ public sealed class M3SettingsSearchResult(M3SettingsPage page, M3SettingsGroup
+
+ 	internal string OpenId => _openId ??= $"##search_open_{Page.Id}_{Group.Id}";
+
+-	internal string OpenLabel => _openLabel ??= $"Open {Page.Label}";
++	internal string OpenLabel => _openLabel ??= $"打开 {Page.Label}";
+ }
+
+ public static class M3SettingsSearch
+@@ -123,7 +123,7 @@ public static class M3SettingsSearch
+ 	{
+ 		if (results.Count == 0)
+ 		{
+-			M3Widgets.EmptyState("##m3_settings_search_empty", "No settings found", $"Nothing matches \"{text.Trim()}\". Try a shorter or different word.",
++			M3Widgets.EmptyState("##m3_settings_search_empty", "找不到匹配的设置", $"没有与「{text.Trim()}」匹配的设置，可试试更短或不同的关键词。",
+ 				FontAwesomeIcon.Search);
+ 			return null;
+ 		}
+@@ -133,7 +133,7 @@ public static class M3SettingsSearch
+ 		{
+ 			if (i >= MaxResults)
+ 			{
+-				M3Text.Draw($"Showing the first {MaxResults} of {results.Count} groups. Refine the search to see the rest.", M3TextStyle.Muted, true);
++				M3Text.Draw($"共找到 {results.Count} 组设置，显示前 {MaxResults} 组。可缩小搜索范围以查看其他结果。", M3TextStyle.Muted, true);
+ 				break;
+ 			}
+
+diff --git a/RebornMaterial/M3ShellWindow.cs b/RebornMaterial/M3ShellWindow.cs
+index 38a10d6cbea3a4a8ea6d4be06a06753c2b1b8ae3..f5148ff436ea6700808d1947c9bf0d68d036e012 100644
+--- a/RebornMaterial/M3ShellWindow.cs
++++ b/RebornMaterial/M3ShellWindow.cs
+@@ -151,7 +151,7 @@ public abstract class M3ShellWindow(string name, string idPrefix, string title,
+
+ 	protected virtual bool SupportsSearch => false;
+
+-	protected virtual string SearchHint => "Search";
++	protected virtual string SearchHint => "搜索";
+
+ 	protected virtual void OnSearchChanged(string text)
+ 	{
+@@ -341,7 +341,7 @@ public abstract class M3ShellWindow(string name, string idPrefix, string title,
+ 				var button = M3Widgets.IconButtonSize;
+ 				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0f, (inner - button) * 0.5f));
+ 				var open = RailSearchOpen;
+-				if (M3Widgets.IconToggle(_searchToggleId, FontAwesomeIcon.Search, ref open, open ? "Close search" : SearchHint))
++				if (M3Widgets.IconToggle(_searchToggleId, FontAwesomeIcon.Search, ref open, open ? "关闭搜索" : SearchHint))
+ 				{
+ 					if (open)
+ 					{
+@@ -519,13 +519,13 @@ public abstract class M3ShellWindow(string name, string idPrefix, string title,
+ 				M3Services.Log?.Error(ex, $"[RebornMaterial] Exception while drawing page {pageName}");
+ 			}
+
+-			M3Widgets.Banner($"##{_idPrefix}_page_error", $"Something went wrong while drawing this page: {ex.Message}", M3Severity.Error, FontAwesomeIcon.Bug);
++			M3Widgets.Banner($"##{_idPrefix}_page_error", $"绘制页面时出错。 {ex.Message}", M3Severity.Error, FontAwesomeIcon.Bug);
+ 		}
+ 	}
+
+ 	private void DrawTopAppBar(M3Page? page)
+ 	{
+-		var pageTitle = Searching ? "Search results" : page?.Label ?? _title;
++		var pageTitle = Searching ? "搜索结果" : page?.Label ?? _title;
+ 		var subtitle = Searching ? SearchSubtitle(_searchText) : page?.Description;
+
+ 		var clearSize = M3Widgets.IconButtonSize;
+@@ -536,7 +536,7 @@ public abstract class M3ShellWindow(string name, string idPrefix, string title,
+ 		if (Searching)
+ 		{
+ 			ImGui.SetCursorScreenPos(bar.TrailingPosition(clearSize));
+-			if (M3Widgets.IconButton(_clearSearchId, FontAwesomeIcon.Times, "Clear search"))
++			if (M3Widgets.IconButton(_clearSearchId, FontAwesomeIcon.Times, "清除搜索"))
+ 			{
+ 				ClearSearch();
+ 			}
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Buttons.cs b/RebornMaterial/M3Widgets/M3Widgets.Buttons.cs
+index 1b35e1d925f1398ffbc2b97291b2be3581f0b68f..d4e9cfc802d4d206635792672f18191b1d4e56aa 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Buttons.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Buttons.cs
+@@ -143,7 +143,7 @@ public static partial class M3Widgets
+
+ 	public static bool HoldButton(string id, string label, float seconds = 1f, M3ButtonStyle style = M3ButtonStyle.Danger, FontAwesomeIcon icon = FontAwesomeIcon.None, float? width = null, bool enabled = true, string? tooltip = null)
+ 	{
+-		_ = Button(id, label, style, icon, width, enabled, tooltip ?? "Hold to confirm");
++		_ = Button(id, label, style, icon, width, enabled, tooltip ?? "长按确认");
+ 		var key = ImGuiP.GetItemID();
+ 		var active = enabled && ImGui.IsItemActive();
+
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Chips.cs b/RebornMaterial/M3Widgets/M3Widgets.Chips.cs
+index 7de7dc702c246bf93709171c137acd95253f5ae7..36ca822b2ca323c8b6b7f237c7674af8e005fb5e 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Chips.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Chips.cs
+@@ -313,7 +313,7 @@ public static partial class M3Widgets
+
+ 		if (removeHovered)
+ 		{
+-			M3Tooltip.Show($"Remove {label}");
++			M3Tooltip.Show($"移除 {label}");
+ 		}
+ 		else if (bodyHovered)
+ 		{
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.ColorChoices.cs b/RebornMaterial/M3Widgets/M3Widgets.ColorChoices.cs
+index c4dd7576e54c6a12ad004d7fa03e07dd5b63bc5a..facee13e0f917e5a1d7eaeaa417746e2fdd6a245 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.ColorChoices.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.ColorChoices.cs
+@@ -112,7 +112,7 @@ public static partial class M3Widgets
+ 			bool picked;
+ 			using (ImRaii.PushId(id))
+ 			{
+-				picked = ColorSwatch("custom", ref own, alpha: alpha, enabled: enabled, tooltip: matched ? "Pick any colour" : "Your own colour. Click to change it.");
++				picked = ColorSwatch("custom", ref own, alpha: alpha, enabled: enabled, tooltip: matched ? "选取任意颜色" : "点击选择自定义颜色。");
+ 			}
+
+ 			if (picked)
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.ColorSwatch.cs b/RebornMaterial/M3Widgets/M3Widgets.ColorSwatch.cs
+index f637fd50fa29f69b25c477622caaccd63a6b9f8f..0a246cf965ccd3ee9a762f422905611d9a0ed060 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.ColorSwatch.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.ColorSwatch.cs
+@@ -76,7 +76,7 @@ public static partial class M3Widgets
+ 		if (defaultColor is { } fallback)
+ 		{
+ 			ImGui.SameLine(0f, M3.Space2);
+-			if (Button($"##{id}_picker_reset", "Reset", M3ButtonStyle.Text, FontAwesomeIcon.Undo, enabled: fallback != color))
++			if (Button($"##{id}_picker_reset", "重置", M3ButtonStyle.Text, FontAwesomeIcon.Undo, enabled: fallback != color))
+ 			{
+ 				color = fallback;
+ 				changed = true;
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Combo.cs b/RebornMaterial/M3Widgets/M3Widgets.Combo.cs
+index ab7927a75d89d865653fcbfde684edda556b7080..55d7f806918f27e2fd2f90c1c349c800685f96d2 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Combo.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Combo.cs
+@@ -96,7 +96,7 @@ public static partial class M3Widgets
+ 			}
+
+ 			var typing = ImGuiP.GetActiveID() == ImGui.GetID("##search");
+-			_ = SearchField("##search", "Search", ref query, ImGui.GetContentRegionAvail().X);
++			_ = SearchField("##search", "搜索", ref query, ImGui.GetContentRegionAvail().X);
+ 			pickFirst = typing && (ImGui.IsKeyPressed(ImGuiKey.Enter) || ImGui.IsKeyPressed(ImGuiKey.KeypadEnter));
+ 			_comboQueries[key] = query;
+ 			ImGui.Dummy(new Vector2(0f, M3.Space1));
+@@ -120,7 +120,7 @@ public static partial class M3Widgets
+
+ 		if (_comboMatches.Count == 0)
+ 		{
+-			M3Text.Draw(query.Length > 0 ? "No matches" : "Nothing to pick", M3TextStyle.Muted);
++			M3Text.Draw(query.Length > 0 ? "没有匹配结果" : "没有可选项", M3TextStyle.Muted);
+ 			return false;
+ 		}
+
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Copy.cs b/RebornMaterial/M3Widgets/M3Widgets.Copy.cs
+index 84ef824de3ae9ca3984d48f8c681c13d5f98ee30..091043f184fba4dd69133817bedae8d079bc49ae 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Copy.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Copy.cs
+@@ -60,12 +60,12 @@ public static partial class M3Widgets
+ 		return true;
+ 	}
+
+-	public static float CopyButtonWidth(string label = "Copy", string copiedLabel = "Copied")
++	public static float CopyButtonWidth(string label = "复制", string copiedLabel = "已复制")
+ 	{
+ 		return MathF.Max(ButtonWidth(FontAwesomeIcon.Copy, label), ButtonWidth(FontAwesomeIcon.Check, copiedLabel));
+ 	}
+
+-	public static bool CopyButton(string id, string text, string label = "Copy", string copiedLabel = "Copied", M3ButtonStyle style = M3ButtonStyle.Tonal, float? width = null, bool enabled = true, string? tooltip = null, string? snackbar = null)
++	public static bool CopyButton(string id, string text, string label = "复制", string copiedLabel = "已复制", M3ButtonStyle style = M3ButtonStyle.Tonal, float? width = null, bool enabled = true, string? tooltip = null, string? snackbar = null)
+ 	{
+ 		var key = ImGui.GetID(id);
+ 		var copied = IsShowingCopied(key);
+@@ -75,12 +75,12 @@ public static partial class M3Widgets
+ 		return pressed && Copy(key, text, snackbar);
+ 	}
+
+-	public static bool CopyIconButton(string id, string text, string? tooltip = "Copy to clipboard", M3ButtonStyle style = M3ButtonStyle.Text, float? diameter = null, bool enabled = true, string? snackbar = null)
++	public static bool CopyIconButton(string id, string text, string? tooltip = "复制到剪贴板", M3ButtonStyle style = M3ButtonStyle.Text, float? diameter = null, bool enabled = true, string? snackbar = null)
+ 	{
+ 		var key = ImGui.GetID(id);
+ 		var copied = IsShowingCopied(key);
+
+-		var pressed = IconButton(id, copied ? FontAwesomeIcon.Check : FontAwesomeIcon.Copy, copied ? "Copied" : tooltip, style, copied ? M3.Scheme.Success : null, diameter, enabled);
++		var pressed = IconButton(id, copied ? FontAwesomeIcon.Check : FontAwesomeIcon.Copy, copied ? "已复制" : tooltip, style, copied ? M3.Scheme.Success : null, diameter, enabled);
+ 		return pressed && Copy(key, text, snackbar);
+ 	}
+
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Hotkey.cs b/RebornMaterial/M3Widgets/M3Widgets.Hotkey.cs
+index d672bd3831609f74599e671827730eec770efcdf..025385564489f63faccdbbd91f629fc79318d468 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Hotkey.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Hotkey.cs
+@@ -13,7 +13,7 @@ public readonly record struct M3Hotkey(VirtualKey Key, bool Ctrl = false, bool S
+ 	{
+ 		if (IsEmpty)
+ 		{
+-			return "None";
++			return "无";
+ 		}
+
+ 		var prefix = (Ctrl ? "Ctrl+" : string.Empty) + (Shift ? "Shift+" : string.Empty) + (Alt ? "Alt+" : string.Empty);
+@@ -113,7 +113,7 @@ public static partial class M3Widgets
+ 			M3.Alpha(listening ? s.Primary : s.OnSurfaceVariant, dim));
+ 		textX += iconSize.X + (10f * scale);
+
+-		var text = listening ? "Press a key" : HotkeyLabel(hotkey);
++		var text = listening ? "按下要设置的键" : HotkeyLabel(hotkey);
+ 		var color = listening ? M3.Alpha(s.Primary, 0.65f + (0.35f * MathF.Sin((float)ImGui.GetTime() * 5f)))
+ 			: hotkey.IsEmpty ? M3.Alpha(s.OnSurfaceVariant, 0.8f * dim)
+ 			: M3.Alpha(s.OnSurface, 0.95f * dim);
+@@ -125,7 +125,7 @@ public static partial class M3Widgets
+ 		{
+ 			var diameter = height - (12f * scale);
+ 			ImGui.SetCursorScreenPos(new Vector2(max.X - clearWidth + ((clearWidth - diameter) * 0.5f), min.Y + ((height - diameter) * 0.5f)));
+-			if (IconButton($"{id}_clear", FontAwesomeIcon.Times, "Clear", diameter: diameter, enabled: enabled))
++			if (IconButton($"{id}_clear", FontAwesomeIcon.Times, "清除", diameter: diameter, enabled: enabled))
+ 			{
+ 				hotkey = M3Hotkey.None;
+ 				changed = true;
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.IntRange.cs b/RebornMaterial/M3Widgets/M3Widgets.IntRange.cs
+index 21fbf5a5a74c1c6255e0c2e63a607d3dae510d6f..e999e90ea9dad977f7e8f8b4d37710315fe5fec5 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.IntRange.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.IntRange.cs
+@@ -6,7 +6,7 @@ public static partial class M3Widgets
+ 	{
+ 		var (display, lowId) = RowParts(label, "_low");
+ 		var fieldWidth = NumberFieldWidth(false, unit);
+-		const string Separator = "to";
++		const string Separator = "至";
+ 		var separatorWidth = ImGui.CalcTextSize(Separator).X;
+ 		var gap = M3.Space2;
+ 		var controlSize = new Vector2((fieldWidth * 2f) + separatorWidth + (gap * 2f), NumberFieldHeight);
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Plugins.cs b/RebornMaterial/M3Widgets/M3Widgets.Plugins.cs
+index fa7129753dfdb1760821da16775e408786ed10c7..1f70a096e9dd8300acfca4556ade35b67c5a33de 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Plugins.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Plugins.cs
+@@ -53,7 +53,7 @@ public static partial class M3Widgets
+ 		}
+ 		else if (any)
+ 		{
+-			label = "Plugin missing";
++			label = "缺少所需插件";
+ 			for (var i = 0; i < plugins.Count; i++)
+ 			{
+ 				if (M3Plugins.IsLoaded(plugins[i]))
+@@ -65,7 +65,7 @@ public static partial class M3Widgets
+ 		}
+ 		else
+ 		{
+-			label = $"{plugins.Count} plugins";
++			label = $"{plugins.Count} 个插件";
+ 		}
+
+ 		return (label, ready ? FontAwesomeIcon.Check : FontAwesomeIcon.Times, M3.Severity(ready ? M3Severity.Success : M3Severity.Error));
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.Rows.cs b/RebornMaterial/M3Widgets/M3Widgets.Rows.cs
+index 72d36cff0d14e401b9a63e7d11eeca513619181a..0a506bb13e4ab541047a0381344c91a32366e297 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.Rows.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.Rows.cs
+@@ -189,7 +189,7 @@ public static partial class M3Widgets
+ 		if (canReset)
+ 		{
+ 			ImGui.SetCursorScreenPos(origin + new Vector2(swatch + M3.Space1, (controlSize.Y - resetSize) * 0.5f));
+-			if (IconButton(RowParts(label, "_reset").Id, FontAwesomeIcon.Undo, "Reset to default", diameter: resetSize, enabled: enabled))
++			if (IconButton(RowParts(label, "_reset").Id, FontAwesomeIcon.Undo, "恢复默认值", diameter: resetSize, enabled: enabled))
+ 			{
+ 				color = defaultColor!.Value;
+ 				changed = true;
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.TextFields.cs b/RebornMaterial/M3Widgets/M3Widgets.TextFields.cs
+index fdde8ae712dd2c2aa84cad0ac6b8ff5d2d620299..2f43fc8f39133132d34fd2808ff47db8c828f5dc 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.TextFields.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.TextFields.cs
+@@ -50,7 +50,7 @@ public static partial class M3Widgets
+ 		if (hasText)
+ 		{
+ 			ImGui.SetCursorScreenPos(new Vector2(max.X - clearWidth - (6f * scale), min.Y + ((height - (26f * scale)) * 0.5f)));
+-			if (IconButton($"{id}_clear", FontAwesomeIcon.Times, "Clear search", diameter: 26f * scale, enabled: enabled))
++			if (IconButton($"{id}_clear", FontAwesomeIcon.Times, "清除搜索", diameter: 26f * scale, enabled: enabled))
+ 			{
+ 				text = string.Empty;
+ 				changed = true;
+diff --git a/RebornMaterial/M3Widgets/M3Widgets.WindowActions.cs b/RebornMaterial/M3Widgets/M3Widgets.WindowActions.cs
+index 232bd1d270e6048fc416dc2c1623f3e28e2acaa4..d02f838e7600a5717f20d075cd5a871d14770910 100644
+--- a/RebornMaterial/M3Widgets/M3Widgets.WindowActions.cs
++++ b/RebornMaterial/M3Widgets/M3Widgets.WindowActions.cs
+@@ -46,12 +46,12 @@ public static partial class M3Widgets
+ 		return shown;
+ 	}
+
+-	public static int WindowActions(string id, Vector2 topRight, ReadOnlySpan<M3WindowAction> actions, out bool closed, Vector4? fill = null, string closeTooltip = "Close")
++	public static int WindowActions(string id, Vector2 topRight, ReadOnlySpan<M3WindowAction> actions, out bool closed, Vector4? fill = null, string closeTooltip = "关闭")
+ 	{
+ 		return DrawWindowActions(id, topRight, actions, null, 0f, out _, out closed, fill, closeTooltip);
+ 	}
+
+-	public static int WindowActions(string id, Vector2 topRight, ReadOnlySpan<M3WindowAction> actions, in M3WindowBrand brand, float minimized, out bool toggled, out bool closed, Vector4? fill = null, string closeTooltip = "Close")
++	public static int WindowActions(string id, Vector2 topRight, ReadOnlySpan<M3WindowAction> actions, in M3WindowBrand brand, float minimized, out bool toggled, out bool closed, Vector4? fill = null, string closeTooltip = "关闭")
+ 	{
+ 		return DrawWindowActions(id, topRight, actions, brand, minimized, out toggled, out closed, fill, closeTooltip);
+ 	}
+@@ -118,7 +118,7 @@ public static partial class M3Widgets
+ 		if (brand is not null)
+ 		{
+ 			ImGui.SetCursorScreenPos(new Vector2(x, y));
+-			toggled = CaretButton("##minimize", -MathF.PI * 0.5f * minimized, minimized < 0.5f ? "Minimize" : "Restore");
++			toggled = CaretButton("##minimize", -MathF.PI * 0.5f * minimized, minimized < 0.5f ? "最小化" : "还原");
+ 			x += buttonSize + gap;
+ 		}
+
+diff --git a/RebornMaterial/M3WindowFold.cs b/RebornMaterial/M3WindowFold.cs
+index b40476870f936b2d445431479362bfd21adc07af..76f07327a6ece02f3e7a131ddd746ccf7d3f3c68 100644
+--- a/RebornMaterial/M3WindowFold.cs
++++ b/RebornMaterial/M3WindowFold.cs
+@@ -192,7 +192,7 @@ public sealed class M3WindowFold
+ 			ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground);
+ 	}
+
+-	public int DrawBar(string id, ReadOnlySpan<M3WindowAction> actions, in M3WindowBrand brand, out bool closed, Vector4? fill = null, string closeTooltip = "Close")
++	public int DrawBar(string id, ReadOnlySpan<M3WindowAction> actions, in M3WindowBrand brand, out bool closed, Vector4? fill = null, string closeTooltip = "关闭")
+ 	{
+ 		if (_pendingMinimize)
+ 		{

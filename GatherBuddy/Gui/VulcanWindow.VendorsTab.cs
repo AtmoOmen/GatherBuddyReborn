@@ -32,9 +32,9 @@ public partial class VulcanWindow
         (VendorCurrencyGroup.Tomestones,       "神典石",       28),
         (VendorCurrencyGroup.BicolorGemstones, "双色宝石", VendorShopResolver.BicolorCurrencyItemId),
         (VendorCurrencyGroup.HuntSeals,        "狩猎",         VendorShopResolver.AlliedSealCurrencyItemId),
-        (VendorCurrencyGroup.Scrips,           "工票",           33913),
-        (VendorCurrencyGroup.MGP,              "MGP",              VendorShopResolver.MgpCurrencyItemId),
-        (VendorCurrencyGroup.PvP,              "PvP",              VendorShopResolver.WolfMarkCurrencyItemId),
+        (VendorCurrencyGroup.Scrips,           "票据",           33913),
+        (VendorCurrencyGroup.MGP,              "金碟币",       VendorShopResolver.MgpCurrencyItemId),
+        (VendorCurrencyGroup.PvP,              "对战",         VendorShopResolver.WolfMarkCurrencyItemId),
         (VendorCurrencyGroup.Other,            "其他",            0),
     ];
 
@@ -835,7 +835,7 @@ public partial class VulcanWindow
             {
                 VendorSortColumn.Currency => GetVendorCurrencyName(row.Entry.CurrencyItemId, row.Entry.CurrencyName),
                 VendorSortColumn.Vendor => option?.Npc.Name ?? row.FallbackVendorName,
-                VendorSortColumn.Location => option?.ZoneName ?? "Unknown",
+                VendorSortColumn.Location => option?.ZoneName ?? "未知",
                 _ => string.Empty,
             };
             keyedRows.Add(new VendorSortKey(row, text, option?.Location == null ? 1 : 0, option?.Location?.TerritoryId == currentTerritory ? 0 : 1, i));
@@ -976,15 +976,15 @@ public partial class VulcanWindow
         }
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(110f));
+        ImGui.TableSetupColumn("物品", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("价格", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(110f));
         if (showAutomationControls)
         {
-            ImGui.TableSetupColumn("Quantity", ImGuiTableColumnFlags.WidthFixed, GetVendorQuantityInputWidth());
+            ImGui.TableSetupColumn("数量", ImGuiTableColumnFlags.WidthFixed, GetVendorQuantityInputWidth());
         }
 
-        ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(180f));
-        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(170f));
+        ImGui.TableSetupColumn("商人", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(180f));
+        ImGui.TableSetupColumn("地点", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(170f));
         ImGui.TableSetupColumn("##flag", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight());
         if (showAutomationControls)
         {

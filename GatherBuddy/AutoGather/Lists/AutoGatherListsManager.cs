@@ -233,7 +233,7 @@ public partial class AutoGatherListsManager : IDisposable
             catch (Exception e)
             {
                 GatherBuddy.Log.Error($"反序列化自动采集清单时出错:\n{e}");
-                Communicator.PrintError($"[GatherBuddy Reborn] Auto gather lists failed to load and have been reset.");
+                Communicator.PrintError($"[GatherBuddy Reborn] 自动采集清单加载失败，已重置。");
             }
         }
 

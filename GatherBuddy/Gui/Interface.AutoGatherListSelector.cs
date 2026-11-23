@@ -192,8 +192,8 @@ public partial class Interface
             using var node = M3Tree.Node($"##list_{leaf.Name}", CheckUnnamed(list.Name), ReferenceEquals(list, _selected), true,
                 list.Enabled ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.Circle,
                 color: list.Enabled ? null : M3Text.ColorOf(M3TextStyle.Faint),
-                tooltip: $"{CheckUnnamed(list.Name)}\n{(list.Enabled ? "Enabled" : "Disabled")}{(list.Fallback ? ", fallback" : string.Empty)}\n"
-                  + $"{list.Items.Count} items\nDouble-click to {(list.Enabled ? "disable" : "enable")} it.",
+                tooltip: $"{CheckUnnamed(list.Name)}\n{(list.Enabled ? "已启用" : "已禁用")}{(list.Fallback ? "，备用清单" : string.Empty)}\n"
+                  + $"共 {list.Items.Count} 项\n双击可{(list.Enabled ? "禁用" : "启用")}此清单。",
                 trailing: list.Items.Count.ToString());
             _rows[leaf] = _row++;
             if (node.Clicked)
@@ -221,7 +221,7 @@ public partial class Interface
 
             _dragged = path;
             ImGui.SetDragDropPayload(TreeDragDropLabel, []);
-            ImGui.TextUnformatted(path is FileSystem<AutoGatherList>.Leaf leaf ? $"Moving {CheckUnnamed(leaf.Value.Name)}" : $"Moving folder {path.Name}");
+            ImGui.TextUnformatted(path is FileSystem<AutoGatherList>.Leaf leaf ? $"正在移动 {CheckUnnamed(leaf.Value.Name)}" : $"正在移动文件夹 {path.Name}");
         }
 
         private static bool IsDropping(string label)
@@ -254,7 +254,7 @@ public partial class Interface
                         var fromAbove = _rows.TryGetValue(moved, out var from) && _rows.TryGetValue(target, out var to) && from < to;
                         if (!ReferenceEquals(moved.Parent, target.Parent) && !Manager.MoveToFolder(moved, target.Parent))
                         {
-                            M3Snackbar.Show($"{target.Parent.FullName()} already holds a list named {moved.Name}.", severity: M3Severity.Error);
+                            M3Snackbar.Show($"文件夹「{target.Parent.FullName()}」中已有名为「{moved.Name}」的清单。", severity: M3Severity.Error);
                             break;
                         }
 
@@ -296,7 +296,7 @@ public partial class Interface
             var s = M3.Scheme;
             var drawList = ImGui.GetWindowDrawList();
             drawList.AddRect(min, min + size, M3.U32(s.Outline, 0.7f), M3.ShapeSmall, ImDrawFlags.None, M3.Scale);
-            var text = "Drop here to move it out of its folder";
+            var text = "拖到这里可移出所在文件夹";
             var textSize = ImGui.CalcTextSize(text);
             drawList.AddText(min + (size - textSize) * 0.5f, M3.U32(s.OnSurfaceVariant), text);
 
@@ -317,7 +317,7 @@ public partial class Interface
 
             if (!Manager.MoveToFolder(path, folder))
             {
-                M3Snackbar.Show($"{(folder.IsRoot ? "The top level" : folder.Name)} already holds something named {path.Name}.", severity: M3Severity.Error);
+                M3Snackbar.Show($"「{(folder.IsRoot ? "顶层" : folder.Name)}」中已存在名为「{path.Name}」的条目。", severity: M3Severity.Error);
             }
         }
 
@@ -350,7 +350,7 @@ public partial class Interface
             if (M3Menu.Item("##duplicate", "复制清单", FontAwesomeIcon.Clone))
             {
                 var clone = list.Clone();
-                clone.Name = $"{list.Name} (Copy)";
+                clone.Name = $"{list.Name} （副本）";
                 Manager.AddList(clone, leaf.Parent);
             }
 
@@ -373,7 +373,7 @@ public partial class Interface
             {
                 var folder = leaf.Parent;
                 Manager.DeleteList(list);
-                M3Snackbar.Show($"Deleted {CheckUnnamed(list.Name)}.", "Undo", () =>
+                M3Snackbar.Show($"已删除清单「{CheckUnnamed(list.Name)}」。", "撤销", () =>
                     Manager.AddList(list, FileSystem.Root.Contains(folder) ? folder : FileSystem.Root), M3Snackbar.LongDuration);
             }
         }
@@ -465,21 +465,21 @@ public partial class Interface
                 _openBaitResult = false;
             }
 
-            DrawNameDialog(NewListDialogId, "New auto-gather list", FontAwesomeIcon.Plus, "Create", name =>
+            DrawNameDialog(NewListDialogId, "新建自动采集清单", FontAwesomeIcon.Plus, "创建", name =>
             {
                 var list = new AutoGatherList { Name = name };
                 Manager.AddList(list, Attached(_dialogFolder));
                 _selected = list;
             });
-            DrawNameDialog(NewFolderDialogId, "New folder", FontAwesomeIcon.FolderPlus, "Create", name => Manager.CreateFolder(name, Attached(_dialogFolder)));
-            DrawNameDialog(RenameFolderDialogId, "Rename folder", FontAwesomeIcon.Pen, "Rename", name =>
+            DrawNameDialog(NewFolderDialogId, "新建文件夹", FontAwesomeIcon.FolderPlus, "创建", name => Manager.CreateFolder(name, Attached(_dialogFolder)));
+            DrawNameDialog(RenameFolderDialogId, "重命名文件夹", FontAwesomeIcon.Pen, "重命名", name =>
             {
                 if (_dialogFolder != null && FileSystem.Root.Contains(_dialogFolder))
                 {
                     Manager.RenameFolder(_dialogFolder, name);
                 }
             });
-            DrawNameDialog(ImportDialogId, "Import from clipboard", FontAwesomeIcon.Paste, "Import", name =>
+            DrawNameDialog(ImportDialogId, "从剪贴板导入", FontAwesomeIcon.Paste, "导入", name =>
             {
                 string clipboard;
                 try
@@ -527,7 +527,7 @@ public partial class Interface
             var submit = name.Length > 0 && ImGui.IsKeyPressed(ImGuiKey.Enter);
             var pressed = M3Dialog.Actions(
             [
-                new M3DialogAction("Cancel"),
+                new M3DialogAction("取消"),
                 new M3DialogAction(confirm, M3ButtonStyle.Filled, icon, name.Length > 0),
             ]);
             if (pressed != 1 && !submit)
@@ -548,8 +548,8 @@ public partial class Interface
         {
             var folder = _dialogFolder;
             var lists = folder?.CountLeaves() ?? 0;
-            using var dialog = M3Dialog.Begin(DeleteFolderDialogId, $"Delete {folder?.Name ?? "folder"}?",
-                lists == 0 ? "The folder is empty." : lists == 1 ? "The list in it is deleted too." : $"The {lists} lists in it are deleted too.",
+            using var dialog = M3Dialog.Begin(DeleteFolderDialogId, $"删除{(folder == null ? "文件夹" : $"文件夹「{folder.Name}」")}？",
+                lists == 0 ? "该文件夹为空。" : $"其中的 {lists} 份清单也会一并删除。",
                 FontAwesomeIcon.Trash, 380f);
             if (!dialog.IsOpen)
             {
@@ -558,8 +558,8 @@ public partial class Interface
 
             if (M3Dialog.Actions(
                 [
-                    new M3DialogAction("Cancel"),
-                    new M3DialogAction("Delete", M3ButtonStyle.Danger, FontAwesomeIcon.Trash),
+                    new M3DialogAction("取消"),
+                    new M3DialogAction("删除", M3ButtonStyle.Danger, FontAwesomeIcon.Trash),
                 ]) == 1
              && folder != null
              && FileSystem.Root.Contains(folder))
@@ -584,7 +584,7 @@ public partial class Interface
                         ? "此自动采集清单中没有直接鱼饵"
                         : VendorShopResolver.IsInitializing
                             ? "商店数据仍在加载"
-                            : "Vendor data is not ready yet.");
+                            : "商店数据尚未加载完成。");
             }
 
             if (!sub.IsOpen)

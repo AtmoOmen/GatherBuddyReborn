@@ -812,27 +812,42 @@ namespace GatherBuddy.AutoGather
             }
         }
 
+        private (ActionType Type, uint Id, long Time)? _lastTravelAction;
+
+        private static unsafe bool CanUseTravelAction(ActionType type, uint id)
+        {
+            var am = ActionManager.Instance();
+            return am != null && !MountTransition && am->GetActionStatus(type, id) == 0;
+        }
+
+        private unsafe bool UseTravelAction(ActionType type, uint id)
+        {
+            // Client state can change between selecting the action and running the queued task.
+            if (!CanUseTravelAction(type, id))
+                return false;
+
+            _lastTravelAction = (type, id, Environment.TickCount64);
+            ActionManager.Instance()->UseAction(type, id, extraParam: type == ActionType.Item ? 65535u : 0u);
+            return true;
+        }
+
+        private bool TryQueueTravelAction(ActionType type, uint id)
+        {
+            if (!CanUseTravelAction(type, id))
+            {
+                return false;
+            }
+
+            EnqueueActionWithDelay(() => UseTravelAction(type, id));
+            return true;
+        }
+
         private bool ActivateGatheringBuffs(bool activateTruth)
         {
-            if (!Player.HasStatus(Actions.Prospect.EffectId) && Player.Level >= Actions.Prospect.MinLevel)
-            {
-                EnqueueActionWithDelay(() => UseAction(Actions.Prospect));
-                return true;
-            }
+            bool TryActivate(Actions.BaseAction buff)
+                => Player.Level >= buff.MinLevel && !Player.HasStatus(buff.EffectId) && TryQueueTravelAction(ActionType.Action, buff.ActionId);
 
-            if (!Player.HasStatus(Actions.Sneak.EffectId) && Player.Level >= Actions.Sneak.MinLevel)
-            {
-                EnqueueActionWithDelay(() => UseAction(Actions.Sneak));
-                return true;
-            }
-
-            if (activateTruth && !Player.HasStatus(Actions.Truth.EffectId))
-            {
-                EnqueueActionWithDelay(() => UseAction(Actions.Truth));
-                return true;
-            }
-
-            return false;
+            return TryActivate(Actions.Prospect) || TryActivate(Actions.Sneak) || (activateTruth && TryActivate(Actions.Truth));
         }
 
         private void QueueStartFishingTasks()

@@ -554,7 +554,13 @@ public static class RaphaelAssessmentService
             request.Specialist,
             false);
 
-        craft = GameStateBuilder.BuildCraftState(CraftingStateBuilder.BuildRecipeInfo(recipe), stats);
+        if (!CraftingStateBuilder.TryBuildRecipeInfo(recipe, stats.Level, out var recipeInfo))
+        {
+            craft = null!;
+            return false;
+        }
+
+        craft = GameStateBuilder.BuildCraftState(recipeInfo, stats);
         craft.InitialQuality = request.InitialQuality;
         return true;
     }

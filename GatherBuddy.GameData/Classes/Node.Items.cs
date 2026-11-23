@@ -32,7 +32,7 @@ public partial class GatheringNode
         }
 
         item.GatheringType = item.GatheringType.Add(GatheringType);
-        item.ExpansionIdx = Math.Min(item.ExpansionIdx, Territory.Data.ExVersion.RowId);
+        item.ExpansionIdx = System.Math.Min(item.ExpansionIdx, Territory.Data.ExVersion.RowId);
     }
 
     public bool AddItem(Gatherable item)

@@ -47,7 +47,7 @@ public partial class Interface
     {
         var spots = Locations.Values;
         var newIdx = _selectedFishingSpotIdx;
-        if (M3Widgets.Combo("##FishingSpotSelector", ref newIdx, spots.Length, i => CosmicHandler(spots[i]), 420f * M3.Scale, "Choose a fishing spot",
+        if (M3Widgets.Combo("##FishingSpotSelector", ref newIdx, spots.Length, i => CosmicHandler(spots[i]), 420f * M3.Scale, "选择钓场",
                 true)
          && newIdx != _selectedFishingSpotIdx)
         {
@@ -61,8 +61,8 @@ public partial class Interface
     private void DrawCopier()
     {
         var copyStatsString = GenerateSpotReport();
-        M3Widgets.CopyButton("##copyStats", copyStatsString, "Copy report", "Copied", tooltip: copyStatsString,
-            snackbar: $"Copied the fish stats for {CosmicHandler(_selectedSpot)}.");
+        M3Widgets.CopyButton("##copyStats", copyStatsString, "复制统计报告", "已复制", tooltip: copyStatsString,
+            snackbar: $"已复制「{CosmicHandler(_selectedSpot)}」的钓鱼统计。");
     }
 
     private string GenerateSpotReport()
@@ -376,10 +376,10 @@ public partial class Interface
     private void DrawFishingSpotInfo()
     {
         using var card = M3Card.Begin("##spotInfo", CosmicHandler(_selectedSpot), FontAwesomeIcon.MapMarkerAlt, M3.AccentFor(0));
-        M3Widgets.RowValue("Territory", _selectedSpot.Territory.Name);
-        M3Widgets.RowValue("Coordinates", $"{_selectedSpot.IntegralXCoord}, {_selectedSpot.IntegralYCoord}");
-        M3Widgets.RowValue("Closest aetheryte", _selectedSpot.ClosestAetheryte?.Name ?? "None nearby");
-        M3Widgets.SectionLabel("Fish here");
+        M3Widgets.RowValue("区域", _selectedSpot.Territory.Name);
+        M3Widgets.RowValue("坐标", $"{_selectedSpot.IntegralXCoord}, {_selectedSpot.IntegralYCoord}");
+        M3Widgets.RowValue("最近的以太之光", _selectedSpot.ClosestAetheryte?.Name ?? "附近没有以太之光");
+        M3Widgets.SectionLabel("此处可捕获的鱼");
         if (_selectedSpot.Items.Length != 0)
         {
             foreach (var fish in _selectedSpot.Items)
@@ -423,7 +423,7 @@ public partial class Interface
             foreach (var (baitId, entries) in baitGroups)
             {
                 var bait = GatherBuddy.GameData.Bait.GetValueOrDefault(baitId);
-                M3Text.Bullet($"Bait: {bait?.Name ?? "Unknown"}");
+                M3Text.Bullet($"鱼饵 {bait?.Name ?? "未知"}");
 
                 DrawAmountCaught(entries.Count);
                 DrawCatchPercentage(entries, CountRecords(recordsAtSpot, r => r.BaitId == baitId));
@@ -605,13 +605,13 @@ public partial class Interface
 
     private static void DrawAmountCaught(int count)
     {
-        M3Text.Draw(count == 1 ? "Caught once" : $"Caught {count} times", M3TextStyle.Muted);
+        M3Text.Draw(count == 1 ? "捕获 1 次" : $"捕获 {count} 次", M3TextStyle.Muted);
     }
 
     private static void DrawCatchPercentage(List<FishRecord> entries, int baitTotal)
     {
         var percentage = entries.Count / (float)baitTotal * 100f;
-        M3Text.Draw($"{percentage:F2}% of the catches with this bait", M3TextStyle.Muted);
+        M3Text.Draw($"{percentage:F2}% 的捕获记录使用了这种鱼饵", M3TextStyle.Muted);
     }
 
     private static void DrawBiteTimeHistogram(List<FishRecord> entries)

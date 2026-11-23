@@ -833,7 +833,7 @@ public partial class Interface
                     }
                 }
 
-                Communicator.PrintClipboardMessage("列表 ", $"{ids.Count}/{logFishCount} caught fish ");
+                Communicator.PrintClipboardMessage("列表 ", $"已捕获的鱼 {ids.Count}/{logFishCount} ");
                 ImGui.SetClipboardText(JsonConvert.SerializeObject(ids, Formatting.Indented));
             }
             catch (Exception e)

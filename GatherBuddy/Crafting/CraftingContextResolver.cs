@@ -187,13 +187,13 @@ public static class CraftingContextResolver
 
         var requiredJob = (uint)(recipe.CraftType.RowId + 8);
         var stats = ResolvePlayerStats(requiredJob, executionContext.ConsumableSettings, statsSource, intent);
-        if (stats == null)
+        if (stats == null || !CraftingStateBuilder.TryBuildRecipeInfo(recipe, stats.Level, out var recipeInfo))
         {
             return false;
         }
 
-        var initialQuality = executionContext.QualityPolicy.CalculateGuaranteedInitialQuality(recipe);
-        var craft = GameStateBuilder.BuildCraftState(CraftingStateBuilder.BuildRecipeInfo(recipe), stats) with { InitialQuality = initialQuality };
+        var initialQuality = executionContext.QualityPolicy.CalculateGuaranteedInitialQuality(recipe, stats.Level);
+        var craft = GameStateBuilder.BuildCraftState(recipeInfo, stats) with { InitialQuality = initialQuality };
         var validationContext = intent == CraftingSimulationIntent.ValidatorPreview
             ? BuildValidatorPreviewContext(executionContext.ConsumableSettings)
             : null;

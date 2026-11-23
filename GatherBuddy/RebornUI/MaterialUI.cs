@@ -18,13 +18,13 @@ internal static class MaterialUI
 
     public static readonly M3ColorChoice[] AccentPresets =
     [
-        new("Green (default)", DefaultAccent),
-        new("Ocean", M3ColorMath.FromRgb(0x2F6DB5)),
-        new("Teal", M3ColorMath.FromRgb(0x00897B)),
-        new("Forest", M3ColorMath.FromRgb(0x3E8E41)),
-        new("Amber", M3ColorMath.FromRgb(0xC98A00)),
-        new("Violet", M3ColorMath.FromRgb(0x7E57C2)),
-        new("Crimson", M3.DefaultSeed),
+        new("绿色（默认）", DefaultAccent),
+        new("海蓝色", M3ColorMath.FromRgb(0x2F6DB5)),
+        new("蓝绿色", M3ColorMath.FromRgb(0x00897B)),
+        new("森林绿", M3ColorMath.FromRgb(0x3E8E41)),
+        new("琥珀色", M3ColorMath.FromRgb(0xC98A00)),
+        new("紫罗兰色", M3ColorMath.FromRgb(0x7E57C2)),
+        new("绯红色", M3.DefaultSeed),
     ];
 
     private static bool _frameFailed;

@@ -359,7 +359,7 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         entry.Enabled = enabled;
         GatherBuddy.Config.Save();
-        _statusText = $"{(enabled ? "Enabled" : "Disabled")} {entry.ItemName} in '{list.Name}'.";
+        _statusText = $"已在清单「{list.Name}」中{(enabled ? "启用" : "禁用")}「{entry.ItemName}」。";
         return true;
     }
 
@@ -735,24 +735,24 @@ public sealed partial class VendorBuyListManager : IDisposable
         {
             _statusText = $"商人列表 '{list.Name}' 已完成";
             GatherBuddy.Log.Information($"[VendorBuyListManager] Vendor list '{list.Name}' complete.");
-            Communicator.Print($"[GatherBuddyReborn] Vendor list '{list.Name}' complete.");
+            Communicator.Print($"[GatherBuddyReborn] 商店购买清单「{list.Name}」已完成。");
             return;
         }
         var resultParts = new List<string>();
         if (partiallyFulfilledCount > 0)
         {
-            resultParts.Add($"{partiallyFulfilledCount} partially fulfilled entr{(partiallyFulfilledCount == 1 ? "y" : "ies")}");
+            resultParts.Add($"{partiallyFulfilledCount} 项仅完成部分购买");
         }
 
         if (skippedCount > 0)
         {
-            resultParts.Add($"{skippedCount} skipped entr{(skippedCount == 1 ? "y" : "ies")}");
+            resultParts.Add($"跳过 {skippedCount} 项");
         }
 
-        var detail = string.Join(" and ", resultParts);
+        var detail = string.Join("，", resultParts);
         _statusText = $"商人列表 '{list.Name}' 已完成，{detail}";
         GatherBuddy.Log.Warning($"[VendorBuyListManager] Vendor list '{list.Name}' completed with {detail}.");
-        Communicator.PrintError($"[GatherBuddyReborn] Vendor list '{list.Name}' completed with {detail}.");
+        Communicator.PrintError($"[GatherBuddyReborn] 商店购买清单「{list.Name}」已结束。{detail}。");
     }
 
     private static void EnsureListState()
@@ -849,12 +849,12 @@ public sealed partial class VendorBuyListManager : IDisposable
 
         if (!IsBusy)
         {
-            _statusText = $"{entry.ItemName} target set to {targetQuantity:N0} in '{list.Name}'.";
+            _statusText = $"清单「{list.Name}」中「{entry.ItemName}」的目标数量已设为 {targetQuantity:N0}。";
         }
 
         if (announce)
         {
-            Communicator.Print($"[GatherBuddyReborn] Added {entry.ItemName} to '{list.Name}' with target {targetQuantity:N0}.");
+            Communicator.Print($"[GatherBuddyReborn] 已将「{entry.ItemName}」添加到清单「{list.Name}」，目标数量 {targetQuantity:N0}。");
         }
 
         return true;
@@ -905,12 +905,12 @@ public sealed partial class VendorBuyListManager : IDisposable
 
             if (!IsBusy)
             {
-                _statusText = $"{existing.ItemName} target set to {existing.TargetQuantity:N0} in '{list.Name}'.";
+                _statusText = $"清单「{list.Name}」中「{existing.ItemName}」的目标数量已设为 {existing.TargetQuantity:N0}。";
             }
 
             if (announce)
             {
-                Communicator.Print($"[GatherBuddyReborn] Added {existing.ItemName} to '{list.Name}' with target {existing.TargetQuantity:N0}.");
+                Communicator.Print($"[GatherBuddyReborn] 已在清单「{list.Name}」中将「{existing.ItemName}」的目标数量设为 {existing.TargetQuantity:N0}。");
             }
 
             return true;
@@ -991,19 +991,19 @@ public sealed partial class VendorBuyListManager : IDisposable
         if (!IsBusy)
         {
             _statusText = addedTargets.Count == 1
-                ? $"{addedTargets[0].Entry.ItemName} target set to {addedTargets[0].TargetQuantity:N0} in '{list.Name}'."
-                : $"{addedTargets.Count:N0} vendor targets updated in '{list.Name}'.";
+                ? $"清单「{list.Name}」中「{addedTargets[0].Entry.ItemName}」的目标数量已设为 {addedTargets[0].TargetQuantity:N0}。"
+                : $"已更新清单「{list.Name}」中 {addedTargets.Count:N0} 项物品的目标数量。";
         }
 
         if (announce)
         {
             if (addedTargets.Count == 1)
             {
-                Communicator.Print($"[GatherBuddyReborn] Added {addedTargets[0].Entry.ItemName} to '{list.Name}' with target {addedTargets[0].TargetQuantity:N0}.");
+                Communicator.Print($"[GatherBuddyReborn] 已将「{addedTargets[0].Entry.ItemName}」添加到清单「{list.Name}」，目标数量 {addedTargets[0].TargetQuantity:N0}。");
             }
             else
             {
-                Communicator.Print($"[GatherBuddyReborn] Added {addedTargets.Count:N0} items to '{list.Name}'.");
+                Communicator.Print($"[GatherBuddyReborn] 已将 {addedTargets.Count:N0} 项物品添加到清单「{list.Name}」。");
             }
         }
 
@@ -1433,7 +1433,7 @@ public sealed partial class VendorBuyListManager : IDisposable
                 FailCurrentRun(errorMessage);
                 break;
             case PurchaseContextResolutionResult.SkippableFailure:
-                SkipEntryForCurrentRun(entry, $"{errorMessage} Skipping it for the current run.", true);
+                SkipEntryForCurrentRun(entry, $"{errorMessage} 本轮将跳过此物品。", true);
                 break;
         }
     }

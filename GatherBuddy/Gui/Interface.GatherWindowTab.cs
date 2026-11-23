@@ -134,22 +134,22 @@ public partial class Interface
 
         row.Next(ImGui.GetFrameHeight(), M3.Space2);
         M3Widgets.HelpMarker(
-            "If the gather window is not sorted by uptimes, items are added once each, in the order of the enabled presets and then their items.\n"
-          + "Drag presets in the list to move them.\n"
-          + "Drag items in a preset to move them.\n"
-          + "Drag an item onto another preset in the list to move it there.\n"
-          + "In the gather window itself, hold Control and right-click an item to delete it from its preset. Removing the last item of a preset removes the preset too.");
+            "关闭采集窗口的刷新时间排序时，先按启用的预设顺序，再按预设内的物品顺序显示，每种物品只显示一次。\n"
+          + "拖动预设可调整顺序。\n"
+          + "拖动物品可调整它在预设中的顺序。\n"
+          + "将物品拖到其他预设上可移入该预设。\n"
+          + "在采集窗口内按住 Ctrl 并右键点击物品，可将其从所属预设移除。预设的最后一项被移除后，该预设一并删除。");
     }
 
     private void DrawGatherWindowPreset(GatherWindowPreset preset)
     {
-        if (Ui.CommitField("##presetName", "Name", preset.Name, out var newName, SetInputWidth, 64))
+        if (Ui.CommitField("##presetName", "名称", preset.Name, out var newName, SetInputWidth, 64))
         {
             _plugin.GatherWindowManager.ChangeName(preset, newName);
         }
 
         ImGui.SameLine(0, M3.Space2);
-        if (Ui.CommitField("##presetDesc", "Description", preset.Description, out var newDesc, 2 * SetInputWidth, 128))
+        if (Ui.CommitField("##presetDesc", "说明", preset.Description, out var newDesc, 2 * SetInputWidth, 128))
         {
             _plugin.GatherWindowManager.ChangeDescription(preset, newDesc);
         }
@@ -164,7 +164,7 @@ public partial class Interface
 
         M3Tooltip.Hovered("在采集窗口显示此预设的物品。");
         ImGui.SameLine(0, M3.Space2);
-        Ui.RowText(enabled ? "Enabled" : "Disabled", M3TextField.Height, M3TextStyle.Muted);
+        Ui.RowText(enabled ? "已启用" : "已禁用", M3TextField.Height, M3TextStyle.Muted);
 
         ImGui.Dummy(new Vector2(0, M3.Space2));
         M3Widgets.SectionLabel($"物品（{preset.Items.Count}）");

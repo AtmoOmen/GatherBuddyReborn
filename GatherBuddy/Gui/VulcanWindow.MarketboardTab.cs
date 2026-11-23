@@ -48,7 +48,7 @@ public partial class VulcanWindow
         }
 
         if (M3Widgets.Button("##mbRefreshAll", "全部刷新", M3ButtonStyle.Tonal, FontAwesomeIcon.Sync, enabled: _mbHistorySnapshot.Count > 0,
-                tooltip: "Look up the prices of every item in the history again."))
+                tooltip: "重新查询搜索记录中所有物品的价格。"))
         {
             svc.RefreshAll();
         }
@@ -156,8 +156,8 @@ public partial class VulcanWindow
             var (status, statusColor) = svc.IsPending(itemId, dcScope)
                 ? ("...", M3.Scheme.Warning)
                 : svc.HasError(itemId, dcScope) || data == null
-                    ? ("N/A", M3Text.ColorOf(M3TextStyle.Faint))
-                    : ($"{data.MinPrice:N0}g", M3.Scheme.Success);
+                    ? ("暂无数据", M3Text.ColorOf(M3TextStyle.Faint))
+                    : ($"{data.MinPrice:N0} 金币", M3.Scheme.Success);
 
             if (Ui.IconListRow($"##mb_{itemId}", svc.GetItemIcon(itemId), name, _mbSelectedItemId == itemId, iconSize, status, statusColor))
             {
@@ -222,8 +222,8 @@ public partial class VulcanWindow
         var scopeIndex = _mbDetailScopeIndex;
         var row = new Ui.Row(M3Widgets.ComboHeight);
         if (M3Widgets.Combo("##mbdetailscope", ref scopeIndex, _mbScopeOptions.Count,
-                i => i < _mbScopeIsDc.Count && _mbScopeIsDc[i] ? $"Data center: {_mbScopeOptions[i]}" : _mbScopeOptions[i], VulcanUiScaling.Scaled(220f),
-                (isDcScope ? "Data center: " : string.Empty) + scope)
+                i => i < _mbScopeIsDc.Count && _mbScopeIsDc[i] ? $"数据中心 {_mbScopeOptions[i]}" : _mbScopeOptions[i], VulcanUiScaling.Scaled(220f),
+                (isDcScope ? "数据中心 " : string.Empty) + scope)
          && scopeIndex != _mbDetailScopeIndex)
         {
             _mbDetailScopeIndex = scopeIndex;
@@ -267,10 +267,10 @@ public partial class VulcanWindow
         DrawListingTable(data.Listings, isDcScope);
         var age = DateTime.UtcNow - svc.GetFetchTime(itemId, scope);
         var ageText = age.TotalSeconds < 60 ? "刚刚更新"
-            : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} minutes ago"
-            : $"{(int)age.TotalHours} hours ago";
+            : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} 分钟前"
+            : $"{(int)age.TotalHours} 小时前";
         ImGui.Dummy(new Vector2(0, M3.Space1));
-        M3Text.Draw($"Updated {ageText}", M3TextStyle.Faint);
+        M3Text.Draw($"更新于 {ageText}", M3TextStyle.Faint);
     }
 
     private static void DrawListingTable(List<MarketListing> listings, bool showWorld)
@@ -282,10 +282,10 @@ public partial class VulcanWindow
             (listing.IsHq ? hq : nq).Add(listing);
         }
 
-        DrawListingSection("Normal quality", nq, hq.Count > 0 ? 10 : 20, showWorld, M3.Scheme.OnSurface);
+        DrawListingSection("NQ", nq, hq.Count > 0 ? 10 : 20, showWorld, M3.Scheme.OnSurface);
         if (hq.Count > 0)
         {
-            DrawListingSection("High quality", hq, 10, showWorld, M3.Scheme.Info);
+            DrawListingSection("HQ", hq, 10, showWorld, M3.Scheme.Info);
         }
     }
 
@@ -306,18 +306,18 @@ public partial class VulcanWindow
             return;
         }
 
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(130f));
-        ImGui.TableSetupColumn("Quantity", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(70f));
+        ImGui.TableSetupColumn("价格", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(130f));
+        ImGui.TableSetupColumn("数量", ImGuiTableColumnFlags.WidthFixed, VulcanUiScaling.Scaled(70f));
         if (showWorld)
         {
-            ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthStretch, 1f);
+            ImGui.TableSetupColumn("服务器", ImGuiTableColumnFlags.WidthStretch, 1f);
         }
 
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
         ImGui.TableNextColumn();
         M3Table.Header("价格", center: false);
         ImGui.TableNextColumn();
-        M3Table.Header("Quantity", center: false);
+        M3Table.Header("数量", center: false);
         if (showWorld)
         {
             ImGui.TableNextColumn();

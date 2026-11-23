@@ -516,7 +516,7 @@ public partial class VulcanWindow
                 ImGui.TextUnformatted(recipe.Name);
             }
 
-            M3Text.Draw($"{recipe.JobAbbreviation} · {recipe.Level} 级 · 产量 {r.AmountResult} · 配方 {r.RowId}", M3TextStyle.Muted);
+            M3Text.Draw($"{recipe.JobName} · {recipe.Level} 级 · 产量 {r.AmountResult} · 配方 {r.RowId}", M3TextStyle.Muted);
             var flow = new M3Flow(M3.Space1);
             DrawRecipeTag(ref flow, r.SecretRecipeBook.RowId > 0, "秘籍", M3.Scheme.Tertiary);
             DrawRecipeTag(ref flow, r.ItemResult.Value.AlwaysCollectable, "收藏品", M3.Scheme.Info);
@@ -553,7 +553,7 @@ public partial class VulcanWindow
             M3Widgets.RowValue("耐久", $"{(int)(lt.Durability * r.DurabilityFactor / 100)}");
             M3Widgets.RowValue("最高品质", $"{(int)(lt.Quality * r.QualityFactor / 100)}");
             M3Widgets.RowValue("可制作数量", craftable.ToString(), color: craftable > 0 ? M3.Scheme.Success : M3.Scheme.Error);
-            M3Widgets.RowValue("背包库存", resultHq > 0 ? $"{resultNq} + {resultHq} HQ" : $"{resultNq}");
+            M3Widgets.RowValue("背包库存", resultHq > 0 ? $"{resultNq} NQ · {resultHq} HQ" : $"{resultNq}");
         }
 
         var itemSheet = Dalamud.GameData.GetExcelSheet<Item>();
@@ -713,9 +713,11 @@ public partial class VulcanWindow
             _ => M3.Scheme.Outline,
         };
 
+    private const float IngredientColumnWidth = 44f;
+
     private static void DrawIngredientSectionHeader(string title, bool showRetainer)
     {
-        var colWidth = VulcanUiScaling.Scaled(44f);
+        var colWidth = VulcanUiScaling.Scaled(IngredientColumnWidth);
         var currentX = ImGui.GetCursorPosX();
         var valueAreaStart = GetIngredientValueAreaStart(currentX, ImGui.GetContentRegionMax().X, showRetainer);
         using (ImRaii.PushFont(M3.TitleMedium))
@@ -738,7 +740,7 @@ public partial class VulcanWindow
             Column("HQ", 1);
             if (showRetainer)
             {
-                Column("Ret", 2);
+                Column("雇员", 2);
             }
         }
 
@@ -749,7 +751,7 @@ public partial class VulcanWindow
     private static void DrawIngredientRow(uint itemId, int needed, Item item, bool showRetainer)
     {
         var s = M3.Scheme;
-        var colWidth = VulcanUiScaling.Scaled(44f);
+        var colWidth = VulcanUiScaling.Scaled(IngredientColumnWidth);
         var countWidth = VulcanUiScaling.Scaled(36f);
         var iconSize = VulcanUiScaling.Scaled(24f);
         var currentX = ImGui.GetCursorPosX();
@@ -796,7 +798,7 @@ public partial class VulcanWindow
 
     private static float GetIngredientValueAreaStart(float currentX, float contentMaxX, bool showRetainer)
     {
-        var colWidth = VulcanUiScaling.Scaled(44f);
+        var colWidth = VulcanUiScaling.Scaled(IngredientColumnWidth);
         var countWidth = VulcanUiScaling.Scaled(36f);
         var iconSize = VulcanUiScaling.Scaled(24f);
         var desiredStart = contentMaxX - colWidth * (showRetainer ? 3 : 2);

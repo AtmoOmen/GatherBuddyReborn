@@ -13,7 +13,7 @@ namespace GatherBuddy.Gui;
 public partial class VulcanWindow
 {
     internal static RebornUI.HostedPanelWindow CreateTeamCraftImportWindow()
-        => new("GatherBuddyTeamCraftImport", "TeamCraft Import", new Vector2(540f, 500f), new Vector2(420f, 400f), bodyScrolls: false);
+        => new("GatherBuddyTeamCraftImport", "导入 Teamcraft 清单", new Vector2(540f, 500f), new Vector2(420f, 400f), bodyScrolls: false);
 
     private void OpenTeamCraftImport()
     {
@@ -23,7 +23,7 @@ public partial class VulcanWindow
 
     private void DrawTeamCraftImport()
     {
-        M3Text.Draw("Open your list on TeamCraft, copy the 'Final Items' section with 'Copy as Text', and paste it below. Precrafts are added automatically.",
+        M3Text.Draw("在 Teamcraft 中打开清单，将成品部分用「Copy as Text」（复制为文本）复制并粘贴到下方。GBR 会自动加入半成品。",
             M3TextStyle.Muted, true);
         ImGui.Dummy(new Vector2(0f, M3.Space1));
         var footerHeight = M3Widgets.ButtonHeight + M3.Space3 + ImGui.GetStyle().ItemSpacing.Y;
@@ -55,12 +55,12 @@ public partial class VulcanWindow
 
                 ResetTeamCraftImportState();
                 OpenToCraftingLists();
-                M3Snackbar.Show($"Imported {importedList.Name} from TeamCraft.", severity: M3Severity.Success);
+                M3Snackbar.Show($"已从 Teamcraft 导入清单「{importedList.Name}」。", severity: M3Severity.Success);
                 GatherBuddy.Log.Information($"[VulcanWindow] Successfully imported TeamCraft list: {importedList.Name}");
             }
             else
             {
-                _teamCraftImportError = "None of those items have a recipe. Check that you copied the 'Final Items' section.";
+                _teamCraftImportError = "未找到这些物品的配方，请确认复制的是成品部分。";
             }
         }
 
@@ -74,12 +74,12 @@ public partial class VulcanWindow
     private void DrawTeamCraftImportForm()
     {
         var width = ImGui.GetContentRegionAvail().X;
-        M3Text.Draw("List name", M3TextStyle.Label);
+        M3Text.Draw("清单名称", M3TextStyle.Label);
         M3TextField.Draw("##ImportListName", "从 TeamCraft 导入", ref _teamCraftListName, width, 256);
         ImGui.Dummy(new Vector2(0f, M3.Space1));
         M3Widgets.RowSwitch("临时###Ephemeral##teamCraftEphemeral", ref _teamCraftEphemeral, EphemeralSupporting);
 
-        M3Text.Draw("Final items", M3TextStyle.Label);
+        M3Text.Draw("成品", M3TextStyle.Label);
         var errorHeight = _teamCraftImportError != null ? ImGui.GetTextLineHeight() * 2f + 32f * M3.Scale : 0f;
         var finalItemsHeight = Math.Max(VulcanUiScaling.Scaled(150f), ImGui.GetContentRegionAvail().Y - errorHeight);
         if (ImGui.InputTextMultiline("##FinalItems", ref _teamCraftFinalItems, 500000, new Vector2(-1, finalItemsHeight)))

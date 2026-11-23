@@ -34,7 +34,7 @@ public partial class VulcanWindow
     private void DrawMacrosPage()
     {
         var skipUnusable = GatherBuddy.Config.SkipMacroStepIfUnable;
-        if (M3Widgets.LabeledCheckbox("Skip a step that can't be used##skipUnusable", ref skipUnusable,
+        if (M3Widgets.LabeledCheckbox("跳过无法使用的技能##skipUnusable", ref skipUnusable,
                 tooltip: "当前无法执行某一步时，继续执行下一步而不是停止。"))
         {
             GatherBuddy.Config.SkipMacroStepIfUnable = skipUnusable;
@@ -43,7 +43,7 @@ public partial class VulcanWindow
 
         ImGui.SameLine(0, M3.Space3 * 2);
         var fallbackEnabled = GatherBuddy.Config.MacroFallbackEnabled;
-        if (M3Widgets.LabeledCheckbox("Use the solver once a macro runs out##fallbackEnabled", ref fallbackEnabled,
+        if (M3Widgets.LabeledCheckbox("宏执行完后继续由求解器制作##fallbackEnabled", ref fallbackEnabled,
                 tooltip: "宏结束时如果制作尚未完成，由求解器继续。"))
         {
             GatherBuddy.Config.MacroFallbackEnabled = fallbackEnabled;
@@ -94,14 +94,14 @@ public partial class VulcanWindow
         ImGui.Dummy(new Vector2(0, M3.Space2));
 
         if (M3Widgets.Button("##browseTC", "浏览 Teamcraft", M3ButtonStyle.Tonal, FontAwesomeIcon.Globe,
-                tooltip: "Opens Teamcraft community rotations in a Browsingway overlay.\n\n"
-                  + "Setup:\n"
-                  + "1. Install the Browsingway plugin\n"
+                tooltip: "在 Browsingway 覆盖层中打开 Teamcraft 的社区制作流程。\n\n"
+                  + "设置步骤\n"
+                  + "1. 安装 Browsingway 插件\n"
                   + "2. 执行 /bw config\n"
                   + "3. 创建一个新的覆盖层 (+ 按钮)\n"
-                  + "4. Set its Command Name to 'teamcraft'\n"
-                  + "5. Close the config and click this button\n\n"
-                  + "You can also browse https://ffxivteamcraft.com/community-rotations in your web browser."))
+                  + "4. 将该覆盖层的命令名称设为 teamcraft\n"
+                  + "5. 关闭设置后点击此按钮\n\n"
+                  + "也可以在浏览器打开 https://ffxivteamcraft.com/community-rotations。"))
         {
             try
             {
@@ -169,7 +169,7 @@ public partial class VulcanWindow
             FontAwesomeIcon.ExclamationTriangle);
         if (dialog.IsOpen)
         {
-            M3Dialog.Actions([new M3DialogAction("OK", M3ButtonStyle.Filled)]);
+            M3Dialog.Actions([new M3DialogAction("确定", M3ButtonStyle.Filled)]);
         }
     }
 
@@ -299,8 +299,8 @@ public partial class VulcanWindow
             }
 
             M3Tooltip.Hovered(macro.MinCraftsmanship > 0 || macro.MinControl > 0 || macro.MinCP > 0
-                ? $"{macro.Actions.Count} actions, needs at least {macro.MinCraftsmanship}/{macro.MinControl}/{macro.MinCP}"
-                : $"{macro.Actions.Count} actions");
+                ? $"{macro.Actions.Count} 个技能。最低要求为作业精度 {macro.MinCraftsmanship}、加工精度 {macro.MinControl}、制作力 {macro.MinCP}。"
+                : $"{macro.Actions.Count} 个技能");
         }
     }
 
